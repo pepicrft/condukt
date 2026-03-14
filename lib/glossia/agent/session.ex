@@ -4,7 +4,7 @@ defmodule Glossia.Agent.Session do
 
   The session maintains:
   - Conversation history (messages)
-  - Current model and provider
+  - Current model configuration
   - Available tools
   - Streaming state
 
@@ -32,7 +32,6 @@ defmodule Glossia.Agent.Session do
 
   defstruct [
     :agent_module,
-    :provider,
     :model,
     :thinking_level,
     :system_prompt,
@@ -56,13 +55,13 @@ defmodule Glossia.Agent.Session do
   def start_link(agent_module, opts) do
     {gen_opts, agent_opts} = Keyword.split(opts, [:name])
 
+    # Get defaults from module, allow override via opts
     agent_opts =
       agent_opts
       |> Keyword.put_new(:agent_module, agent_module)
-      |> Keyword.put_new(:provider, agent_module.provider())
       |> Keyword.put_new(:model, agent_module.model())
       |> Keyword.put_new(:thinking_level, agent_module.thinking_level())
-      |> Keyword.put_new(:system_prompt, agent_module.system_prompt())
+      |> Keyword.put_new_lazy(:system_prompt, fn -> agent_module.system_prompt() end)
       |> Keyword.put_new(:tools, agent_module.tools())
       |> Keyword.put_new(:cwd, File.cwd!())
 
@@ -153,10 +152,9 @@ defmodule Glossia.Agent.Session do
       {:ok, user_state} ->
         state = %__MODULE__{
           agent_module: agent_module,
-          provider: Keyword.fetch!(opts, :provider),
           model: Keyword.fetch!(opts, :model),
           thinking_level: Keyword.fetch!(opts, :thinking_level),
-          system_prompt: Keyword.fetch!(opts, :system_prompt),
+          system_prompt: Keyword.get(opts, :system_prompt),
           tools: Keyword.fetch!(opts, :tools),
           cwd: Keyword.fetch!(opts, :cwd),
           api_key: opts[:api_key],
@@ -175,12 +173,12 @@ defmodule Glossia.Agent.Session do
     if state.streaming do
       {:reply, {:error, :already_streaming}, state}
     else
-      # Run in a separate process to avoid blocking
       state = %{state | streaming: true, abort_ref: make_ref()}
+      parent = self()
 
       Task.start(fn ->
         result = do_run(state, prompt, opts)
-        GenServer.cast(self(), {:run_complete, from, result})
+        GenServer.cast(parent, {:run_complete, from, result})
       end)
 
       {:noreply, state}
@@ -200,7 +198,6 @@ defmodule Glossia.Agent.Session do
   end
 
   def handle_call(:abort, _from, state) do
-    # Signal abort by updating the ref
     {:reply, :ok, %{state | abort_ref: make_ref(), streaming: false}}
   end
 
@@ -226,15 +223,9 @@ defmodule Glossia.Agent.Session do
       abort_ref = state.abort_ref
 
       Task.start(fn ->
-        do_stream(
-          state,
-          prompt,
-          opts,
-          fn event ->
-            GenServer.cast(parent, {:broadcast_event, event, subscriber_ref})
-          end,
-          abort_ref
-        )
+        do_stream(state, prompt, opts, fn event ->
+          GenServer.cast(parent, {:broadcast_event, event, subscriber_ref})
+        end, abort_ref)
 
         GenServer.cast(parent, {:stream_complete, subscriber_ref})
       end)
@@ -275,7 +266,7 @@ defmodule Glossia.Agent.Session do
     messages = state.messages ++ [user_message]
 
     Telemetry.span(:agent, %{agent: state.agent_module}, fn ->
-      case agent_loop(state, messages, max_turns, 0, nil) do
+      case agent_loop(state, messages, max_turns, 0) do
         {:ok, final_messages, response} ->
           {{:ok, response}, final_messages}
 
@@ -301,34 +292,28 @@ defmodule Glossia.Agent.Session do
     end)
   end
 
-  defp agent_loop(_state, messages, max_turns, turn, _last_response) when turn >= max_turns do
+  defp agent_loop(_state, messages, max_turns, turn) when turn >= max_turns do
     response = extract_text_response(messages)
     {:ok, messages, response}
   end
 
-  defp agent_loop(state, messages, max_turns, turn, _last_response) do
-    tool_specs = build_tool_specs(state.tools)
+  defp agent_loop(state, messages, max_turns, turn) do
+    context = build_context(state, messages)
+    tools = build_req_llm_tools(state.tools, state)
+    llm_opts = build_llm_opts(state, tools)
 
-    provider_opts = [
-      api_key: state.api_key,
-      model: state.model,
-      thinking_level: state.thinking_level,
-      system: state.system_prompt
-    ]
-
-    case state.provider.chat(messages, tool_specs, provider_opts) do
-      {:ok, assistant_message} ->
+    case ReqLLM.generate_text(state.model, context, llm_opts) do
+      {:ok, response} ->
+        assistant_message = response_to_message(response)
         messages = messages ++ [assistant_message]
 
         if Message.has_tool_calls?(assistant_message) do
-          # Execute tools and continue loop
           {tool_results, messages} = execute_tool_calls(state, assistant_message, messages)
           messages = messages ++ tool_results
-          agent_loop(state, messages, max_turns, turn + 1, nil)
+          agent_loop(state, messages, max_turns, turn + 1)
         else
-          # No tool calls, we're done
-          response = Message.text(assistant_message)
-          {:ok, messages, response}
+          response_text = Message.text(assistant_message)
+          {:ok, messages, response_text}
         end
 
       {:error, reason} ->
@@ -342,76 +327,201 @@ defmodule Glossia.Agent.Session do
   end
 
   defp streaming_loop(state, messages, max_turns, turn, emit, abort_ref) do
-    # Check for abort
     if state.abort_ref != abort_ref do
       {:error, :aborted}
     else
       emit.(:turn_start)
 
-      tool_specs = build_tool_specs(state.tools)
+      context = build_context(state, messages)
+      tools = build_req_llm_tools(state.tools, state)
+      llm_opts = build_llm_opts(state, tools)
 
-      provider_opts = [
-        api_key: state.api_key,
-        model: state.model,
-        thinking_level: state.thinking_level,
-        system: state.system_prompt
-      ]
+      case ReqLLM.stream_text(state.model, context, llm_opts) do
+        {:ok, stream_response} ->
+          # Stream tokens and collect the full response
+          stream_response
+          |> ReqLLM.StreamResponse.tokens()
+          |> Stream.each(fn token -> emit.({:text, token}) end)
+          |> Stream.run()
 
-      # Stream the response, collecting events
-      assistant_message =
-        state.provider.stream(messages, tool_specs, provider_opts)
-        |> Enum.reduce(nil, fn event, _acc ->
-          emit.(event)
+          # Get the full text after streaming
+          text = ReqLLM.StreamResponse.text(stream_response)
 
-          case event do
-            {:message_complete, msg} -> msg
-            _ -> nil
+          # Check if there are tool calls in the response
+          case ReqLLM.StreamResponse.to_response(stream_response) do
+            {:ok, response} ->
+              assistant_message = response_to_message(response)
+              emit.(:turn_end)
+
+              if Message.has_tool_calls?(assistant_message) do
+                messages = messages ++ [assistant_message]
+                {tool_results, messages} = execute_tool_calls_streaming(state, assistant_message, messages, emit)
+                messages = messages ++ tool_results
+                streaming_loop(state, messages, max_turns, turn + 1, emit, abort_ref)
+              else
+                messages = messages ++ [assistant_message]
+                {:ok, messages, text}
+              end
+
+            {:error, reason} ->
+              emit.({:error, reason})
+              {:error, reason}
           end
-        end)
 
-      emit.(:turn_end)
-
-      if assistant_message && Message.has_tool_calls?(assistant_message) do
-        messages = messages ++ [assistant_message]
-
-        # Check for steering messages
-        case check_steering(state) do
-          [] ->
-            # Execute tools
-            {tool_results, messages} = execute_tool_calls_streaming(state, assistant_message, messages, emit)
-            messages = messages ++ tool_results
-            streaming_loop(state, messages, max_turns, turn + 1, emit, abort_ref)
-
-          steering ->
-            # Skip remaining tools, inject steering
-            messages = messages ++ steering
-            streaming_loop(state, messages, max_turns, turn + 1, emit, abort_ref)
-        end
-      else
-        messages = if assistant_message, do: messages ++ [assistant_message], else: messages
-
-        # Check for follow-up messages
-        case check_follow_up(state) do
-          [] ->
-            response = extract_text_response(messages)
-            {:ok, messages, response}
-
-          follow_ups ->
-            messages = messages ++ follow_ups
-            streaming_loop(state, messages, max_turns, turn + 1, emit, abort_ref)
-        end
+        {:error, reason} ->
+          emit.({:error, reason})
+          {:error, reason}
       end
     end
   end
 
-  defp check_steering(_state) do
-    # TODO: Get steering messages from state atomically
-    []
+  defp build_context(state, messages) do
+    context_messages =
+      messages
+      |> Enum.map(&message_to_req_llm/1)
+      |> List.flatten()
+
+    if state.system_prompt do
+      ReqLLM.Context.new([
+        ReqLLM.Context.system(state.system_prompt) | context_messages
+      ])
+    else
+      ReqLLM.Context.new(context_messages)
+    end
   end
 
-  defp check_follow_up(_state) do
-    # TODO: Get follow-up messages from state atomically
-    []
+  defp message_to_req_llm(%Message{role: :user, content: content, images: []}) do
+    ReqLLM.Context.user(content)
+  end
+
+  defp message_to_req_llm(%Message{role: :user, content: content, images: images}) when images != [] do
+    # Include images as content parts
+    image_parts = Enum.map(images, fn img ->
+      {:image, "data:#{img.media_type};base64,#{img.data}"}
+    end)
+
+    ReqLLM.Context.user([{:text, content} | image_parts])
+  end
+
+  defp message_to_req_llm(%Message{role: :assistant, content: content}) when is_binary(content) do
+    ReqLLM.Context.assistant(content)
+  end
+
+  defp message_to_req_llm(%Message{role: :assistant, content: blocks}) when is_list(blocks) do
+    # Extract text content for the assistant message
+    text =
+      blocks
+      |> Enum.filter(&match?({:text, _}, &1))
+      |> Enum.map_join("", fn {:text, t} -> t end)
+
+    # Tool calls are handled separately by ReqLLM
+    ReqLLM.Context.assistant(text)
+  end
+
+  defp message_to_req_llm(%Message{role: :tool_result, tool_call_id: id, content: content}) do
+    result = if is_binary(content), do: content, else: JSON.encode!(content)
+    ReqLLM.Context.tool_result(id, result)
+  end
+
+  defp build_req_llm_tools(tools, state) do
+    Enum.map(tools, fn tool_spec ->
+      spec = Tool.to_spec(tool_spec)
+
+      ReqLLM.tool(
+        name: spec.name,
+        description: spec.description,
+        parameter_schema: convert_json_schema_to_nimble(spec.parameters),
+        callback: fn args ->
+          context = %{agent: self(), cwd: state.cwd, opts: []}
+          case Tool.execute(tool_spec, args, context) do
+            {:ok, result} when is_binary(result) -> result
+            {:ok, result} -> JSON.encode!(result)
+            {:error, reason} -> "Error: #{inspect(reason)}"
+          end
+        end
+      )
+    end)
+  end
+
+  defp convert_json_schema_to_nimble(%{properties: props, required: required}) do
+    props
+    |> Enum.map(fn {name, schema} ->
+      name_atom = if is_binary(name), do: String.to_atom(name), else: name
+
+      opts = [
+        type: json_type_to_nimble(schema[:type] || schema["type"]),
+        required: name in (required || []) or to_string(name) in (required || []),
+        doc: schema[:description] || schema["description"] || ""
+      ]
+
+      {name_atom, opts}
+    end)
+  end
+
+  defp convert_json_schema_to_nimble(%{"properties" => props} = schema) do
+    required = schema["required"] || []
+    convert_json_schema_to_nimble(%{properties: props, required: required})
+  end
+
+  defp convert_json_schema_to_nimble(_), do: []
+
+  defp json_type_to_nimble("string"), do: :string
+  defp json_type_to_nimble("number"), do: :float
+  defp json_type_to_nimble("integer"), do: :integer
+  defp json_type_to_nimble("boolean"), do: :boolean
+  defp json_type_to_nimble("array"), do: {:list, :any}
+  defp json_type_to_nimble("object"), do: :map
+  defp json_type_to_nimble(_), do: :string
+
+  defp build_llm_opts(state, tools) do
+    opts = []
+
+    opts = if state.api_key, do: Keyword.put(opts, :api_key, state.api_key), else: opts
+    opts = if tools != [], do: Keyword.put(opts, :tools, tools), else: opts
+
+    # Add thinking level for supported providers
+    opts =
+      case state.thinking_level do
+        :off -> opts
+        level when level in [:minimal, :low, :medium, :high] ->
+          Keyword.put(opts, :provider_options, [extended_thinking: level])
+        _ -> opts
+      end
+
+    opts
+  end
+
+  defp response_to_message(response) do
+    # Extract tool calls if present
+    tool_calls =
+      case response.tool_calls do
+        nil -> []
+        calls ->
+          Enum.map(calls, fn call ->
+            {:tool_call, call.id, call.name, call.arguments}
+          end)
+      end
+
+    # Extract text content
+    text_blocks =
+      case response.content do
+        nil -> []
+        content when is_binary(content) -> [{:text, content}]
+        content when is_list(content) ->
+          Enum.map(content, fn
+            %{type: :text, text: text} -> {:text, text}
+            %{type: "text", text: text} -> {:text, text}
+            other -> {:text, inspect(other)}
+          end)
+      end
+
+    blocks = text_blocks ++ tool_calls
+
+    if blocks == [] do
+      Message.assistant("")
+    else
+      Message.assistant(blocks)
+    end
   end
 
   defp execute_tool_calls(state, assistant_message, messages) do
@@ -454,39 +564,21 @@ defmodule Glossia.Agent.Session do
         Message.tool_result(id, {:error, "Unknown tool: #{name}"})
 
       {module, opts} ->
-        context = %{
-          agent: self(),
-          cwd: state.cwd,
-          opts: opts
-        }
+        context = %{agent: self(), cwd: state.cwd, opts: opts}
 
         case Tool.execute({module, opts}, args, context) do
-          {:ok, result} ->
-            Message.tool_result(id, result)
-
-          {:error, reason} ->
-            Message.tool_result(id, {:error, reason})
+          {:ok, result} -> Message.tool_result(id, result)
+          {:error, reason} -> Message.tool_result(id, {:error, reason})
         end
 
       module ->
-        context = %{
-          agent: self(),
-          cwd: state.cwd,
-          opts: []
-        }
+        context = %{agent: self(), cwd: state.cwd, opts: []}
 
         case Tool.execute(module, args, context) do
-          {:ok, result} ->
-            Message.tool_result(id, result)
-
-          {:error, reason} ->
-            Message.tool_result(id, {:error, reason})
+          {:ok, result} -> Message.tool_result(id, result)
+          {:error, reason} -> Message.tool_result(id, {:error, reason})
         end
     end
-  end
-
-  defp build_tool_specs(tools) do
-    Enum.map(tools, &Tool.to_spec/1)
   end
 
   defp build_tool_map(tools) do

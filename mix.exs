@@ -33,8 +33,8 @@ defmodule Glossia.Agent.MixProject do
 
   defp deps do
     [
-      # HTTP client
-      {:req, "~> 0.5"},
+      # LLM client (supports Anthropic, OpenAI, Google, and 15+ more providers)
+      {:req_llm, "~> 1.6"},
 
       # Telemetry
       {:telemetry, "~> 1.0"},
@@ -59,7 +59,6 @@ defmodule Glossia.Agent.MixProject do
           Glossia.Agent.Session,
           Glossia.Agent.Message,
           Glossia.Agent.Tool,
-          Glossia.Agent.Provider,
           Glossia.Agent.Telemetry
         ],
         Tools: [
@@ -68,9 +67,6 @@ defmodule Glossia.Agent.MixProject do
           Glossia.Agent.Tools.Bash,
           Glossia.Agent.Tools.Edit,
           Glossia.Agent.Tools.Write
-        ],
-        Providers: [
-          Glossia.Agent.Providers.Anthropic
         ]
       ]
     ]

@@ -11,14 +11,6 @@ defmodule Glossia.Agent do
         use Glossia.Agent
 
         @impl true
-        def system_prompt do
-          \"\"\"
-          You are a research assistant that helps users find information.
-          Be thorough and cite your sources.
-          \"\"\"
-        end
-
-        @impl true
         def tools do
           [
             Glossia.Agent.Tools.Read,
@@ -29,7 +21,13 @@ defmodule Glossia.Agent do
 
   ## Running an Agent
 
-      {:ok, agent} = MyApp.ResearchAgent.start_link(api_key: "sk-...")
+      {:ok, agent} = MyApp.ResearchAgent.start_link(
+        api_key: "sk-...",
+        system_prompt: \"\"\"
+        You are a research assistant that helps users find information.
+        Be thorough and cite your sources.
+        \"\"\"
+      )
 
       {:ok, response} = Glossia.Agent.run(agent, "What's new in Elixir 1.18?")
 
@@ -92,9 +90,12 @@ defmodule Glossia.Agent do
   # ============================================================================
 
   @doc """
-  Returns the system prompt for this agent.
+  Returns the default system prompt for this agent.
+
+  This can be overridden at `start_link/1` via the `:system_prompt` option.
+  If neither is provided, the agent will have no system prompt.
   """
-  @callback system_prompt() :: String.t()
+  @callback system_prompt() :: String.t() | nil
 
   @doc """
   Returns the list of tools this agent can use.
@@ -103,13 +104,10 @@ defmodule Glossia.Agent do
 
   @doc """
   Returns the model identifier.
+
+  Uses ReqLLM format: "provider:model", e.g., "anthropic:claude-sonnet-4-20250514"
   """
   @callback model() :: String.t()
-
-  @doc """
-  Returns the provider module.
-  """
-  @callback provider() :: module()
 
   @doc """
   Returns the default thinking level.
@@ -126,7 +124,7 @@ defmodule Glossia.Agent do
   """
   @callback handle_event(event(), term()) :: {:noreply, term()} | {:stop, term(), term()}
 
-  @optional_callbacks [tools: 0, model: 0, provider: 0, thinking_level: 0, init: 1, handle_event: 2]
+  @optional_callbacks [system_prompt: 0, tools: 0, model: 0, thinking_level: 0, init: 1, handle_event: 2]
 
   # ============================================================================
   # __using__ Macro
@@ -138,13 +136,13 @@ defmodule Glossia.Agent do
 
       # Default implementations
       @impl Glossia.Agent
+      def system_prompt, do: nil
+
+      @impl Glossia.Agent
       def tools, do: []
 
       @impl Glossia.Agent
-      def model, do: "claude-sonnet-4-20250514"
-
-      @impl Glossia.Agent
-      def provider, do: Glossia.Agent.Providers.Anthropic
+      def model, do: "anthropic:claude-sonnet-4-20250514"
 
       @impl Glossia.Agent
       def thinking_level, do: :medium
@@ -155,7 +153,7 @@ defmodule Glossia.Agent do
       @impl Glossia.Agent
       def handle_event(_event, state), do: {:noreply, state}
 
-      defoverridable tools: 0, model: 0, provider: 0, thinking_level: 0, init: 1, handle_event: 2
+      defoverridable system_prompt: 0, tools: 0, model: 0, thinking_level: 0, init: 1, handle_event: 2
 
       @doc """
       Starts the agent process.
@@ -163,8 +161,8 @@ defmodule Glossia.Agent do
       ## Options
 
       - `:api_key` - API key for the LLM provider
-      - `:provider` - Override the default provider
-      - `:model` - Override the default model
+      - `:model` - Override the default model (format: "provider:model")
+      - `:system_prompt` - System prompt for the agent
       - `:thinking_level` - Override the thinking level
       - `:cwd` - Working directory for tools (default: File.cwd!())
       - `:name` - GenServer registration name

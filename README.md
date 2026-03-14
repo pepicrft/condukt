@@ -1,15 +1,26 @@
-# Glossia.Agent
+# Agent
 
 A framework for building AI agents in Elixir.
 
-Glossia.Agent treats AI agents as first-class OTP processes that can reason, use tools, and orchestrate complex workflows. Built on Erlang/OTP primitives for reliability and concurrency.
+Agent treats AI agents as first-class OTP processes that can reason, use tools, and orchestrate complex workflows. Built on Erlang/OTP primitives for reliability and concurrency.
+
+## Motivation
+
+We built Agent at [Glossia](https://glossia.ai) to power our agentic workflows. We needed a framework that:
+
+- Integrates naturally with OTP supervision trees
+- Supports streaming for responsive user experiences
+- Works with multiple LLM providers without vendor lock-in
+- Provides extensible tooling for domain-specific capabilities
+
+Rather than wrapping JavaScript agent frameworks, we built Agent from scratch using idiomatic Elixir patterns. We're sharing it with the community because we believe Elixir is an excellent fit for building reliable AI agents.
 
 ## Features
 
 - **OTP-native**: Agents are GenServers that integrate naturally with supervision trees
 - **Streaming**: Real-time event streaming for responsive UIs
 - **Tool System**: Extensible tools for file operations, shell commands, and more
-- **Multi-Provider**: Support for Anthropic Claude (more providers coming)
+- **Multi-Provider**: 18+ LLM providers via [ReqLLM](https://github.com/agentjido/req_llm) (Anthropic, OpenAI, Google, etc.)
 - **Telemetry**: Built-in observability with `:telemetry` events
 - **Composable**: Agents can delegate to other agents for complex workflows
 
@@ -20,7 +31,7 @@ Add `glossia_agent` to your dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:glossia_agent, "~> 0.1.0"}
+    {:glossia_agent, github: "glossia/agent"}
   ]
 end
 ```
@@ -34,15 +45,6 @@ defmodule MyApp.CodingAgent do
   use Glossia.Agent
 
   @impl true
-  def system_prompt do
-    """
-    You are an expert software engineer.
-    Write clean, well-documented code.
-    Always run tests after making changes.
-    """
-  end
-
-  @impl true
   def tools do
     Glossia.Agent.Tools.coding_tools()
   end
@@ -52,8 +54,15 @@ end
 ### 2. Start and Use the Agent
 
 ```elixir
-# Start the agent
-{:ok, agent} = MyApp.CodingAgent.start_link(api_key: System.get_env("ANTHROPIC_API_KEY"))
+# Start the agent with a system prompt
+{:ok, agent} = MyApp.CodingAgent.start_link(
+  api_key: System.get_env("ANTHROPIC_API_KEY"),
+  system_prompt: """
+  You are an expert software engineer.
+  Write clean, well-documented code.
+  Always run tests after making changes.
+  """
+)
 
 # Run a prompt
 {:ok, response} = Glossia.Agent.run(agent, "Create a GenServer that manages a counter")
@@ -78,7 +87,9 @@ defmodule MyApp.Application do
 
   def start(_type, _args) do
     children = [
-      {MyApp.CodingAgent, api_key: System.get_env("ANTHROPIC_API_KEY")}
+      {MyApp.CodingAgent,
+        api_key: System.get_env("ANTHROPIC_API_KEY"),
+        system_prompt: "You are a helpful coding assistant."}
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one)
@@ -90,30 +101,43 @@ end
 
 ### API Keys
 
-Set your API key via environment variable, application config, or option:
+Set your API key via environment variable or option:
 
 ```elixir
-# Environment variable (recommended)
+# Environment variable (recommended) - ReqLLM auto-discovers these
 export ANTHROPIC_API_KEY="sk-ant-..."
-
-# Application config
-config :glossia_agent, :anthropic_api_key, "sk-ant-..."
+export OPENAI_API_KEY="sk-..."
 
 # Per-agent option
-MyApp.Agent.start_link(api_key: "sk-ant-...")
+MyApp.CodingAgent.start_link(api_key: "sk-ant-...")
 ```
 
 ### Agent Options
 
 ```elixir
-MyApp.Agent.start_link(
-  api_key: "sk-ant-...",           # API key
-  model: "claude-sonnet-4-20250514", # Model to use
-  thinking_level: :medium,           # :off, :minimal, :low, :medium, :high
-  cwd: "/path/to/project",           # Working directory for tools
-  name: MyApp.Agent                  # GenServer name
+MyApp.CodingAgent.start_link(
+  api_key: "sk-ant-...",                        # API key (optional if env var set)
+  model: "anthropic:claude-sonnet-4-20250514",  # Model to use (provider:model format)
+  system_prompt: "You are helpful.",            # System prompt
+  thinking_level: :medium,                      # :off, :minimal, :low, :medium, :high
+  cwd: "/path/to/project",                      # Working directory for tools
+  name: MyApp.CodingAgent                       # GenServer name
 )
 ```
+
+### Supported Providers
+
+Thanks to [ReqLLM](https://github.com/agentjido/req_llm), Agent supports 18+ providers:
+
+| Provider | Model Format |
+|----------|-------------|
+| Anthropic | `anthropic:claude-sonnet-4-20250514` |
+| OpenAI | `openai:gpt-4o` |
+| Google Gemini | `google:gemini-2.0-flash` |
+| Groq | `groq:llama-3.3-70b-versatile` |
+| OpenRouter | `openrouter:anthropic/claude-3.5-sonnet` |
+| xAI | `xai:grok-3` |
+| And 12+ more... | See [ReqLLM docs](https://hexdocs.pm/req_llm) |
 
 ## Built-in Tools
 
@@ -180,9 +204,6 @@ defmodule MyApp.LoggingAgent do
   use Glossia.Agent
 
   @impl true
-  def system_prompt, do: "You are helpful."
-
-  @impl true
   def handle_event({:tool_call, name, _id, _args}, state) do
     Logger.info("Agent calling tool: #{name}")
     {:noreply, state}
@@ -201,7 +222,7 @@ end
 
 ## Telemetry
 
-Glossia.Agent emits telemetry events for observability:
+Agent emits telemetry events for observability:
 
 ```elixir
 :telemetry.attach_many(
@@ -248,15 +269,6 @@ Agents can delegate to other agents:
 ```elixir
 defmodule MyApp.Orchestrator do
   use Glossia.Agent
-
-  @impl true
-  def system_prompt do
-    """
-    You coordinate between specialized agents.
-    Use the research agent for finding information.
-    Use the writer agent for creating content.
-    """
-  end
 
   @impl true
   def tools do
