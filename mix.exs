@@ -36,6 +36,9 @@ defmodule Glossia.Agent.MixProject do
       # LLM client (supports Anthropic, OpenAI, Google, and 15+ more providers)
       {:req_llm, "~> 1.6"},
 
+      # Command execution with child process shutdown propagation
+      {:muontrap, "~> 1.7"},
+
       # Telemetry
       {:telemetry, "~> 1.0"},
 

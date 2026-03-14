@@ -55,9 +55,8 @@ defmodule Glossia.Agent.Tools.Bash do
   @impl true
   def call(%{"command" => command} = args, context) do
     cwd = context[:cwd] || File.cwd!()
-    timeout = (args["timeout"] || div(@default_timeout, 1000)) * 1000
+    timeout = trunc((args["timeout"] || div(@default_timeout, 1000)) * 1000)
 
-    # Use Port for better control and streaming
     case execute_command(command, cwd, timeout) do
       {:ok, output, exit_code} ->
         {truncated_output, was_truncated} = truncate_output(output)
@@ -87,26 +86,18 @@ defmodule Glossia.Agent.Tools.Bash do
   end
 
   defp execute_command(command, cwd, timeout) do
-    # Use System.cmd with stderr_to_stdout for simplicity
-    task =
-      Task.async(fn ->
-        try do
-          {output, exit_code} =
-            System.cmd("bash", ["-c", command],
-              cd: cwd,
-              stderr_to_stdout: true,
-              env: build_env()
-            )
-
-          {:ok, output, exit_code}
-        rescue
-          e -> {:error, Exception.message(e)}
-        end
-      end)
-
-    case Task.yield(task, timeout) || Task.shutdown(task, :brutal_kill) do
-      {:ok, result} -> result
-      nil -> {:error, :timeout}
+    try do
+      case MuonTrap.cmd("bash", ["-c", command],
+             cd: cwd,
+             stderr_to_stdout: true,
+             env: build_env(),
+             timeout: timeout
+           ) do
+        {_output, :timeout} -> {:error, :timeout}
+        {output, exit_code} -> {:ok, output, exit_code}
+      end
+    rescue
+      e -> {:error, Exception.message(e)}
     end
   end
 
