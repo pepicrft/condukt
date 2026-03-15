@@ -500,10 +500,10 @@ defmodule Helmsman.Session do
     opts =
       case state.thinking_level do
         :off ->
-          opts
+          Keyword.put(opts, :reasoning_effort, :none)
 
         level when level in [:minimal, :low, :medium, :high] ->
-          Keyword.put(opts, :provider_options, extended_thinking: level)
+          Keyword.put(opts, :reasoning_effort, level)
 
         _ ->
           opts
