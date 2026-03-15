@@ -1,4 +1,4 @@
-defmodule Glossia.Agent.Session do
+defmodule Helmsman.Session do
   @moduledoc """
   GenServer that manages an agent session.
 
@@ -23,7 +23,7 @@ defmodule Glossia.Agent.Session do
 
   use GenServer
 
-  alias Glossia.Agent.{Message, Telemetry, Tool}
+  alias Helmsman.{Message, Telemetry, Tool}
 
   require Logger
 
@@ -73,7 +73,7 @@ defmodule Glossia.Agent.Session do
   defp put_configured_opt(opts, config, key, default_fun \\ fn -> nil end) do
     Keyword.put_new_lazy(opts, key, fn ->
       Keyword.get_lazy(config, key, fn ->
-        Application.get_env(:agent, key, default_fun.())
+        Application.get_env(:helmsman, key, default_fun.())
       end)
     end)
   end

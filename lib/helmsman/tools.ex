@@ -1,6 +1,6 @@
-defmodule Glossia.Agent.Tools do
+defmodule Helmsman.Tools do
   @moduledoc """
-  Built-in tools for Glossia.Agent.
+  Built-in tools for Helmsman.
 
   ## Default Tool Sets
 
@@ -9,19 +9,19 @@ defmodule Glossia.Agent.Tools do
 
   ## Individual Tools
 
-  - `Glossia.Agent.Tools.Read` - Read file contents
-  - `Glossia.Agent.Tools.Bash` - Execute bash commands
-  - `Glossia.Agent.Tools.Edit` - Surgical file edits
-  - `Glossia.Agent.Tools.Write` - Write files
+  - `Helmsman.Tools.Read` - Read file contents
+  - `Helmsman.Tools.Bash` - Execute bash commands
+  - `Helmsman.Tools.Edit` - Surgical file edits
+  - `Helmsman.Tools.Write` - Write files
 
   ## Usage
 
       defmodule MyAgent do
-        use Glossia.Agent
+        use Helmsman
 
         @impl true
         def tools do
-          Glossia.Agent.Tools.coding_tools()
+          Helmsman.Tools.coding_tools()
         end
       end
 
@@ -29,13 +29,13 @@ defmodule Glossia.Agent.Tools do
 
       def tools do
         [
-          Glossia.Agent.Tools.Read,
-          Glossia.Agent.Tools.Bash
+          Helmsman.Tools.Read,
+          Helmsman.Tools.Bash
         ]
       end
   """
 
-  alias Glossia.Agent.Tools.{Bash, Edit, Read, Write}
+  alias Helmsman.Tools.{Bash, Edit, Read, Write}
 
   @doc """
   Returns the default coding tools: Read, Bash, Edit, Write.

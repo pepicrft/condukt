@@ -1,37 +1,37 @@
-defmodule Glossia.Agent.Telemetry do
+defmodule Helmsman.Telemetry do
   @moduledoc """
-  Telemetry integration for Glossia.Agent.
+  Telemetry integration for Helmsman.
 
-  Glossia.Agent emits telemetry events that can be used for monitoring,
+  Helmsman emits telemetry events that can be used for monitoring,
   logging, and observability.
 
   ## Events
 
   ### Agent Events
 
-  - `[:glossia, :agent, :start]` - Agent started processing a prompt
+  - `[:helmsman, :agent, :start]` - Agent started processing a prompt
     - Measurements: `%{system_time: integer}`
     - Metadata: `%{agent: module}`
 
-  - `[:glossia, :agent, :stop]` - Agent finished processing
+  - `[:helmsman, :agent, :stop]` - Agent finished processing
     - Measurements: `%{duration: integer}`
     - Metadata: `%{agent: module}`
 
-  - `[:glossia, :agent, :exception]` - Agent raised an exception
+  - `[:helmsman, :agent, :exception]` - Agent raised an exception
     - Measurements: `%{duration: integer}`
     - Metadata: `%{agent: module, kind: atom, reason: term, stacktrace: list}`
 
   ### Tool Events
 
-  - `[:glossia, :agent, :tool_call, :start]` - Tool call started
+  - `[:helmsman, :tool_call, :start]` - Tool call started
     - Measurements: `%{system_time: integer}`
     - Metadata: `%{tool: string}`
 
-  - `[:glossia, :agent, :tool_call, :stop]` - Tool call completed
+  - `[:helmsman, :tool_call, :stop]` - Tool call completed
     - Measurements: `%{duration: integer}`
     - Metadata: `%{tool: string}`
 
-  - `[:glossia, :agent, :tool_call, :exception]` - Tool call raised an exception
+  - `[:helmsman, :tool_call, :exception]` - Tool call raised an exception
     - Measurements: `%{duration: integer}`
     - Metadata: `%{tool: string, kind: atom, reason: term, stacktrace: list}`
 
@@ -40,9 +40,9 @@ defmodule Glossia.Agent.Telemetry do
       :telemetry.attach_many(
         "my-agent-handler",
         [
-          [:glossia, :agent, :start],
-          [:glossia, :agent, :stop],
-          [:glossia, :agent, :tool_call, :stop]
+          [:helmsman, :agent, :start],
+          [:helmsman, :agent, :stop],
+          [:helmsman, :tool_call, :stop]
         ],
         &MyApp.Telemetry.handle_event/4,
         nil
@@ -56,7 +56,7 @@ defmodule Glossia.Agent.Telemetry do
   """
   @spec span(atom(), map(), (-> result)) :: result when result: var
   def span(event, metadata, fun) when is_atom(event) and is_map(metadata) and is_function(fun, 0) do
-    event_prefix = [:glossia, :agent, event]
+    event_prefix = [:helmsman, event]
     start_time = System.monotonic_time()
 
     :telemetry.execute(
@@ -109,6 +109,6 @@ defmodule Glossia.Agent.Telemetry do
   """
   @spec emit(atom(), map(), map()) :: :ok
   def emit(event, measurements \\ %{}, metadata \\ %{}) when is_atom(event) do
-    :telemetry.execute([:glossia, :agent, event], measurements, metadata)
+    :telemetry.execute([:helmsman, event], measurements, metadata)
   end
 end

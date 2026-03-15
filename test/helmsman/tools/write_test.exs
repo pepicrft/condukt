@@ -1,7 +1,7 @@
-defmodule Glossia.Agent.Tools.WriteTest do
+defmodule Helmsman.Tools.WriteTest do
   use ExUnit.Case, async: true
 
-  alias Glossia.Agent.Tools.Write
+  alias Helmsman.Tools.Write
 
   @moduletag :tmp_dir
 

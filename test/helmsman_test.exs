@@ -1,7 +1,7 @@
-defmodule Glossia.AgentTest do
+defmodule HelmsmanTest do
   use ExUnit.Case, async: true
 
-  alias Glossia.Agent.Message
+  alias Helmsman.Message
 
   describe "Message" do
     test "creates user message" do

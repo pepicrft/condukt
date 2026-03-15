@@ -1,20 +1,20 @@
-defmodule Glossia.Agent do
+defmodule Helmsman do
   @moduledoc """
   A framework for building AI agents in Elixir.
 
-  Glossia.Agent treats AI agents as first-class OTP processes that can
+  Helmsman treats AI agents as first-class OTP processes that can
   reason, use tools, and orchestrate complex workflows.
 
   ## Defining an Agent
 
       defmodule MyApp.ResearchAgent do
-        use Glossia.Agent
+        use Helmsman
 
         @impl true
         def tools do
           [
-            Glossia.Agent.Tools.Read,
-            Glossia.Agent.Tools.Bash
+            Helmsman.Tools.Read,
+            Helmsman.Tools.Bash
           ]
         end
       end
@@ -29,11 +29,11 @@ defmodule Glossia.Agent do
         \"\"\"
       )
 
-      {:ok, response} = Glossia.Agent.run(agent, "What's new in Elixir 1.18?")
+      {:ok, response} = Helmsman.run(agent, "What's new in Elixir 1.18?")
 
   ## Streaming Responses
 
-      Glossia.Agent.stream(agent, "Explain OTP")
+      Helmsman.stream(agent, "Explain OTP")
       |> Stream.each(fn
         {:text, chunk} -> IO.write(chunk)
         {:tool_call, name, _id, _args} -> IO.puts("\\nCalling: \#{name}")
@@ -47,13 +47,13 @@ defmodule Glossia.Agent do
   Agents can delegate to other agents:
 
       defmodule MyApp.Orchestrator do
-        use Glossia.Agent
+        use Helmsman
 
         @impl true
         def tools do
           [
-            {Glossia.Agent.Tools.Delegate, agent: MyApp.ResearchAgent},
-            {Glossia.Agent.Tools.Delegate, agent: MyApp.WriterAgent}
+            {Helmsman.Tools.Delegate, agent: MyApp.ResearchAgent},
+            {Helmsman.Tools.Delegate, agent: MyApp.WriterAgent}
           ]
         end
       end
@@ -132,25 +132,25 @@ defmodule Glossia.Agent do
 
   defmacro __using__(_opts) do
     quote location: :keep do
-      @behaviour Glossia.Agent
+      @behaviour Helmsman
 
       # Default implementations
-      @impl Glossia.Agent
+      @impl Helmsman
       def system_prompt, do: nil
 
-      @impl Glossia.Agent
+      @impl Helmsman
       def tools, do: []
 
-      @impl Glossia.Agent
+      @impl Helmsman
       def model, do: "anthropic:claude-sonnet-4-20250514"
 
-      @impl Glossia.Agent
+      @impl Helmsman
       def thinking_level, do: :medium
 
-      @impl Glossia.Agent
+      @impl Helmsman
       def init(opts), do: {:ok, opts}
 
-      @impl Glossia.Agent
+      @impl Helmsman
       def handle_event(_event, state), do: {:noreply, state}
 
       defoverridable system_prompt: 0, tools: 0, model: 0, thinking_level: 0, init: 1, handle_event: 2
@@ -170,7 +170,7 @@ defmodule Glossia.Agent do
       Plus all standard GenServer options.
       """
       def start_link(opts \\ []) do
-        Glossia.Agent.Session.start_link(__MODULE__, opts)
+        Helmsman.Session.start_link(__MODULE__, opts)
       end
 
       def child_spec(opts) do
@@ -199,11 +199,11 @@ defmodule Glossia.Agent do
 
   ## Examples
 
-      {:ok, response} = Glossia.Agent.run(agent, "Hello!")
+      {:ok, response} = Helmsman.run(agent, "Hello!")
   """
   @spec run(GenServer.server(), String.t(), keyword()) ::
           {:ok, String.t()} | {:error, term()}
-  defdelegate run(agent, prompt, opts \\ []), to: Glossia.Agent.Session
+  defdelegate run(agent, prompt, opts \\ []), to: Helmsman.Session
 
   @doc """
   Streams a prompt, yielding events as they occur.
@@ -222,25 +222,25 @@ defmodule Glossia.Agent do
   - `:done` - Stream complete
   """
   @spec stream(GenServer.server(), String.t(), keyword()) :: Enumerable.t()
-  defdelegate stream(agent, prompt, opts \\ []), to: Glossia.Agent.Session
+  defdelegate stream(agent, prompt, opts \\ []), to: Helmsman.Session
 
   @doc """
   Returns the conversation history.
   """
-  @spec history(GenServer.server()) :: [Glossia.Agent.Message.t()]
-  defdelegate history(agent), to: Glossia.Agent.Session
+  @spec history(GenServer.server()) :: [Helmsman.Message.t()]
+  defdelegate history(agent), to: Helmsman.Session
 
   @doc """
   Clears conversation history.
   """
   @spec clear(GenServer.server()) :: :ok
-  defdelegate clear(agent), to: Glossia.Agent.Session
+  defdelegate clear(agent), to: Helmsman.Session
 
   @doc """
   Aborts current operation.
   """
   @spec abort(GenServer.server()) :: :ok
-  defdelegate abort(agent), to: Glossia.Agent.Session
+  defdelegate abort(agent), to: Helmsman.Session
 
   @doc """
   Injects a message mid-execution (steering).
@@ -249,7 +249,7 @@ defmodule Glossia.Agent do
   and remaining tool calls will be skipped.
   """
   @spec steer(GenServer.server(), String.t()) :: :ok
-  defdelegate steer(agent, message), to: Glossia.Agent.Session
+  defdelegate steer(agent, message), to: Helmsman.Session
 
   @doc """
   Queues a follow-up message.
@@ -257,5 +257,5 @@ defmodule Glossia.Agent do
   This message will be delivered when the agent finishes its current work.
   """
   @spec follow_up(GenServer.server(), String.t()) :: :ok
-  defdelegate follow_up(agent, message), to: Glossia.Agent.Session
+  defdelegate follow_up(agent, message), to: Helmsman.Session
 end

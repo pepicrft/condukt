@@ -1,4 +1,4 @@
-defmodule Glossia.Agent.Tools.Write do
+defmodule Helmsman.Tools.Write do
   @moduledoc """
   Tool for writing content to files.
 
@@ -11,7 +11,7 @@ defmodule Glossia.Agent.Tools.Write do
   - `content` - Content to write to the file
   """
 
-  use Glossia.Agent.Tool
+  use Helmsman.Tool
 
   @impl true
   def name, do: "Write"

@@ -1,8 +1,8 @@
-defmodule Glossia.Agent.SessionTest do
+defmodule Helmsman.SessionTest do
   use ExUnit.Case, async: true
 
   defmodule ConfigAgent do
-    use Glossia.Agent
+    use Helmsman
 
     @impl true
     def system_prompt, do: "module prompt"

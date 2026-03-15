@@ -1,19 +1,19 @@
-# Agent
+# Helmsman
 
 A framework for building AI agents in Elixir.
 
-Agent treats AI agents as first-class OTP processes that can reason, use tools, and orchestrate complex workflows. Built on Erlang/OTP primitives for reliability and concurrency.
+Helmsman treats AI agents as first-class OTP processes that can reason, use tools, and orchestrate complex workflows. Built on Erlang/OTP primitives for reliability and concurrency.
 
 ## Motivation
 
-We built Agent at [Glossia](https://glossia.ai) to power our agentic workflows. We needed a framework that:
+Helmsman started at [Glossia](https://glossia.ai) to power our agentic workflows. We needed a framework that:
 
 - Integrates naturally with OTP supervision trees
 - Supports streaming for responsive user experiences
 - Works with multiple LLM providers without vendor lock-in
 - Provides extensible tooling for domain-specific capabilities
 
-Rather than wrapping JavaScript agent frameworks, we built Agent from scratch using idiomatic Elixir patterns. We're sharing it with the community because we believe Elixir is an excellent fit for building reliable AI agents.
+Rather than wrapping JavaScript agent frameworks, we built Helmsman from scratch using idiomatic Elixir patterns. We're sharing it with the community because we believe Elixir is an excellent fit for building reliable AI agents.
 
 ## Features
 
@@ -26,12 +26,12 @@ Rather than wrapping JavaScript agent frameworks, we built Agent from scratch us
 
 ## Installation
 
-Add `agent` to your dependencies in `mix.exs`:
+Add `helmsman` to your dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:agent, github: "glossia/agent"}
+    {:helmsman, github: "pepicrft/helmsman"}
   ]
 end
 ```
@@ -42,11 +42,11 @@ end
 
 ```elixir
 defmodule MyApp.CodingAgent do
-  use Glossia.Agent
+  use Helmsman
 
   @impl true
   def tools do
-    Glossia.Agent.Tools.coding_tools()
+    Helmsman.Tools.coding_tools()
   end
 end
 ```
@@ -65,10 +65,10 @@ end
 )
 
 # Run a prompt
-{:ok, response} = Glossia.Agent.run(agent, "Create a GenServer that manages a counter")
+{:ok, response} = Helmsman.run(agent, "Create a GenServer that manages a counter")
 
 # Stream responses for real-time output
-Glossia.Agent.stream(agent, "Add documentation to the counter module")
+Helmsman.stream(agent, "Add documentation to the counter module")
 |> Stream.each(fn
   {:text, chunk} -> IO.write(chunk)
   {:tool_call, name, _id, _args} -> IO.puts("\n📦 Using tool: #{name}")
@@ -99,21 +99,21 @@ end
 
 ## LiveBook
 
-Agent works well in LiveBook notebooks with `Mix.install/1`:
+Helmsman works well in LiveBook notebooks with `Mix.install/1`:
 
 ```elixir
 Mix.install([
-  {:agent, github: "glossia/agent"}
+  {:helmsman, github: "pepicrft/helmsman"}
 ])
 
-Application.put_env(:agent, :api_key, System.fetch_env!("ANTHROPIC_API_KEY"))
+Application.put_env(:helmsman, :api_key, System.fetch_env!("ANTHROPIC_API_KEY"))
 
 defmodule NotebookAgent do
-  use Glossia.Agent
+  use Helmsman
 
   @impl true
   def tools do
-    Glossia.Agent.Tools.read_only_tools()
+    Helmsman.Tools.read_only_tools()
   end
 end
 
@@ -123,7 +123,7 @@ end
   )
 
 {:ok, response} =
-  Glossia.Agent.run(agent, "Summarize the current notebook context.")
+  Helmsman.run(agent, "Summarize the current notebook context.")
 
 response
 ```
@@ -142,7 +142,7 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 export OPENAI_API_KEY="sk-..."
 
 # Application config
-config :agent,
+config :helmsman,
   api_key: "sk-ant-...",
   system_prompt: "You are a helpful coding assistant."
 
@@ -150,13 +150,13 @@ config :agent,
 MyApp.CodingAgent.start_link(api_key: "sk-ant-...")
 ```
 
-Values passed to `start_link/1` take precedence over `config :agent`, which takes precedence over agent module defaults.
+Values passed to `start_link/1` take precedence over `config :helmsman`, which takes precedence over agent module defaults.
 
 ### Agent Options
 
 ```elixir
 MyApp.CodingAgent.start_link(
-  api_key: "sk-ant-...",                        # Overrides config :agent, :api_key
+  api_key: "sk-ant-...",                        # Overrides config :helmsman, :api_key
   model: "anthropic:claude-sonnet-4-20250514",  # Overrides config/module default
   system_prompt: "You are helpful.",            # Overrides config/module default
   thinking_level: :medium,                      # Overrides config/module default
@@ -167,7 +167,7 @@ MyApp.CodingAgent.start_link(
 
 ### Supported Providers
 
-Thanks to [ReqLLM](https://github.com/agentjido/req_llm), Agent supports 18+ providers:
+Thanks to [ReqLLM](https://github.com/agentjido/req_llm), Helmsman supports 18+ providers:
 
 | Provider | Model Format |
 |----------|-------------|
@@ -185,28 +185,28 @@ Thanks to [ReqLLM](https://github.com/agentjido/req_llm), Agent supports 18+ pro
 
 ```elixir
 # Full coding tools: Read, Bash, Edit, Write
-def tools, do: Glossia.Agent.Tools.coding_tools()
+def tools, do: Helmsman.Tools.coding_tools()
 
 # Read-only: Read, Bash
-def tools, do: Glossia.Agent.Tools.read_only_tools()
+def tools, do: Helmsman.Tools.read_only_tools()
 ```
 
 ### Individual Tools
 
 | Tool | Description |
 |------|-------------|
-| `Glossia.Agent.Tools.Read` | Read file contents, supports images |
-| `Glossia.Agent.Tools.Bash` | Execute shell commands |
-| `Glossia.Agent.Tools.Edit` | Surgical file edits (find & replace) |
-| `Glossia.Agent.Tools.Write` | Create or overwrite files |
+| `Helmsman.Tools.Read` | Read file contents, supports images |
+| `Helmsman.Tools.Bash` | Execute shell commands |
+| `Helmsman.Tools.Edit` | Surgical file edits (find & replace) |
+| `Helmsman.Tools.Write` | Create or overwrite files |
 
 ## Custom Tools
 
-Define custom tools by implementing the `Glossia.Agent.Tool` behaviour:
+Define custom tools by implementing the `Helmsman.Tool` behaviour:
 
 ```elixir
 defmodule MyApp.Tools.Weather do
-  use Glossia.Agent.Tool
+  use Helmsman.Tool
 
   @impl true
   def name, do: "get_weather"
@@ -241,7 +241,7 @@ Handle events during agent execution:
 
 ```elixir
 defmodule MyApp.LoggingAgent do
-  use Glossia.Agent
+  use Helmsman
 
   @impl true
   def handle_event({:tool_call, name, _id, _args}, state) do
@@ -262,16 +262,16 @@ end
 
 ## Telemetry
 
-Agent emits telemetry events for observability:
+Helmsman emits telemetry events for observability:
 
 ```elixir
 :telemetry.attach_many(
   "my-handler",
   [
-    [:glossia, :agent, :start],
-    [:glossia, :agent, :stop],
-    [:glossia, :agent, :tool_call, :start],
-    [:glossia, :agent, :tool_call, :stop]
+    [:helmsman, :agent, :start],
+    [:helmsman, :agent, :stop],
+    [:helmsman, :tool_call, :start],
+    [:helmsman, :tool_call, :stop]
   ],
   fn event, measurements, metadata, _config ->
     Logger.info("#{inspect(event)}: #{inspect(measurements)}")
@@ -285,7 +285,7 @@ Agent emits telemetry events for observability:
 The streaming API returns an enumerable of events:
 
 ```elixir
-Glossia.Agent.stream(agent, "Hello")
+Helmsman.stream(agent, "Hello")
 |> Enum.each(fn event ->
   case event do
     {:text, chunk} -> IO.write(chunk)
@@ -308,13 +308,13 @@ Agents can delegate to other agents:
 
 ```elixir
 defmodule MyApp.Orchestrator do
-  use Glossia.Agent
+  use Helmsman
 
   @impl true
   def tools do
     [
-      {Glossia.Agent.Tools.Delegate, agent: MyApp.ResearchAgent},
-      {Glossia.Agent.Tools.Delegate, agent: MyApp.WriterAgent}
+      {Helmsman.Tools.Delegate, agent: MyApp.ResearchAgent},
+      {Helmsman.Tools.Delegate, agent: MyApp.WriterAgent}
     ]
   end
 end

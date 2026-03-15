@@ -1,4 +1,4 @@
-defmodule Glossia.Agent.Tools.Edit do
+defmodule Helmsman.Tools.Edit do
   @moduledoc """
   Tool for making surgical edits to files.
 
@@ -19,7 +19,7 @@ defmodule Glossia.Agent.Tools.Edit do
   - For multiple replacements, provide more context to make each match unique
   """
 
-  use Glossia.Agent.Tool
+  use Helmsman.Tool
 
   @impl true
   def name, do: "Edit"

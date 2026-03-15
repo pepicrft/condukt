@@ -1,4 +1,4 @@
-defmodule Glossia.Agent.Tools.Bash do
+defmodule Helmsman.Tools.Bash do
   @moduledoc """
   Tool for executing bash commands.
 
@@ -17,7 +17,7 @@ defmodule Glossia.Agent.Tools.Bash do
   consider implementing allowlists or sandboxing for production use.
   """
 
-  use Glossia.Agent.Tool
+  use Helmsman.Tool
 
   @max_lines 2000
   @max_bytes 50 * 1024

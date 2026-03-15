@@ -1,4 +1,4 @@
-defmodule Glossia.Agent.Tool do
+defmodule Helmsman.Tool do
   @moduledoc """
   Behaviour for defining tools that agents can use.
 
@@ -8,7 +8,7 @@ defmodule Glossia.Agent.Tool do
   ## Defining a Tool
 
       defmodule MyApp.Tools.Weather do
-        use Glossia.Agent.Tool
+        use Helmsman.Tool
 
         @impl true
         def name, do: "get_weather"
@@ -54,7 +54,7 @@ defmodule Glossia.Agent.Tool do
   Tools can be parameterized when added to an agent:
 
       defmodule MyApp.Tools.Database do
-        use Glossia.Agent.Tool
+        use Helmsman.Tool
 
         @impl true
         def name(opts), do: "query_\#{opts[:table]}"
@@ -115,7 +115,7 @@ defmodule Glossia.Agent.Tool do
 
   defmacro __using__(_opts) do
     quote do
-      @behaviour Glossia.Agent.Tool
+      @behaviour Helmsman.Tool
 
       # Default: no-opts versions delegate to opts versions with empty list
       def name, do: name([])

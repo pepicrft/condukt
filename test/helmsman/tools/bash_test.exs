@@ -1,7 +1,7 @@
-defmodule Glossia.Agent.Tools.BashTest do
+defmodule Helmsman.Tools.BashTest do
   use ExUnit.Case, async: true
 
-  alias Glossia.Agent.Tools.Bash
+  alias Helmsman.Tools.Bash
 
   @moduletag :tmp_dir
 

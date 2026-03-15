@@ -1,4 +1,4 @@
-defmodule Glossia.Agent.Message do
+defmodule Helmsman.Message do
   @moduledoc """
   Represents a message in the conversation history.
 

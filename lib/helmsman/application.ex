@@ -1,4 +1,4 @@
-defmodule Glossia.Agent.Application do
+defmodule Helmsman.Application do
   @moduledoc false
 
   use Application
@@ -6,7 +6,7 @@ defmodule Glossia.Agent.Application do
   @impl true
   def start(_type, _args) do
     children = []
-    opts = [strategy: :one_for_one, name: Glossia.Agent.Supervisor]
+    opts = [strategy: :one_for_one, name: Helmsman.Supervisor]
     Supervisor.start_link(children, opts)
   end
 end

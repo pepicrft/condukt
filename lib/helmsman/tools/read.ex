@@ -1,4 +1,4 @@
-defmodule Glossia.Agent.Tools.Read do
+defmodule Helmsman.Tools.Read do
   @moduledoc """
   Tool for reading file contents.
 
@@ -17,7 +17,7 @@ defmodule Glossia.Agent.Tools.Read do
   For large files, use offset/limit to read in chunks.
   """
 
-  use Glossia.Agent.Tool
+  use Helmsman.Tool
 
   @max_lines 2000
   @max_bytes 50 * 1024

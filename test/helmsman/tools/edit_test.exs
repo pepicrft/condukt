@@ -1,7 +1,7 @@
-defmodule Glossia.Agent.Tools.EditTest do
+defmodule Helmsman.Tools.EditTest do
   use ExUnit.Case, async: true
 
-  alias Glossia.Agent.Tools.Edit
+  alias Helmsman.Tools.Edit
 
   @moduletag :tmp_dir
 

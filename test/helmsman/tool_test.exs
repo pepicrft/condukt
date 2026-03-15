@@ -1,8 +1,8 @@
-defmodule Glossia.Agent.ToolTest do
+defmodule Helmsman.ToolTest do
   use ExUnit.Case, async: true
 
-  alias Glossia.Agent.Tool
-  alias Glossia.Agent.Tools.Read
+  alias Helmsman.Tool
+  alias Helmsman.Tools.Read
 
   test "builds spec from module" do
     spec = Tool.to_spec(Read)

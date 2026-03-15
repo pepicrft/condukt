@@ -1,19 +1,19 @@
-defmodule Glossia.Agent.MixProject do
+defmodule Helmsman.MixProject do
   use Mix.Project
 
   @version "0.1.0"
-  @source_url "https://github.com/glossia/agent"
+  @source_url "https://github.com/pepicrft/helmsman"
 
   def project do
     [
-      app: :agent,
+      app: :helmsman,
       version: @version,
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       docs: docs(),
       package: package(),
-      name: "Agent",
+      name: "Helmsman",
       description: "A framework for building AI agents in Elixir",
       source_url: @source_url,
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -24,7 +24,7 @@ defmodule Glossia.Agent.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {Glossia.Agent.Application, []}
+      mod: {Helmsman.Application, []}
     ]
   end
 
@@ -53,24 +53,24 @@ defmodule Glossia.Agent.MixProject do
 
   defp docs do
     [
-      main: "Glossia.Agent",
+      main: "Helmsman",
       extras: ["README.md"],
       source_ref: "v#{@version}",
       source_url: @source_url,
       groups_for_modules: [
         Core: [
-          Glossia.Agent,
-          Glossia.Agent.Session,
-          Glossia.Agent.Message,
-          Glossia.Agent.Tool,
-          Glossia.Agent.Telemetry
+          Helmsman,
+          Helmsman.Session,
+          Helmsman.Message,
+          Helmsman.Tool,
+          Helmsman.Telemetry
         ],
         Tools: [
-          Glossia.Agent.Tools,
-          Glossia.Agent.Tools.Read,
-          Glossia.Agent.Tools.Bash,
-          Glossia.Agent.Tools.Edit,
-          Glossia.Agent.Tools.Write
+          Helmsman.Tools,
+          Helmsman.Tools.Read,
+          Helmsman.Tools.Bash,
+          Helmsman.Tools.Edit,
+          Helmsman.Tools.Write
         ]
       ]
     ]
