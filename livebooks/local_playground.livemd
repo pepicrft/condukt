@@ -236,6 +236,31 @@ end
 ```elixir
 prompt = Kino.Input.read(prompt_input)
 
+frame =
+  Kino.Frame.new()
+  |> Kino.render()
+
 Helmsman.stream(NotebookAgent, prompt, timeout: 120_000)
-|> Enum.to_list()
+|> Enum.each(fn
+  {:text, chunk} ->
+    Kino.Frame.append(frame, chunk)
+
+  {:thinking, chunk} ->
+    Kino.Frame.append(frame, "\n\n[thinking] #{chunk}")
+
+  {:tool_call, name, _id, _args} ->
+    Kino.Frame.append(frame, "\n\n[tool] calling #{name}\n")
+
+  {:tool_result, _id, result} ->
+    Kino.Frame.append(frame, "\n\n[result] #{inspect(result, pretty: true)}\n")
+
+  {:error, reason} ->
+    Kino.Frame.append(frame, "\n\n[error] #{inspect(reason)}\n")
+
+  :done ->
+    Kino.Frame.append(frame, "\n\n[done]\n")
+
+  _ ->
+    :ok
+end)
 ```

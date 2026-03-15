@@ -353,18 +353,14 @@ defmodule Helmsman.Session do
 
       case ReqLLM.stream_text(state.model, context, llm_opts) do
         {:ok, stream_response} ->
-          # Stream tokens and collect the full response
-          stream_response
-          |> ReqLLM.StreamResponse.tokens()
-          |> Enum.each(fn token -> emit.({:text, token}) end)
-
-          # Get the full text after streaming
-          text = ReqLLM.StreamResponse.text(stream_response)
-
-          # Check if there are tool calls in the response
-          case ReqLLM.StreamResponse.to_response(stream_response) do
+          case ReqLLM.StreamResponse.process_stream(
+                 stream_response,
+                 on_result: fn chunk -> emit.({:text, chunk}) end,
+                 on_thinking: fn chunk -> emit.({:thinking, chunk}) end
+               ) do
             {:ok, response} ->
               assistant_message = response_to_message(response)
+              text = ReqLLM.Response.text(response) || ""
               emit.(:turn_end)
 
               if Message.has_tool_calls?(assistant_message) do
