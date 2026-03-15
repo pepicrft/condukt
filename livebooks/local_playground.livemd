@@ -1,7 +1,5 @@
 # Helmsman Local Playground
 
-## Section
-
 Open this notebook from a local checkout of Helmsman. The setup cell installs the library from the parent directory, so reevaluating it picks up local changes.
 
 ## Setup
@@ -83,7 +81,11 @@ providers = HelmsmanLivebook.providers()
 ```
 
 ```elixir
-Kino.DataTable.new(providers)
+providers
+|> Enum.map_join("\n", fn provider ->
+  "- `#{provider.provider}`: #{provider.model_count} passing models, env key `#{provider.env_key}`"
+end)
+|> Kino.Markdown.new()
 ```
 
 The interactive runtime form below includes the ReqLLM providers that expose a default API key env var. Providers that require a different authentication flow are intentionally left out of the picker.
