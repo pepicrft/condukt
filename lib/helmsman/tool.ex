@@ -48,6 +48,8 @@ defmodule Helmsman.Tool do
   - `:agent` - The agent PID
   - `:cwd` - Current working directory
   - `:opts` - Options passed when adding the tool to the agent
+  - `:runtime_provider` - Runtime provider backing the session
+  - `:runtime_provider_session` - Provider-specific session handle
 
   ## Parameterized Tools
 
@@ -83,7 +85,9 @@ defmodule Helmsman.Tool do
   @type context :: %{
           agent: pid(),
           cwd: String.t(),
-          opts: keyword()
+          opts: keyword(),
+          runtime_provider: Helmsman.RuntimeProvider.spec(),
+          runtime_provider_session: Helmsman.RuntimeProvider.session()
         }
 
   @type result :: {:ok, term()} | {:error, term()}
