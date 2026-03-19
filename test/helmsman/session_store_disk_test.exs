@@ -1,11 +1,11 @@
 defmodule Helmsman.SessionStore.DiskTest do
   use ExUnit.Case, async: true
 
-  @moduletag :tmp_dir
-
   alias Helmsman.Message
   alias Helmsman.SessionStore.Disk
   alias Helmsman.SessionStore.Snapshot
+
+  @moduletag :tmp_dir
 
   test "saves, loads, and clears snapshots", %{tmp_dir: tmp_dir} do
     path = Path.join(tmp_dir, "session.store")
@@ -26,6 +26,7 @@ defmodule Helmsman.SessionStore.DiskTest do
 
   test "uses the default path under cwd", %{tmp_dir: tmp_dir} do
     path = Path.join([tmp_dir, ".helmsman", "session.store"])
+
     snapshot = %Snapshot{
       messages: [Message.user("persist this too")],
       model: "openai:gpt-4o-mini",
@@ -41,6 +42,7 @@ defmodule Helmsman.SessionStore.DiskTest do
 
   test "loads legacy snapshots encoded without a version wrapper", %{tmp_dir: tmp_dir} do
     path = Path.join(tmp_dir, "legacy.session")
+
     snapshot = %Snapshot{
       messages: [Message.assistant("from legacy format")],
       model: "openai:gpt-4o",
