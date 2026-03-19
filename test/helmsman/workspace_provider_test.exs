@@ -3,7 +3,6 @@ defmodule Helmsman.WorkspaceProviderTest do
 
   alias Helmsman.WorkspaceProvider
   alias Helmsman.WorkspaceProvider.Snapshot
-  alias Helmsman.WorkspaceProvider.Snapshot.{Source, Target}
 
   defmodule RecordingProvider do
     @behaviour WorkspaceProvider
@@ -15,20 +14,15 @@ defmodule Helmsman.WorkspaceProviderTest do
       {:ok,
        %Snapshot{
          mode: :archive,
-         source: %Source{
-           local_path: local_path,
-           root_path: local_path
-         },
-         target: %Target{
-           path: "/runtime/project"
-         }
+         source_path: local_path,
+         path: "/runtime/project"
        }}
     end
 
     @impl true
     def materialize(snapshot, runtime, opts) do
       send(Keyword.fetch!(opts, :test_pid), {:materialize, snapshot, runtime, opts})
-      {:ok, %{path: snapshot.target.path, runtime: runtime}}
+      {:ok, %{path: snapshot.path, runtime: runtime}}
     end
 
     @impl true
@@ -46,8 +40,8 @@ defmodule Helmsman.WorkspaceProviderTest do
                source: :test
              )
 
-    assert snapshot.source.root_path == "/tmp/project"
-    assert snapshot.target.path == "/runtime/project"
+    assert snapshot.source_path == "/tmp/project"
+    assert snapshot.path == "/runtime/project"
     assert_receive {:snapshot, "/tmp/project", opts}
     assert opts[:test_pid] == self()
     assert opts[:source] == :test
@@ -81,12 +75,12 @@ defmodule Helmsman.WorkspaceProviderTest do
   test "local provider snapshots and materializes the current path" do
     assert {:ok, snapshot} = WorkspaceProvider.Local.snapshot(".", [])
     assert snapshot.mode == :local
-    assert Path.type(snapshot.source.root_path) == :absolute
+    assert Path.type(snapshot.source_path) == :absolute
 
     assert {:ok, %{path: path, snapshot: ^snapshot}} =
              WorkspaceProvider.Local.materialize(snapshot, :runtime, [])
 
-    assert path == snapshot.source.root_path
+    assert path == snapshot.source_path
     assert :ok = WorkspaceProvider.Local.collect(:runtime, %{path: path}, ".", [])
   end
 end

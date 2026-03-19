@@ -34,11 +34,11 @@ defmodule Helmsman.WorkspaceProvider do
     A snapshot is the boundary between "workspace state as it exists now" and
     "workspace state that can be recreated elsewhere later".
 
-    The fields are grouped by concern:
+    The fields are intentionally small:
 
     - `mode` describes the reconstruction strategy
-    - `source` describes where the workspace came from
-    - `target` describes where the workspace should be materialized
+    - `source_path` is where the workspace came from
+    - `path` is where the workspace should exist once materialized
     - `git` carries repository-specific reconstruction data
     - `files` carries explicit file payloads when content must be shipped
     - `metadata` is reserved for provider-specific extensions
@@ -48,51 +48,20 @@ defmodule Helmsman.WorkspaceProvider do
     - Local execution:
       `%Snapshot{
         mode: :local,
-        source: %{local_path: "/repo", root_path: "/repo"},
-        target: %{path: "/repo"}
+        source_path: "/repo",
+        path: "/repo"
       }`
 
     - Remote git reconstruction:
       `%Snapshot{
         mode: :git,
-        source: %{local_path: "/repo", root_path: "/repo"},
-        target: %{path: "/workspace/repo"},
+        source_path: "/repo",
+        path: "/workspace/repo",
         git: %{repository_url: "...", revision: "abc123", patch: "..."}
       }`
     """
 
     @type mode :: :local | :git | :archive
-
-    defmodule Source do
-      @moduledoc """
-      Origin information for the workspace represented by a snapshot.
-
-      - `local_path` is the path provided by the caller
-      - `root_path` is the canonical workspace root captured by the snapshot
-      """
-
-      @type t :: %__MODULE__{
-              local_path: String.t(),
-              root_path: String.t()
-            }
-
-      defstruct [:local_path, :root_path]
-    end
-
-    defmodule Target do
-      @moduledoc """
-      Materialization information for a workspace snapshot.
-
-      `path` is the directory where the snapshot should exist once it has been
-      reconstructed in a runtime.
-      """
-
-      @type t :: %__MODULE__{
-              path: String.t() | nil
-            }
-
-      defstruct [:path]
-    end
 
     defmodule Git do
       @moduledoc """
@@ -114,8 +83,8 @@ defmodule Helmsman.WorkspaceProvider do
 
     @type t :: %__MODULE__{
             mode: mode(),
-            source: Source.t(),
-            target: Target.t(),
+            source_path: String.t(),
+            path: String.t() | nil,
             git: Git.t() | nil,
             files: [Helmsman.WorkspaceProvider.FileEntry.t()],
             metadata: map()
@@ -123,8 +92,8 @@ defmodule Helmsman.WorkspaceProvider do
 
     defstruct [
       :mode,
-      :source,
-      :target,
+      :source_path,
+      :path,
       :git,
       files: [],
       metadata: %{}

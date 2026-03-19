@@ -9,7 +9,6 @@ defmodule Helmsman.WorkspaceProvider.Local do
   @behaviour Helmsman.WorkspaceProvider
 
   alias Helmsman.WorkspaceProvider.Snapshot
-  alias Helmsman.WorkspaceProvider.Snapshot.{Source, Target}
 
   @impl true
   def snapshot(local_path, _opts) do
@@ -18,13 +17,8 @@ defmodule Helmsman.WorkspaceProvider.Local do
     {:ok,
      %Snapshot{
        mode: :local,
-       source: %Source{
-         local_path: absolute_path,
-         root_path: absolute_path
-       },
-       target: %Target{
-         path: absolute_path
-       }
+       source_path: absolute_path,
+       path: absolute_path
      }}
   end
 
@@ -32,7 +26,7 @@ defmodule Helmsman.WorkspaceProvider.Local do
   def materialize(%Snapshot{} = snapshot, _runtime, _opts) do
     {:ok,
      %{
-       path: snapshot.target.path || snapshot.source.root_path,
+       path: snapshot.path || snapshot.source_path,
        snapshot: snapshot
      }}
   end
