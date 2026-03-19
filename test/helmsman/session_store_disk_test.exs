@@ -1,28 +1,11 @@
-defmodule Helmsman.SessionStoreTest do
+defmodule Helmsman.SessionStore.DiskTest do
   use ExUnit.Case, async: true
 
   alias Helmsman.Message
-  alias Helmsman.SessionStore.{Disk, Memory}
+  alias Helmsman.SessionStore.Disk
   alias Helmsman.SessionStore.Snapshot
 
-  test "memory store saves, loads, and clears snapshots" do
-    key = make_ref()
-
-    snapshot = %Snapshot{
-      messages: [Message.user("hello"), Message.assistant("world")],
-      model: "openai:gpt-4o-mini",
-      thinking_level: :low,
-      system_prompt: "stored prompt"
-    }
-
-    assert Memory.load(key: key) == :not_found
-    assert :ok = Memory.save(snapshot, key: key)
-    assert {:ok, ^snapshot} = Memory.load(key: key)
-    assert :ok = Memory.clear(key: key)
-    assert Memory.load(key: key) == :not_found
-  end
-
-  test "disk store saves, loads, and clears snapshots" do
+  test "saves, loads, and clears snapshots" do
     path =
       Path.join(System.tmp_dir!(), "helmsman-session-store-#{System.unique_integer([:positive])}")
 
@@ -42,7 +25,7 @@ defmodule Helmsman.SessionStoreTest do
     assert Disk.load(path: path, cwd: "/tmp") == :not_found
   end
 
-  test "disk store uses the default path under cwd" do
+  test "uses the default path under cwd" do
     cwd = Path.join(System.tmp_dir!(), "helmsman-cwd-#{System.unique_integer([:positive])}")
     path = Path.join([cwd, ".helmsman", "session.store"])
 
@@ -61,7 +44,7 @@ defmodule Helmsman.SessionStoreTest do
     assert {:ok, ^snapshot} = Disk.load(cwd: cwd)
   end
 
-  test "disk store loads legacy snapshots encoded without a version wrapper" do
+  test "loads legacy snapshots encoded without a version wrapper" do
     path =
       Path.join(System.tmp_dir!(), "helmsman-legacy-session-#{System.unique_integer([:positive])}")
 
@@ -78,7 +61,7 @@ defmodule Helmsman.SessionStoreTest do
     assert {:ok, ^snapshot} = Disk.load(path: path, cwd: "/tmp")
   end
 
-  test "disk store returns an error for invalid snapshots" do
+  test "returns an error for invalid snapshots" do
     path =
       Path.join(System.tmp_dir!(), "helmsman-invalid-session-#{System.unique_integer([:positive])}")
 
@@ -88,7 +71,7 @@ defmodule Helmsman.SessionStoreTest do
     assert Disk.load(path: path, cwd: "/tmp") == {:error, :invalid_snapshot}
   end
 
-  test "disk store clear succeeds for a missing snapshot file" do
+  test "clear succeeds for a missing snapshot file" do
     path =
       Path.join(System.tmp_dir!(), "helmsman-missing-session-#{System.unique_integer([:positive])}")
 
