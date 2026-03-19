@@ -61,6 +61,8 @@ defmodule Helmsman.MixProject do
           Helmsman,
           Helmsman.Session,
           Helmsman.Message,
+          Helmsman.RuntimeProvider,
+          Helmsman.RuntimeProvider.Local,
           Helmsman.SessionStore,
           Helmsman.SessionStore.Memory,
           Helmsman.SessionStore.Disk,

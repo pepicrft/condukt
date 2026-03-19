@@ -23,7 +23,7 @@ defmodule Helmsman.Session do
 
   use GenServer
 
-  alias Helmsman.{Message, SessionStore, Telemetry, Tool}
+  alias Helmsman.{Message, RuntimeProvider, SessionStore, Telemetry, Tool}
   alias Helmsman.SessionStore.Snapshot
   alias ReqLLM.ToolCall
 
@@ -39,6 +39,8 @@ defmodule Helmsman.Session do
     :system_prompt,
     :tools,
     :cwd,
+    :runtime_provider,
+    :runtime_provider_session,
     :api_key,
     :session_store,
     :user_state,
@@ -71,6 +73,7 @@ defmodule Helmsman.Session do
       |> put_configured_opt(config, :system_prompt, fn -> agent_module.system_prompt() end)
       |> Keyword.put_new(:tools, agent_module.tools())
       |> put_configured_opt(config, :cwd, &File.cwd!/0)
+      |> put_configured_opt(config, :runtime_provider, fn -> Helmsman.RuntimeProvider.Local end)
       |> put_configured_opt(config, :session_store)
 
     GenServer.start_link(__MODULE__, agent_opts, gen_opts)
@@ -168,25 +171,43 @@ defmodule Helmsman.Session do
 
     case agent_module.init(opts) do
       {:ok, user_state} ->
-        state =
-          %__MODULE__{
-            agent_module: agent_module,
-            model: restore_value(opts, :model, snapshot && snapshot.model),
-            thinking_level: restore_value(opts, :thinking_level, snapshot && snapshot.thinking_level),
-            system_prompt: restore_value(opts, :system_prompt, snapshot && snapshot.system_prompt),
-            tools: Keyword.fetch!(opts, :tools),
-            cwd: Keyword.fetch!(opts, :cwd),
-            api_key: opts[:api_key],
-            session_store: session_store,
-            user_state: user_state
-          }
-          |> restore_messages(snapshot)
+        runtime_provider = Keyword.fetch!(opts, :runtime_provider)
 
-        {:ok, state}
+        case RuntimeProvider.init(runtime_provider, runtime_provider_opts(opts)) do
+          {:ok, runtime_provider_session} ->
+            state =
+              %__MODULE__{
+                agent_module: agent_module,
+                model: restore_value(opts, :model, snapshot && snapshot.model),
+                thinking_level: restore_value(opts, :thinking_level, snapshot && snapshot.thinking_level),
+                system_prompt: restore_value(opts, :system_prompt, snapshot && snapshot.system_prompt),
+                tools: Keyword.fetch!(opts, :tools),
+                cwd: Keyword.fetch!(opts, :cwd),
+                runtime_provider: runtime_provider,
+                runtime_provider_session: runtime_provider_session,
+                api_key: opts[:api_key],
+                session_store: session_store,
+                user_state: user_state
+              }
+              |> restore_messages(snapshot)
+
+            {:ok, state}
+
+          {:error, reason} ->
+            {:stop, {:runtime_provider_init_failed, reason}}
+        end
 
       {:stop, reason} ->
         {:stop, reason}
     end
+  end
+
+  @impl true
+  def terminate(_reason, %__MODULE__{runtime_provider: nil}), do: :ok
+
+  def terminate(_reason, %__MODULE__{} = state) do
+    _ = RuntimeProvider.terminate(state.runtime_provider, state.runtime_provider_session)
+    :ok
   end
 
   @impl true
@@ -476,7 +497,7 @@ defmodule Helmsman.Session do
         description: spec.description,
         parameter_schema: convert_json_schema_to_nimble(spec.parameters),
         callback: fn args ->
-          context = %{agent: self(), cwd: state.cwd, opts: []}
+          context = tool_context(state, [])
 
           case Tool.execute(tool_spec, args, context) do
             {:ok, result} when is_binary(result) -> result
@@ -612,7 +633,7 @@ defmodule Helmsman.Session do
         Message.tool_result(id, {:error, "Unknown tool: #{name}"})
 
       {module, opts} ->
-        context = %{agent: self(), cwd: state.cwd, opts: opts}
+        context = tool_context(state, opts)
 
         case Tool.execute({module, opts}, args, context) do
           {:ok, result} -> Message.tool_result(id, result)
@@ -620,7 +641,7 @@ defmodule Helmsman.Session do
         end
 
       module ->
-        context = %{agent: self(), cwd: state.cwd, opts: []}
+        context = tool_context(state, [])
 
         case Tool.execute(module, args, context) do
           {:ok, result} -> Message.tool_result(id, result)
@@ -742,5 +763,22 @@ defmodule Helmsman.Session do
       agent_module: state.agent_module,
       cwd: state.cwd
     ]
+  end
+
+  defp runtime_provider_opts(opts) when is_list(opts) do
+    [
+      agent_module: Keyword.get(opts, :agent_module),
+      cwd: Keyword.get(opts, :cwd)
+    ]
+  end
+
+  defp tool_context(state, tool_opts) do
+    %{
+      agent: self(),
+      cwd: state.cwd,
+      opts: tool_opts,
+      runtime_provider: state.runtime_provider,
+      runtime_provider_session: state.runtime_provider_session
+    }
   end
 end
