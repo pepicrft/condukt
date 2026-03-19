@@ -1,6 +1,12 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.3.0] - 2026-03-19
+
+### Features
+
+- Add remote runtime investigation
+
 ## [0.2.0] - 2026-03-19
 
 ### Changes
