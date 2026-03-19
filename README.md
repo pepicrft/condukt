@@ -176,6 +176,11 @@ MyApp.CodingAgent.start_link(
 Persisted sessions are opt-in. Provide a session store to save and restore
 conversation history plus session settings.
 
+Built-in session stores:
+
+- `Helmsman.SessionStore.Memory` stores snapshots in ETS for reuse within the current VM
+- `Helmsman.SessionStore.Disk` persists snapshots to disk across restarts
+
 ```elixir
 # Restore within the current VM
 {:ok, agent} =
