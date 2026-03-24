@@ -1,6 +1,12 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.5.0] - 2026-03-24
+
+### Features
+
+- feat: Add Ollama provider support (#6)
+
 ## [0.4.1] - 2026-03-19
 
 ### Changes
