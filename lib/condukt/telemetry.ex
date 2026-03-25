@@ -1,37 +1,37 @@
-defmodule Helmsman.Telemetry do
+defmodule Condukt.Telemetry do
   @moduledoc """
-  Telemetry integration for Helmsman.
+  Telemetry integration for Condukt.
 
-  Helmsman emits telemetry events that can be used for monitoring,
+  Condukt emits telemetry events that can be used for monitoring,
   logging, and observability.
 
   ## Events
 
   ### Agent Events
 
-  - `[:helmsman, :agent, :start]` - Agent started processing a prompt
+  - `[:condukt, :agent, :start]` - Agent started processing a prompt
     - Measurements: `%{system_time: integer}`
     - Metadata: `%{agent: module}`
 
-  - `[:helmsman, :agent, :stop]` - Agent finished processing
+  - `[:condukt, :agent, :stop]` - Agent finished processing
     - Measurements: `%{duration: integer}`
     - Metadata: `%{agent: module}`
 
-  - `[:helmsman, :agent, :exception]` - Agent raised an exception
+  - `[:condukt, :agent, :exception]` - Agent raised an exception
     - Measurements: `%{duration: integer}`
     - Metadata: `%{agent: module, kind: atom, reason: term, stacktrace: list}`
 
   ### Tool Events
 
-  - `[:helmsman, :tool_call, :start]` - Tool call started
+  - `[:condukt, :tool_call, :start]` - Tool call started
     - Measurements: `%{system_time: integer}`
     - Metadata: `%{tool: string}`
 
-  - `[:helmsman, :tool_call, :stop]` - Tool call completed
+  - `[:condukt, :tool_call, :stop]` - Tool call completed
     - Measurements: `%{duration: integer}`
     - Metadata: `%{tool: string}`
 
-  - `[:helmsman, :tool_call, :exception]` - Tool call raised an exception
+  - `[:condukt, :tool_call, :exception]` - Tool call raised an exception
     - Measurements: `%{duration: integer}`
     - Metadata: `%{tool: string, kind: atom, reason: term, stacktrace: list}`
 
@@ -40,9 +40,9 @@ defmodule Helmsman.Telemetry do
       :telemetry.attach_many(
         "my-agent-handler",
         [
-          [:helmsman, :agent, :start],
-          [:helmsman, :agent, :stop],
-          [:helmsman, :tool_call, :stop]
+          [:condukt, :agent, :start],
+          [:condukt, :agent, :stop],
+          [:condukt, :tool_call, :stop]
         ],
         &MyApp.Telemetry.handle_event/4,
         nil
@@ -56,7 +56,7 @@ defmodule Helmsman.Telemetry do
   """
   @spec span(atom(), map(), (-> result)) :: result when result: var
   def span(event, metadata, fun) when is_atom(event) and is_map(metadata) and is_function(fun, 0) do
-    event_prefix = [:helmsman, event]
+    event_prefix = [:condukt, event]
     start_time = System.monotonic_time()
 
     :telemetry.execute(
@@ -109,6 +109,6 @@ defmodule Helmsman.Telemetry do
   """
   @spec emit(atom(), map(), map()) :: :ok
   def emit(event, measurements \\ %{}, metadata \\ %{}) when is_atom(event) do
-    :telemetry.execute([:helmsman, event], measurements, metadata)
+    :telemetry.execute([:condukt, event], measurements, metadata)
   end
 end

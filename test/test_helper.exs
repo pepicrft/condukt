@@ -1,2 +1,2 @@
-Mimic.copy(Helmsman.Tools.Bash.MuonTrapRunner)
+Mimic.copy(Condukt.Tools.Bash.MuonTrapRunner)
 ExUnit.start()

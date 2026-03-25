@@ -1,7 +1,7 @@
-defmodule Helmsman.Tools.ReadTest do
+defmodule Condukt.Tools.ReadTest do
   use ExUnit.Case, async: true
 
-  alias Helmsman.Tools.Read
+  alias Condukt.Tools.Read
 
   @moduletag :tmp_dir
 

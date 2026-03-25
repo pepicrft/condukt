@@ -1,4 +1,4 @@
-defmodule Helmsman.Message do
+defmodule Condukt.Message do
   @moduledoc """
   Represents a message in the conversation history.
 

@@ -1,4 +1,4 @@
-defmodule Helmsman.Tool do
+defmodule Condukt.Tool do
   @moduledoc """
   Behaviour for defining tools that agents can use.
 
@@ -8,7 +8,7 @@ defmodule Helmsman.Tool do
   ## Defining a Tool
 
       defmodule MyApp.Tools.Weather do
-        use Helmsman.Tool
+        use Condukt.Tool
 
         @impl true
         def name, do: "get_weather"
@@ -54,7 +54,7 @@ defmodule Helmsman.Tool do
   Tools can be parameterized when added to an agent:
 
       defmodule MyApp.Tools.Database do
-        use Helmsman.Tool
+        use Condukt.Tool
 
         @impl true
         def name(opts), do: "query_\#{opts[:table]}"
@@ -115,7 +115,7 @@ defmodule Helmsman.Tool do
 
   defmacro __using__(_opts) do
     quote do
-      @behaviour Helmsman.Tool
+      @behaviour Condukt.Tool
 
       # Default: no-opts versions delegate to opts versions with empty list
       def name, do: name([])

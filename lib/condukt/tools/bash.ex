@@ -1,4 +1,4 @@
-defmodule Helmsman.Tools.Bash do
+defmodule Condukt.Tools.Bash do
   @moduledoc """
   Tool for executing bash commands.
 
@@ -17,7 +17,7 @@ defmodule Helmsman.Tools.Bash do
   consider implementing allowlists or sandboxing for production use.
   """
 
-  use Helmsman.Tool
+  use Condukt.Tool
 
   @max_lines 2000
   @max_bytes 50 * 1024

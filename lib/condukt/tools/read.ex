@@ -1,4 +1,4 @@
-defmodule Helmsman.Tools.Read do
+defmodule Condukt.Tools.Read do
   @moduledoc """
   Tool for reading file contents.
 
@@ -17,7 +17,7 @@ defmodule Helmsman.Tools.Read do
   For large files, use offset/limit to read in chunks.
   """
 
-  use Helmsman.Tool
+  use Condukt.Tool
 
   @max_lines 2000
   @max_bytes 50 * 1024

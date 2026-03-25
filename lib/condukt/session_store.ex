@@ -1,13 +1,13 @@
-defmodule Helmsman.SessionStore do
+defmodule Condukt.SessionStore do
   @moduledoc """
-  Behaviour for persisting and restoring Helmsman sessions.
+  Behaviour for persisting and restoring Condukt sessions.
 
   Session stores receive the current session snapshot and decide how to
-  persist it. Helmsman ships with memory and disk-backed implementations,
+  persist it. Condukt ships with memory and disk-backed implementations,
   and callers can provide their own store modules.
   """
 
-  alias Helmsman.Message
+  alias Condukt.Message
 
   defmodule Snapshot do
     @moduledoc """
@@ -17,7 +17,7 @@ defmodule Helmsman.SessionStore do
     @type t :: %__MODULE__{
             messages: [Message.t()],
             model: String.t() | nil,
-            thinking_level: Helmsman.thinking_level() | nil,
+            thinking_level: Condukt.thinking_level() | nil,
             system_prompt: String.t() | nil
           }
 

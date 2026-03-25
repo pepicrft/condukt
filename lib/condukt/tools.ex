@@ -1,6 +1,6 @@
-defmodule Helmsman.Tools do
+defmodule Condukt.Tools do
   @moduledoc """
-  Built-in tools for Helmsman.
+  Built-in tools for Condukt.
 
   ## Default Tool Sets
 
@@ -9,19 +9,19 @@ defmodule Helmsman.Tools do
 
   ## Individual Tools
 
-  - `Helmsman.Tools.Read` - Read file contents
-  - `Helmsman.Tools.Bash` - Execute bash commands
-  - `Helmsman.Tools.Edit` - Surgical file edits
-  - `Helmsman.Tools.Write` - Write files
+  - `Condukt.Tools.Read` - Read file contents
+  - `Condukt.Tools.Bash` - Execute bash commands
+  - `Condukt.Tools.Edit` - Surgical file edits
+  - `Condukt.Tools.Write` - Write files
 
   ## Usage
 
       defmodule MyAgent do
-        use Helmsman
+        use Condukt
 
         @impl true
         def tools do
-          Helmsman.Tools.coding_tools()
+          Condukt.Tools.coding_tools()
         end
       end
 
@@ -29,13 +29,13 @@ defmodule Helmsman.Tools do
 
       def tools do
         [
-          Helmsman.Tools.Read,
-          Helmsman.Tools.Bash
+          Condukt.Tools.Read,
+          Condukt.Tools.Bash
         ]
       end
   """
 
-  alias Helmsman.Tools.{Bash, Edit, Read, Write}
+  alias Condukt.Tools.{Bash, Edit, Read, Write}
 
   @doc """
   Returns the default coding tools: Read, Bash, Edit, Write.

@@ -1,14 +1,14 @@
-defmodule Helmsman.SessionStore.Disk do
+defmodule Condukt.SessionStore.Disk do
   @moduledoc """
   Disk-backed session store using Erlang term serialization.
 
-  By default snapshots are written to `.helmsman/session.store` in the
+  By default snapshots are written to `.condukt/session.store` in the
   configured working directory. Override with `path: ...`.
   """
 
-  @behaviour Helmsman.SessionStore
+  @behaviour Condukt.SessionStore
 
-  alias Helmsman.SessionStore.Snapshot
+  alias Condukt.SessionStore.Snapshot
 
   @version 1
 
@@ -52,7 +52,7 @@ defmodule Helmsman.SessionStore.Disk do
 
   defp path(opts) do
     Keyword.get_lazy(opts, :path, fn ->
-      Path.join([Keyword.fetch!(opts, :cwd), ".helmsman", "session.store"])
+      Path.join([Keyword.fetch!(opts, :cwd), ".condukt", "session.store"])
     end)
   end
 

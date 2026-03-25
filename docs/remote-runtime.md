@@ -2,11 +2,11 @@
 
 ## Current state
 
-Helmsman sessions are local-only today.
+Condukt sessions are local-only today.
 
-- `Helmsman.Session` stores a local `cwd` and passes it into tool context.
-- `Helmsman.Tools.Bash` executes `bash -c ...` locally through `MuonTrap`.
-- `Helmsman.Tools.Read`, `Helmsman.Tools.Write`, and `Helmsman.Tools.Edit` operate directly on the local filesystem.
+- `Condukt.Session` stores a local `cwd` and passes it into tool context.
+- `Condukt.Tools.Bash` executes `bash -c ...` locally through `MuonTrap`.
+- `Condukt.Tools.Read`, `Condukt.Tools.Write`, and `Condukt.Tools.Edit` operate directly on the local filesystem.
 
 That means the agent loop already has a clean tool boundary, but the built-in tools assume the BEAM host is the execution environment.
 
@@ -26,7 +26,7 @@ Add a runtime abstraction below the tools rather than creating provider-specific
 
 ### 1. Introduce a runtime behaviour
 
-Add a new behaviour, for example `Helmsman.Runtime`, responsible for environment lifecycle and remote I/O:
+Add a new behaviour, for example `Condukt.Runtime`, responsible for environment lifecycle and remote I/O:
 
 - `create_session(opts) :: {:ok, session}`
 - `destroy_session(session) :: :ok | {:error, term()}`
@@ -37,7 +37,7 @@ Add a new behaviour, for example `Helmsman.Runtime`, responsible for environment
 - `mkdir_p(session, path) :: :ok | {:error, term()}`
 - `delete_session_command(session, id)` or PTY/session callbacks if interactive processes matter
 
-The existing local behavior becomes `Helmsman.Runtime.Local`, implemented with `File` and `MuonTrap`.
+The existing local behavior becomes `Condukt.Runtime.Local`, implemented with `File` and `MuonTrap`.
 
 ### 2. Move tool implementations onto the runtime
 
@@ -52,7 +52,7 @@ Instead:
 
 This keeps the LLM-facing tool set unchanged while making execution local or remote depending on session config.
 
-### 3. Store runtime session in `Helmsman.Session`
+### 3. Store runtime session in `Condukt.Session`
 
 Session state should carry both the runtime module and the provisioned runtime session:
 
@@ -61,7 +61,7 @@ Session state should carry both the runtime module and the provisioned runtime s
 - `:runtime_session` - provider session/sandbox reference
 - `:cwd` - interpreted as workspace root inside the runtime
 
-At `start_link/2`, Helmsman can either:
+At `start_link/2`, Condukt can either:
 
 - create the runtime session immediately, or
 - lazily create it on first tool call
@@ -84,8 +84,8 @@ Why it fits:
 
 Implication:
 
-- Helmsman can implement `Helmsman.Runtime.Daytona` as a direct Elixir HTTP client.
-- This is the cleanest path if the goal is “plug account credentials into Helmsman and run workflows remotely.”
+- Condukt can implement `Condukt.Runtime.Daytona` as a direct Elixir HTTP client.
+- This is the cleanest path if the goal is “plug account credentials into Condukt and run workflows remotely.”
 
 Recommended usage model:
 
@@ -118,7 +118,7 @@ Implication:
 
 ### Modal
 
-Useful, but not the best first fit for Helmsman itself.
+Useful, but not the best first fit for Condukt itself.
 
 Why it fits:
 
@@ -129,7 +129,7 @@ Constraint:
 
 - Modal is still primarily SDK-driven, with Python as the main control surface and JS/Go support still catching up.
 - I did not find a documented generic REST control plane for sandbox lifecycle and command execution comparable to Daytona's public API.
-- In practice, Elixir integration would likely mean operating a small Python or JS control service that Helmsman talks to.
+- In practice, Elixir integration would likely mean operating a small Python or JS control service that Condukt talks to.
 
 Implication:
 
@@ -142,8 +142,8 @@ Implication:
 
 Add:
 
-- `Helmsman.Runtime`
-- `Helmsman.Runtime.Local`
+- `Condukt.Runtime`
+- `Condukt.Runtime.Local`
 - session config for `:runtime`, `:runtime_opts`, and lazy runtime creation
 
 No behavior change yet.
@@ -152,16 +152,16 @@ No behavior change yet.
 
 Refactor:
 
-- `Helmsman.Tools.Bash`
-- `Helmsman.Tools.Read`
-- `Helmsman.Tools.Write`
-- `Helmsman.Tools.Edit`
+- `Condukt.Tools.Bash`
+- `Condukt.Tools.Read`
+- `Condukt.Tools.Write`
+- `Condukt.Tools.Edit`
 
 The public tool API stays the same.
 
 ### Phase 3: Daytona adapter
 
-Implement `Helmsman.Runtime.Daytona` with:
+Implement `Condukt.Runtime.Daytona` with:
 
 - sandbox lifecycle
 - command execution
@@ -202,7 +202,7 @@ That would fragment the API surface and force agent authors to choose tools by i
 
 ### Keep session state in one place
 
-The remote environment should belong to the Helmsman session, not to individual tool invocations.
+The remote environment should belong to the Condukt session, not to individual tool invocations.
 
 If tools each provision their own sandbox, the workflow will lose filesystem/process continuity.
 
@@ -225,7 +225,7 @@ Daytona already has documented session and PTY concepts. E2B also exposes PTY su
 
 Build the runtime abstraction now and target Daytona first.
 
-That gives Helmsman:
+That gives Condukt:
 
 - the least invasive API change
 - a direct Elixir integration path

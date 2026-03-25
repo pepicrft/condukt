@@ -1,12 +1,12 @@
-# Helmsman Local Playground
+# Condukt Local Playground
 
 ## Section
 
-Open this notebook from a local checkout of Helmsman. The setup cell installs the library from the parent directory, so reevaluating it picks up local changes.
+Open this notebook from a local checkout of Condukt. The setup cell installs the library from the parent directory, so reevaluating it picks up local changes.
 
 ## What You Will Do
 
-This notebook is a guided playground for Helmsman. By the end you will:
+This notebook is a guided playground for Condukt. By the end you will:
 
 1. Load the local checkout into Livebook.
 2. Pick a ReqLLM provider and model.
@@ -21,7 +21,7 @@ Work from top to bottom.
 * Evaluate the setup cell first.
 * When a cell renders an input, pick a value in the UI before evaluating the next cell.
 * If you change provider, model, API key, or system prompt, reevaluate the cells below that point.
-* If you edit the local Helmsman checkout, reevaluate the setup cell to reload the dependency.
+* If you edit the local Condukt checkout, reevaluate the setup cell to reload the dependency.
 
 ## Setup
 
@@ -30,7 +30,7 @@ repo_root = Path.expand("..", __DIR__)
 
 Mix.install([
   {:kino, "~> 0.19"},
-  {:helmsman, path: repo_root}
+  {:condukt, path: repo_root}
 ])
 ```
 
@@ -39,7 +39,7 @@ Mix.install([
 This section builds a small provider catalog from ReqLLM's supported-model registry. The notebook only shows providers that expose a straightforward API key env var, because this is meant to be a simple local playground.
 
 ```elixir
-defmodule HelmsmanLivebook do
+defmodule ConduktLivebook do
   @preferred_providers ~w(anthropic openai google groq openrouter xai)
 
   def repo_root do
@@ -101,7 +101,7 @@ defmodule HelmsmanLivebook do
   end
 end
 
-providers = HelmsmanLivebook.providers()
+providers = ConduktLivebook.providers()
 ```
 
 ```elixir
@@ -146,7 +146,7 @@ ReqLLM default API key env var: `#{provider_details.env_key}`
 Now choose the concrete model and runtime settings for the session.
 
 ```elixir
-models = HelmsmanLivebook.models_for(selected_provider)
+models = ConduktLivebook.models_for(selected_provider)
 
 model_options =
   Enum.map(models, fn model ->
@@ -160,7 +160,7 @@ system_prompt_input =
   Kino.Input.textarea(
     "System prompt",
     default: """
-    You are testing Helmsman from a local Livebook.
+    You are testing Condukt from a local Livebook.
     Be explicit about which tools you use and why.
     """
   )
@@ -168,7 +168,7 @@ system_prompt_input =
 cwd_input =
   Kino.Input.text(
     "Tool working directory",
-    default: HelmsmanLivebook.repo_root()
+    default: ConduktLivebook.repo_root()
   )
 
 Kino.Layout.grid(
@@ -193,11 +193,11 @@ This defines a minimal local agent that exposes the standard coding tools. The n
 
 ```elixir
 defmodule NotebookAgent do
-  use Helmsman
+  use Condukt
 
   @impl true
   def tools do
-    Helmsman.Tools.coding_tools()
+    Condukt.Tools.coding_tools()
   end
 end
 ```
@@ -244,7 +244,7 @@ prompt_input =
   Kino.Input.textarea(
     "Prompt",
     default: """
-    Read README.md and summarize Helmsman's public API in 5 bullet points.
+    Read README.md and summarize Condukt's public API in 5 bullet points.
     """
   )
 ```
@@ -252,7 +252,7 @@ prompt_input =
 ```elixir
 prompt = Kino.Input.read(prompt_input)
 
-case Helmsman.run(NotebookAgent, prompt, timeout: 120_000) do
+case Condukt.run(NotebookAgent, prompt, timeout: 120_000) do
   {:ok, response} -> Kino.Markdown.new(response)
   {:error, reason} -> Kino.Markdown.new("Run failed: `#{inspect(reason)}`")
 end
@@ -274,7 +274,7 @@ render =
     Kino.Frame.render(frame, Kino.Markdown.new(transcript))
   end
 
-Helmsman.stream(NotebookAgent, prompt, timeout: 120_000)
+Condukt.stream(NotebookAgent, prompt, timeout: 120_000)
 |> Enum.reduce("", fn
   {:text, chunk}, transcript ->
     updated = transcript <> chunk

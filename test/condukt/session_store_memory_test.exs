@@ -1,9 +1,9 @@
-defmodule Helmsman.SessionStore.MemoryTest do
+defmodule Condukt.SessionStore.MemoryTest do
   use ExUnit.Case, async: true
 
-  alias Helmsman.Message
-  alias Helmsman.SessionStore.Memory
-  alias Helmsman.SessionStore.Snapshot
+  alias Condukt.Message
+  alias Condukt.SessionStore.Memory
+  alias Condukt.SessionStore.Snapshot
 
   test "saves, loads, and clears snapshots" do
     key = make_ref()

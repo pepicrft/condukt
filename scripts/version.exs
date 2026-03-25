@@ -1,4 +1,4 @@
-defmodule Helmsman.ReleaseVersion do
+defmodule Condukt.ReleaseVersion do
   @version_regex ~r/@version "(\d+)\.(\d+)\.(\d+)"/
 
   def main(["current"]) do
@@ -68,4 +68,4 @@ defmodule Helmsman.ReleaseVersion do
   defp format_version({major, minor, patch}), do: "#{major}.#{minor}.#{patch}"
 end
 
-Helmsman.ReleaseVersion.main(System.argv())
+Condukt.ReleaseVersion.main(System.argv())

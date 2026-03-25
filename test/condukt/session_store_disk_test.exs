@@ -1,9 +1,9 @@
-defmodule Helmsman.SessionStore.DiskTest do
+defmodule Condukt.SessionStore.DiskTest do
   use ExUnit.Case, async: true
 
-  alias Helmsman.Message
-  alias Helmsman.SessionStore.Disk
-  alias Helmsman.SessionStore.Snapshot
+  alias Condukt.Message
+  alias Condukt.SessionStore.Disk
+  alias Condukt.SessionStore.Snapshot
 
   @moduletag :tmp_dir
 
@@ -25,7 +25,7 @@ defmodule Helmsman.SessionStore.DiskTest do
   end
 
   test "uses the default path under cwd", %{tmp_dir: tmp_dir} do
-    path = Path.join([tmp_dir, ".helmsman", "session.store"])
+    path = Path.join([tmp_dir, ".condukt", "session.store"])
 
     snapshot = %Snapshot{
       messages: [Message.user("persist this too")],

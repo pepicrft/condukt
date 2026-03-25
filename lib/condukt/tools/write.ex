@@ -1,4 +1,4 @@
-defmodule Helmsman.Tools.Write do
+defmodule Condukt.Tools.Write do
   @moduledoc """
   Tool for writing content to files.
 
@@ -11,7 +11,7 @@ defmodule Helmsman.Tools.Write do
   - `content` - Content to write to the file
   """
 
-  use Helmsman.Tool
+  use Condukt.Tool
 
   @impl true
   def name, do: "Write"

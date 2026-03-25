@@ -1,11 +1,11 @@
-defmodule Helmsman.SessionStore.Memory do
+defmodule Condukt.SessionStore.Memory do
   @moduledoc """
   ETS-backed session store for restoring sessions within the current VM.
   """
 
-  @behaviour Helmsman.SessionStore
+  @behaviour Condukt.SessionStore
 
-  alias Helmsman.SessionStore.Snapshot
+  alias Condukt.SessionStore.Snapshot
 
   @table __MODULE__
 

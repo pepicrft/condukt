@@ -1,4 +1,4 @@
-defmodule Helmsman.Session do
+defmodule Condukt.Session do
   @moduledoc """
   GenServer that manages an agent session.
 
@@ -23,8 +23,8 @@ defmodule Helmsman.Session do
 
   use GenServer
 
-  alias Helmsman.{Message, SessionStore, Telemetry, Tool}
-  alias Helmsman.SessionStore.Snapshot
+  alias Condukt.{Message, SessionStore, Telemetry, Tool}
+  alias Condukt.SessionStore.Snapshot
   alias ReqLLM.ToolCall
 
   require Logger
@@ -81,7 +81,7 @@ defmodule Helmsman.Session do
   defp put_configured_opt(opts, config, key, default_fun \\ fn -> nil end) do
     Keyword.put_new_lazy(opts, key, fn ->
       Keyword.get_lazy(config, key, fn ->
-        Application.get_env(:helmsman, key, default_fun.())
+        Application.get_env(:condukt, key, default_fun.())
       end)
     end)
   end

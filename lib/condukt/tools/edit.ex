@@ -1,4 +1,4 @@
-defmodule Helmsman.Tools.Edit do
+defmodule Condukt.Tools.Edit do
   @moduledoc """
   Tool for making surgical edits to files.
 
@@ -19,7 +19,7 @@ defmodule Helmsman.Tools.Edit do
   - For multiple replacements, provide more context to make each match unique
   """
 
-  use Helmsman.Tool
+  use Condukt.Tool
 
   @impl true
   def name, do: "Edit"

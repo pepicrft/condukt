@@ -1,7 +1,7 @@
-defmodule HelmsmanTest do
+defmodule ConduktTest do
   use ExUnit.Case, async: true
 
-  alias Helmsman.Message
+  alias Condukt.Message
 
   describe "Message" do
     test "creates user message" do

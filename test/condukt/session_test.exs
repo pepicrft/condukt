@@ -1,11 +1,11 @@
-defmodule Helmsman.SessionTest do
+defmodule Condukt.SessionTest do
   use ExUnit.Case, async: true
 
-  alias Helmsman.Message
-  alias Helmsman.SessionStore.Snapshot
+  alias Condukt.Message
+  alias Condukt.SessionStore.Snapshot
 
   defmodule ConfigAgent do
-    use Helmsman
+    use Condukt
 
     @impl true
     def system_prompt, do: "module prompt"
@@ -17,7 +17,7 @@ defmodule Helmsman.SessionTest do
   end
 
   defmodule RecordingStore do
-    @behaviour Helmsman.SessionStore
+    @behaviour Condukt.SessionStore
 
     @impl true
     def load(opts) do
@@ -142,9 +142,9 @@ defmodule Helmsman.SessionTest do
     {:ok, pid} =
       ConfigAgent.start_link(session_store: {RecordingStore, snapshot: snapshot, test_pid: self()})
 
-    assert :ok = Helmsman.clear(pid)
+    assert :ok = Condukt.clear(pid)
     assert_receive :cleared_snapshot
-    assert Helmsman.history(pid) == []
+    assert Condukt.history(pid) == []
 
     GenServer.stop(pid)
   end
@@ -153,7 +153,7 @@ defmodule Helmsman.SessionTest do
     ref = make_ref()
     messages = [Message.user("hello"), Message.assistant("world")]
 
-    state = %Helmsman.Session{
+    state = %Condukt.Session{
       agent_module: ConfigAgent,
       model: "openai:gpt-4o-mini",
       thinking_level: :medium,
@@ -164,7 +164,7 @@ defmodule Helmsman.SessionTest do
     }
 
     assert {:noreply, updated_state} =
-             Helmsman.Session.handle_cast(
+             Condukt.Session.handle_cast(
                {:stream_complete, ref, {:ok, messages, "world"}},
                state
              )

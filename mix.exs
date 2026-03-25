@@ -1,19 +1,19 @@
-defmodule Helmsman.MixProject do
+defmodule Condukt.MixProject do
   use Mix.Project
 
   @version "0.5.0"
-  @source_url "https://github.com/pepicrft/helmsman"
+  @source_url "https://github.com/pepicrft/condukt"
 
   def project do
     [
-      app: :helmsman,
+      app: :condukt,
       version: @version,
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       docs: docs(),
       package: package(),
-      name: "Helmsman",
+      name: "Condukt",
       description: "A framework for building AI agents in Elixir",
       source_url: @source_url,
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -23,7 +23,7 @@ defmodule Helmsman.MixProject do
 
   def application do
     [
-      mod: {Helmsman.Application, []},
+      mod: {Condukt.Application, []},
       extra_applications: [:logger]
     ]
   end
@@ -53,30 +53,30 @@ defmodule Helmsman.MixProject do
 
   defp docs do
     [
-      main: "Helmsman",
+      main: "Condukt",
       extras: ["README.md"],
       source_ref: @version,
       source_url: @source_url,
       groups_for_modules: [
         Core: [
-          Helmsman,
-          Helmsman.Session,
-          Helmsman.Message,
-          Helmsman.SessionStore,
-          Helmsman.SessionStore.Memory,
-          Helmsman.SessionStore.Disk,
-          Helmsman.Tool,
-          Helmsman.Telemetry
+          Condukt,
+          Condukt.Session,
+          Condukt.Message,
+          Condukt.SessionStore,
+          Condukt.SessionStore.Memory,
+          Condukt.SessionStore.Disk,
+          Condukt.Tool,
+          Condukt.Telemetry
         ],
         Tools: [
-          Helmsman.Tools,
-          Helmsman.Tools.Read,
-          Helmsman.Tools.Bash,
-          Helmsman.Tools.Edit,
-          Helmsman.Tools.Write
+          Condukt.Tools,
+          Condukt.Tools.Read,
+          Condukt.Tools.Bash,
+          Condukt.Tools.Edit,
+          Condukt.Tools.Write
         ],
         Providers: [
-          Helmsman.Providers.Ollama
+          Condukt.Providers.Ollama
         ]
       ]
     ]

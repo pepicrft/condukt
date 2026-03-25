@@ -1,20 +1,20 @@
-defmodule Helmsman do
+defmodule Condukt do
   @moduledoc """
   A framework for building AI agents in Elixir.
 
-  Helmsman treats AI agents as first-class OTP processes that can
+  Condukt treats AI agents as first-class OTP processes that can
   reason, use tools, and orchestrate complex workflows.
 
   ## Defining an Agent
 
       defmodule MyApp.ResearchAgent do
-        use Helmsman
+        use Condukt
 
         @impl true
         def tools do
           [
-            Helmsman.Tools.Read,
-            Helmsman.Tools.Bash
+            Condukt.Tools.Read,
+            Condukt.Tools.Bash
           ]
         end
       end
@@ -29,11 +29,11 @@ defmodule Helmsman do
         \"\"\"
       )
 
-      {:ok, response} = Helmsman.run(agent, "What's new in Elixir 1.18?")
+      {:ok, response} = Condukt.run(agent, "What's new in Elixir 1.18?")
 
   ## Streaming Responses
 
-      Helmsman.stream(agent, "Explain OTP")
+      Condukt.stream(agent, "Explain OTP")
       |> Stream.each(fn
         {:text, chunk} -> IO.write(chunk)
         {:tool_call, name, _id, _args} -> IO.puts("\\nCalling: \#{name}")
@@ -117,25 +117,25 @@ defmodule Helmsman do
 
   defmacro __using__(_opts) do
     quote location: :keep do
-      @behaviour Helmsman
+      @behaviour Condukt
 
       # Default implementations
-      @impl Helmsman
+      @impl Condukt
       def system_prompt, do: nil
 
-      @impl Helmsman
+      @impl Condukt
       def tools, do: []
 
-      @impl Helmsman
+      @impl Condukt
       def model, do: "anthropic:claude-sonnet-4-20250514"
 
-      @impl Helmsman
+      @impl Condukt
       def thinking_level, do: :medium
 
-      @impl Helmsman
+      @impl Condukt
       def init(opts), do: {:ok, opts}
 
-      @impl Helmsman
+      @impl Condukt
       def handle_event(_event, state), do: {:noreply, state}
 
       defoverridable system_prompt: 0, tools: 0, model: 0, thinking_level: 0, init: 1, handle_event: 2
@@ -157,7 +157,7 @@ defmodule Helmsman do
       Plus all standard GenServer options.
       """
       def start_link(opts \\ []) do
-        Helmsman.Session.start_link(__MODULE__, opts)
+        Condukt.Session.start_link(__MODULE__, opts)
       end
 
       def child_spec(opts) do
@@ -186,11 +186,11 @@ defmodule Helmsman do
 
   ## Examples
 
-      {:ok, response} = Helmsman.run(agent, "Hello!")
+      {:ok, response} = Condukt.run(agent, "Hello!")
   """
   @spec run(GenServer.server(), String.t(), keyword()) ::
           {:ok, String.t()} | {:error, term()}
-  defdelegate run(agent, prompt, opts \\ []), to: Helmsman.Session
+  defdelegate run(agent, prompt, opts \\ []), to: Condukt.Session
 
   @doc """
   Streams a prompt, yielding events as they occur.
@@ -209,25 +209,25 @@ defmodule Helmsman do
   - `:done` - Stream complete
   """
   @spec stream(GenServer.server(), String.t(), keyword()) :: Enumerable.t()
-  defdelegate stream(agent, prompt, opts \\ []), to: Helmsman.Session
+  defdelegate stream(agent, prompt, opts \\ []), to: Condukt.Session
 
   @doc """
   Returns the conversation history.
   """
-  @spec history(GenServer.server()) :: [Helmsman.Message.t()]
-  defdelegate history(agent), to: Helmsman.Session
+  @spec history(GenServer.server()) :: [Condukt.Message.t()]
+  defdelegate history(agent), to: Condukt.Session
 
   @doc """
   Clears conversation history.
   """
   @spec clear(GenServer.server()) :: :ok
-  defdelegate clear(agent), to: Helmsman.Session
+  defdelegate clear(agent), to: Condukt.Session
 
   @doc """
   Aborts current operation.
   """
   @spec abort(GenServer.server()) :: :ok
-  defdelegate abort(agent), to: Helmsman.Session
+  defdelegate abort(agent), to: Condukt.Session
 
   @doc """
   Injects a message mid-execution (steering).
@@ -236,7 +236,7 @@ defmodule Helmsman do
   and remaining tool calls will be skipped.
   """
   @spec steer(GenServer.server(), String.t()) :: :ok
-  defdelegate steer(agent, message), to: Helmsman.Session
+  defdelegate steer(agent, message), to: Condukt.Session
 
   @doc """
   Queues a follow-up message.
@@ -244,5 +244,5 @@ defmodule Helmsman do
   This message will be delivered when the agent finishes its current work.
   """
   @spec follow_up(GenServer.server(), String.t()) :: :ok
-  defdelegate follow_up(agent, message), to: Helmsman.Session
+  defdelegate follow_up(agent, message), to: Condukt.Session
 end

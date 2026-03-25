@@ -1,4 +1,4 @@
-defmodule Helmsman.Providers.Ollama do
+defmodule Condukt.Providers.Ollama do
   @moduledoc """
   Ollama provider – self-hosted OpenAI-compatible Chat Completions API.
 
@@ -30,7 +30,7 @@ defmodule Helmsman.Providers.Ollama do
   ## Examples
 
       # Basic usage with default localhost
-      Helmsman.run(agent, "Hello!",
+      Condukt.run(agent, "Hello!",
         model: "ollama:llama3.2"
       )
 

@@ -1,8 +1,8 @@
-defmodule Helmsman.ToolTest do
+defmodule Condukt.ToolTest do
   use ExUnit.Case, async: true
 
-  alias Helmsman.Tool
-  alias Helmsman.Tools.Read
+  alias Condukt.Tool
+  alias Condukt.Tools.Read
 
   test "builds spec from module" do
     spec = Tool.to_spec(Read)

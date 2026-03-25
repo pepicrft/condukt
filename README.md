@@ -1,25 +1,25 @@
-# Helmsman ⚓
+# Condukt ⚓
 
-[![Hex.pm](https://img.shields.io/hexpm/v/helmsman.svg)](https://hex.pm/packages/helmsman)
-[![HexDocs](https://img.shields.io/badge/docs-hexdocs-blue.svg)](https://hexdocs.pm/helmsman/)
-[![CI](https://github.com/pepicrft/helmsman/actions/workflows/helmsman.yml/badge.svg)](https://github.com/pepicrft/helmsman/actions/workflows/helmsman.yml)
+[![Hex.pm](https://img.shields.io/hexpm/v/condukt.svg)](https://hex.pm/packages/condukt)
+[![HexDocs](https://img.shields.io/badge/docs-hexdocs-blue.svg)](https://hexdocs.pm/condukt/)
+[![CI](https://github.com/pepicrft/condukt/actions/workflows/condukt.yml/badge.svg)](https://github.com/pepicrft/condukt/actions/workflows/condukt.yml)
 
 A framework for building AI agents in Elixir.
 
-Install it from [Hex.pm](https://hex.pm/packages/helmsman) and browse the guides on [HexDocs](https://hexdocs.pm/helmsman/).
+Install it from [Hex.pm](https://hex.pm/packages/condukt) and browse the guides on [HexDocs](https://hexdocs.pm/condukt/).
 
-Helmsman treats AI agents as first-class OTP processes that can reason, use tools, and orchestrate complex workflows. Built on Erlang/OTP primitives for reliability and concurrency.
+Condukt treats AI agents as first-class OTP processes that can reason, use tools, and orchestrate complex workflows. Built on Erlang/OTP primitives for reliability and concurrency.
 
 ## Motivation 💡
 
-Helmsman grew out of practical work building agentic workflows. We needed a framework that:
+Condukt grew out of practical work building agentic workflows. We needed a framework that:
 
 - Integrates naturally with OTP supervision trees
 - Supports streaming for responsive user experiences
 - Works with multiple LLM providers without vendor lock-in
 - Provides extensible tooling for domain-specific capabilities
 
-Rather than wrapping JavaScript agent frameworks, we built Helmsman from scratch using idiomatic Elixir patterns. We are sharing it because Elixir is an excellent fit for building reliable AI agents.
+Rather than wrapping JavaScript agent frameworks, we built Condukt from scratch using idiomatic Elixir patterns. We are sharing it because Elixir is an excellent fit for building reliable AI agents.
 
 ## Features ✨
 
@@ -31,12 +31,12 @@ Rather than wrapping JavaScript agent frameworks, we built Helmsman from scratch
 
 ## Installation 📦
 
-Add `helmsman` to your dependencies in `mix.exs`:
+Add `condukt` to your dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:helmsman, "~> 0.1.0"}
+    {:condukt, "~> 0.1.0"}
   ]
 end
 ```
@@ -47,11 +47,11 @@ end
 
 ```elixir
 defmodule MyApp.CodingAgent do
-  use Helmsman
+  use Condukt
 
   @impl true
   def tools do
-    Helmsman.Tools.coding_tools()
+    Condukt.Tools.coding_tools()
   end
 end
 ```
@@ -70,10 +70,10 @@ end
 )
 
 # Run a prompt
-{:ok, response} = Helmsman.run(agent, "Create a GenServer that manages a counter")
+{:ok, response} = Condukt.run(agent, "Create a GenServer that manages a counter")
 
 # Stream responses for real-time output
-Helmsman.stream(agent, "Add documentation to the counter module")
+Condukt.stream(agent, "Add documentation to the counter module")
 |> Stream.each(fn
   {:text, chunk} -> IO.write(chunk)
   {:tool_call, name, _id, _args} -> IO.puts("\n📦 Using tool: #{name}")
@@ -104,21 +104,21 @@ end
 
 ## LiveBook 📓
 
-Helmsman works well in LiveBook notebooks with `Mix.install/1`:
+Condukt works well in LiveBook notebooks with `Mix.install/1`:
 
 ```elixir
 Mix.install([
-  {:helmsman, "~> 0.1.0"}
+  {:condukt, "~> 0.1.0"}
 ])
 
-Application.put_env(:helmsman, :api_key, System.fetch_env!("ANTHROPIC_API_KEY"))
+Application.put_env(:condukt, :api_key, System.fetch_env!("ANTHROPIC_API_KEY"))
 
 defmodule NotebookAgent do
-  use Helmsman
+  use Condukt
 
   @impl true
   def tools do
-    Helmsman.Tools.read_only_tools()
+    Condukt.Tools.read_only_tools()
   end
 end
 
@@ -128,7 +128,7 @@ end
   )
 
 {:ok, response} =
-  Helmsman.run(agent, "Summarize the current notebook context.")
+  Condukt.run(agent, "Summarize the current notebook context.")
 
 response
 ```
@@ -147,7 +147,7 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 export OPENAI_API_KEY="sk-..."
 
 # Application config
-config :helmsman,
+config :condukt,
   api_key: "sk-ant-...",
   system_prompt: "You are a helpful coding assistant."
 
@@ -155,19 +155,19 @@ config :helmsman,
 MyApp.CodingAgent.start_link(api_key: "sk-ant-...")
 ```
 
-Values passed to `start_link/1` take precedence over `config :helmsman`, which takes precedence over agent module defaults.
+Values passed to `start_link/1` take precedence over `config :condukt`, which takes precedence over agent module defaults.
 
 ### Agent Options
 
 ```elixir
 MyApp.CodingAgent.start_link(
-  api_key: "sk-ant-...",                        # Overrides config :helmsman, :api_key
+  api_key: "sk-ant-...",                        # Overrides config :condukt, :api_key
   model: "anthropic:claude-sonnet-4-20250514",  # Overrides config/module default
   base_url: "http://localhost:11434/v1",        # Override provider's default URL
   system_prompt: "You are helpful.",            # Overrides config/module default
   thinking_level: :medium,                      # Overrides config/module default
   cwd: "/path/to/project",                      # Overrides config/default cwd
-  session_store: Helmsman.SessionStore.Memory,  # Optional session persistence
+  session_store: Condukt.SessionStore.Memory,  # Optional session persistence
   name: MyApp.CodingAgent                       # GenServer name
 )
 ```
@@ -179,33 +179,33 @@ conversation history plus session settings.
 
 Built-in session stores:
 
-- `Helmsman.SessionStore.Memory` stores snapshots in ETS for reuse within the current VM
-- `Helmsman.SessionStore.Disk` persists snapshots to disk across restarts
+- `Condukt.SessionStore.Memory` stores snapshots in ETS for reuse within the current VM
+- `Condukt.SessionStore.Disk` persists snapshots to disk across restarts
 
 ```elixir
 # Restore within the current VM
 {:ok, agent} =
   MyApp.CodingAgent.start_link(
-    session_store: {Helmsman.SessionStore.Memory, key: {:coding_agent, "/tmp/project"}}
+    session_store: {Condukt.SessionStore.Memory, key: {:coding_agent, "/tmp/project"}}
   )
 
 # Persist to disk across restarts
 {:ok, agent} =
   MyApp.CodingAgent.start_link(
     cwd: "/tmp/project",
-    session_store: Helmsman.SessionStore.Disk
+    session_store: Condukt.SessionStore.Disk
   )
 
 # Custom path or custom implementation
 {:ok, agent} =
   MyApp.CodingAgent.start_link(
-    session_store: {Helmsman.SessionStore.Disk, path: "/tmp/helmsman.session"}
+    session_store: {Condukt.SessionStore.Disk, path: "/tmp/condukt.session"}
   )
 ```
 
 ### Supported Providers
 
-Thanks to [ReqLLM](https://github.com/agentjido/req_llm), Helmsman supports 18+ providers:
+Thanks to [ReqLLM](https://github.com/agentjido/req_llm), Condukt supports 18+ providers:
 
 | Provider | Model Format |
 |----------|-------------|
@@ -224,28 +224,28 @@ Thanks to [ReqLLM](https://github.com/agentjido/req_llm), Helmsman supports 18+ 
 
 ```elixir
 # Full coding tools: Read, Bash, Edit, Write
-def tools, do: Helmsman.Tools.coding_tools()
+def tools, do: Condukt.Tools.coding_tools()
 
 # Read-only: Read, Bash
-def tools, do: Helmsman.Tools.read_only_tools()
+def tools, do: Condukt.Tools.read_only_tools()
 ```
 
 ### Individual Tools
 
 | Tool | Description |
 |------|-------------|
-| `Helmsman.Tools.Read` | Read file contents, supports images |
-| `Helmsman.Tools.Bash` | Execute shell commands |
-| `Helmsman.Tools.Edit` | Surgical file edits (find & replace) |
-| `Helmsman.Tools.Write` | Create or overwrite files |
+| `Condukt.Tools.Read` | Read file contents, supports images |
+| `Condukt.Tools.Bash` | Execute shell commands |
+| `Condukt.Tools.Edit` | Surgical file edits (find & replace) |
+| `Condukt.Tools.Write` | Create or overwrite files |
 
 ## Custom Tools 🛠️
 
-Define custom tools by implementing the `Helmsman.Tool` behaviour:
+Define custom tools by implementing the `Condukt.Tool` behaviour:
 
 ```elixir
 defmodule MyApp.Tools.Weather do
-  use Helmsman.Tool
+  use Condukt.Tool
 
   @impl true
   def name, do: "get_weather"
@@ -280,7 +280,7 @@ Handle events during agent execution:
 
 ```elixir
 defmodule MyApp.LoggingAgent do
-  use Helmsman
+  use Condukt
 
   @impl true
   def handle_event({:tool_call, name, _id, _args}, state) do
@@ -301,16 +301,16 @@ end
 
 ## Telemetry
 
-Helmsman emits telemetry events for observability:
+Condukt emits telemetry events for observability:
 
 ```elixir
 :telemetry.attach_many(
   "my-handler",
   [
-    [:helmsman, :agent, :start],
-    [:helmsman, :agent, :stop],
-    [:helmsman, :tool_call, :start],
-    [:helmsman, :tool_call, :stop]
+    [:condukt, :agent, :start],
+    [:condukt, :agent, :stop],
+    [:condukt, :tool_call, :start],
+    [:condukt, :tool_call, :stop]
   ],
   fn event, measurements, metadata, _config ->
     Logger.info("#{inspect(event)}: #{inspect(measurements)}")
@@ -324,7 +324,7 @@ Helmsman emits telemetry events for observability:
 The streaming API returns an enumerable of events:
 
 ```elixir
-Helmsman.stream(agent, "Hello")
+Condukt.stream(agent, "Hello")
 |> Enum.each(fn event ->
   case event do
     {:text, chunk} -> IO.write(chunk)
