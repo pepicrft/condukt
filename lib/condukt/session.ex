@@ -43,6 +43,7 @@ defmodule Condukt.Session do
     :base_url,
     :session_store,
     :user_state,
+    :sandbox_pid,
     messages: [],
     streaming: false,
     abort_ref: nil,
@@ -74,6 +75,7 @@ defmodule Condukt.Session do
       |> Keyword.put_new(:tools, agent_module.tools())
       |> put_configured_opt(config, :cwd, &File.cwd!/0)
       |> put_configured_opt(config, :session_store)
+      |> Keyword.put_new_lazy(:sandbox, fn -> agent_module.sandbox() end)
 
     GenServer.start_link(__MODULE__, agent_opts, gen_opts)
   end
@@ -166,30 +168,38 @@ defmodule Condukt.Session do
   def init(opts) do
     agent_module = Keyword.fetch!(opts, :agent_module)
     session_store = Keyword.get(opts, :session_store)
+    sandbox_config = Keyword.get(opts, :sandbox)
     snapshot = load_snapshot(session_store, opts)
 
-    case agent_module.init(opts) do
-      {:ok, user_state} ->
-        state =
-          %__MODULE__{
-            agent_module: agent_module,
-            model: restore_value(opts, :model, snapshot && snapshot.model),
-            thinking_level: restore_value(opts, :thinking_level, snapshot && snapshot.thinking_level),
-            system_prompt: restore_value(opts, :system_prompt, snapshot && snapshot.system_prompt),
-            tools: Keyword.fetch!(opts, :tools),
-            cwd: Keyword.fetch!(opts, :cwd),
-            api_key: opts[:api_key],
-            base_url: opts[:base_url],
-            session_store: session_store,
-            user_state: user_state
-          }
-          |> restore_messages(snapshot)
+    with {:ok, user_state} <- agent_module.init(opts),
+         {:ok, sandbox_pid} <- maybe_start_sandbox(sandbox_config) do
+      state =
+        %__MODULE__{
+          agent_module: agent_module,
+          model: restore_value(opts, :model, snapshot && snapshot.model),
+          thinking_level: restore_value(opts, :thinking_level, snapshot && snapshot.thinking_level),
+          system_prompt: restore_value(opts, :system_prompt, snapshot && snapshot.system_prompt),
+          tools: Keyword.fetch!(opts, :tools),
+          cwd: Keyword.fetch!(opts, :cwd),
+          api_key: opts[:api_key],
+          base_url: opts[:base_url],
+          session_store: session_store,
+          user_state: user_state,
+          sandbox_pid: sandbox_pid
+        }
+        |> restore_messages(snapshot)
 
-        {:ok, state}
-
-      {:stop, reason} ->
-        {:stop, reason}
+      {:ok, state}
+    else
+      {:stop, reason} -> {:stop, reason}
+      {:error, reason} -> {:stop, reason}
     end
+  end
+
+  @impl true
+  def terminate(_reason, state) do
+    if state.sandbox_pid, do: Condukt.Sandbox.stop(state.sandbox_pid)
+    :ok
   end
 
   @impl true
@@ -481,7 +491,7 @@ defmodule Condukt.Session do
         callback: fn args ->
           context = %{agent: self(), cwd: state.cwd, opts: []}
 
-          case Tool.execute(tool_spec, args, context) do
+          case execute_tool_call(state, tool_spec, args, context) do
             {:ok, result} when is_binary(result) -> result
             {:ok, result} -> JSON.encode!(result)
             {:error, reason} -> "Error: #{inspect(reason)}"
@@ -615,22 +625,31 @@ defmodule Condukt.Session do
       nil ->
         Message.tool_result(id, {:error, "Unknown tool: #{name}"})
 
-      {module, opts} ->
-        context = %{agent: self(), cwd: state.cwd, opts: opts}
+      tool_spec ->
+        {tool_spec, context} = build_tool_context(tool_spec, state)
 
-        case Tool.execute({module, opts}, args, context) do
-          {:ok, result} -> Message.tool_result(id, result)
-          {:error, reason} -> Message.tool_result(id, {:error, reason})
-        end
-
-      module ->
-        context = %{agent: self(), cwd: state.cwd, opts: []}
-
-        case Tool.execute(module, args, context) do
+        case execute_tool_call(state, tool_spec, args, context) do
           {:ok, result} -> Message.tool_result(id, result)
           {:error, reason} -> Message.tool_result(id, {:error, reason})
         end
     end
+  end
+
+  defp build_tool_context({module, opts}, state) do
+    {{module, opts}, %{agent: self(), cwd: state.cwd, opts: opts}}
+  end
+
+  defp build_tool_context(module, state) do
+    {module, %{agent: self(), cwd: state.cwd, opts: []}}
+  end
+
+  # When a sandbox is configured, delegate tool execution to the remote node
+  defp execute_tool_call(%{sandbox_pid: pid}, tool_spec, args, context) when is_pid(pid) do
+    Condukt.Sandbox.exec_tool(pid, tool_spec, args, context)
+  end
+
+  defp execute_tool_call(_state, tool_spec, args, context) do
+    Tool.execute(tool_spec, args, context)
   end
 
   defp build_tool_map(tools) do
@@ -746,5 +765,14 @@ defmodule Condukt.Session do
       agent_module: state.agent_module,
       cwd: state.cwd
     ]
+  end
+
+  defp maybe_start_sandbox(nil), do: {:ok, nil}
+
+  defp maybe_start_sandbox(config) when is_map(config) do
+    case Condukt.Sandbox.start_link(config) do
+      {:ok, pid} -> {:ok, pid}
+      {:error, reason} -> {:error, {:sandbox_start_failed, reason}}
+    end
   end
 end

@@ -24,7 +24,7 @@ defmodule Condukt.MixProject do
   def application do
     [
       mod: {Condukt.Application, []},
-      extra_applications: [:logger]
+      extra_applications: [:logger, :ssh]
     ]
   end
 
@@ -38,6 +38,9 @@ defmodule Condukt.MixProject do
 
       # Command execution with child process shutdown propagation
       {:muontrap, "~> 1.7"},
+
+      # Sandbox environments
+      {:terrarium, github: "pepicrft/terrarium"},
 
       # Telemetry
       {:telemetry, "~> 1.0"},
