@@ -40,7 +40,7 @@ defmodule Condukt.MixProject do
       {:muontrap, "~> 1.7"},
 
       # Sandbox environments
-      {:terrarium, github: "pepicrft/terrarium"},
+      {:terrarium, "~> 0.4.0"},
 
       # Telemetry
       {:telemetry, "~> 1.0"},
