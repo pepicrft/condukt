@@ -11,13 +11,34 @@ Mix.install([
 
 ## Setup
 
-Configure your API keys. The Anthropic key is for LLM calls, the exe.dev token is for the sandbox.
+Set your Anthropic API key in Livebook's secrets as `LB_ANTHROPIC_API_KEY`.
+The exe.dev token is generated automatically from your SSH key (`~/.ssh/id_ed25519`).
 
 ```elixir
 anthropic_key = System.fetch_env!("LB_ANTHROPIC_API_KEY")
-exe_token = System.fetch_env!("LB_EXE_DEV_TOKEN")
 
-Kino.nothing()
+# Generate exe.dev token from your SSH key
+ssh_key_path = Path.expand("~/.ssh/id_ed25519")
+
+payload = Base.url_encode64("{}", padding: false)
+
+{sig_pem, 0} =
+  System.cmd("ssh-keygen", ["-Y", "sign", "-f", ssh_key_path, "-n", "v0@exe.dev"],
+    stdin: "{}"
+  )
+
+sig_b64 =
+  sig_pem
+  |> String.split("\n")
+  |> Enum.reject(&String.starts_with?(&1, "---"))
+  |> Enum.join()
+  |> String.replace("+", "-")
+  |> String.replace("/", "_")
+  |> String.trim_trailing("=")
+
+exe_token = "exe0.#{payload}.#{sig_b64}"
+
+Kino.Markdown.new("✅ **Ready.** exe.dev token generated from `#{ssh_key_path}`")
 ```
 
 ## Define an Agent
