@@ -80,26 +80,30 @@ First, let's run the agent **locally** — tools execute on this machine.
 ```elixir
 {:ok, local_agent} = DemoAgent.start_link(api_key: zai_key)
 
+frame = Kino.Frame.new() |> Kino.render()
+text_frame = Kino.Frame.new()
+Kino.Frame.append(frame, text_frame)
+
 Condukt.stream(local_agent, "What operating system is this? Run `uname -a` to find out.")
-|> Enum.reduce([], fn
-  {:text, chunk}, acc ->
-    [chunk | acc]
+|> Enum.reduce("", fn
+  {:text, chunk}, text ->
+    text = text <> chunk
+    Kino.Frame.render(text_frame, Kino.Markdown.new(text))
+    text
 
-  {:tool_call, name, _id, args}, acc ->
-    IO.puts("\n🔧 Tool call: #{name}(#{inspect(args)})")
-    acc
+  {:tool_call, name, _id, args}, text ->
+    Kino.Frame.append(frame, Kino.Markdown.new("🔧 `#{name}(#{inspect(args)})`"))
+    text
 
-  {:tool_result, _id, result}, acc ->
-    IO.puts("📋 Result: #{String.slice(to_string(result), 0..200)}")
-    acc
+  {:tool_result, _id, result}, text ->
+    Kino.Frame.append(frame, Kino.Markdown.new("📋 `#{String.slice(to_string(result), 0..200)}`"))
+    # New text frame for the next response chunk
+    text_frame = Kino.Frame.new()
+    Kino.Frame.append(frame, text_frame)
+    ""
 
-  :done, acc ->
-    response = acc |> Enum.reverse() |> Enum.join()
-    IO.puts("\n\n💬 Response:\n#{response}")
-    acc
-
-  _, acc ->
-    acc
+  _, text ->
+    text
 end)
 
 GenServer.stop(local_agent)
@@ -113,7 +117,6 @@ The only difference is the `:sandbox` option at `start_link`.
 
 ```elixir
 frame = Kino.Frame.new() |> Kino.render()
-
 Kino.Frame.append(frame, Kino.Markdown.new("**Starting sandbox...**"))
 
 {:ok, sandbox_agent} =
@@ -127,30 +130,28 @@ Kino.Frame.append(frame, Kino.Markdown.new("**Starting sandbox...**"))
 
 Kino.Frame.append(frame, Kino.Markdown.new("✅ **Sandbox provisioned.** Running prompt..."))
 
+text_frame = Kino.Frame.new()
+Kino.Frame.append(frame, text_frame)
+
 Condukt.stream(sandbox_agent, "What operating system is this? Run `uname -a` to find out.")
-|> Enum.reduce([], fn
-  {:text, chunk}, acc ->
-    [chunk | acc]
+|> Enum.reduce("", fn
+  {:text, chunk}, text ->
+    text = text <> chunk
+    Kino.Frame.render(text_frame, Kino.Markdown.new(text))
+    text
 
-  {:tool_call, name, _id, args}, acc ->
-    Kino.Frame.append(frame, Kino.Markdown.new("🔧 **Tool call:** `#{name}(#{inspect(args)})`"))
-    acc
+  {:tool_call, name, _id, args}, text ->
+    Kino.Frame.append(frame, Kino.Markdown.new("🔧 `#{name}(#{inspect(args)})`"))
+    text
 
-  {:tool_result, _id, result}, acc ->
-    Kino.Frame.append(
-      frame,
-      Kino.Markdown.new("📋 **Result:** `#{String.slice(to_string(result), 0..200)}`")
-    )
+  {:tool_result, _id, result}, text ->
+    Kino.Frame.append(frame, Kino.Markdown.new("📋 `#{String.slice(to_string(result), 0..200)}`"))
+    text_frame = Kino.Frame.new()
+    Kino.Frame.append(frame, text_frame)
+    ""
 
-    acc
-
-  :done, acc ->
-    response = acc |> Enum.reverse() |> Enum.join()
-    Kino.Frame.append(frame, Kino.Markdown.new("---\n\n💬 **Response:**\n\n#{response}"))
-    acc
-
-  _, acc ->
-    acc
+  _, text ->
+    text
 end)
 
 GenServer.stop(sandbox_agent)
