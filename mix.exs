@@ -40,7 +40,7 @@ defmodule Condukt.MixProject do
       {:muontrap, "~> 1.7"},
 
       # Sandbox environments
-      {:terrarium, "~> 0.4.0"},
+      {:terrarium, "~> 0.8.0"},
 
       # Telemetry
       {:telemetry, "~> 1.0"},
@@ -50,7 +50,9 @@ defmodule Condukt.MixProject do
       {:ex_doc, "~> 0.35", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:mimic, "~> 2.0", only: :test}
+      {:mimic, "~> 2.0", only: :test},
+      {:terrarium_daytona, "~> 0.3.0", only: :test},
+      {:terrarium_exe, "~> 0.1", only: :test}
     ]
   end
 
