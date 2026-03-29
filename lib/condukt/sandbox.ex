@@ -256,13 +256,16 @@ defmodule Condukt.Sandbox do
     # Remove sandbox config to avoid infinite recursion on the remote
     agent_opts = Keyword.delete(agent_opts, :sandbox)
 
-    # Start all required OTP applications on the remote node.
+    # Start required OTP applications on the remote node.
     # The remote peer is a bare erl — no applications are started by default.
+    # We start infrastructure apps but skip req_llm's Application (which tries
+    # to load llm_db's packaged database via Application.app_dir, which fails
+    # on a flat ebin deployment). The req_llm modules work fine without it.
     Logger.debug("Starting applications on remote node")
 
-    apps = [:crypto, :asn1, :public_key, :ssl, :inets, :telemetry, :req, :req_llm, :condukt]
+    infra_apps = [:crypto, :asn1, :public_key, :ssl, :inets, :telemetry, :mint, :finch, :req]
 
-    for app <- apps do
+    for app <- infra_apps do
       :peer.call(peer_pid, :application, :ensure_all_started, [app])
     end
 
