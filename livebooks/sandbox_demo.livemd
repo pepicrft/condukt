@@ -66,7 +66,7 @@ defmodule DemoAgent do
   end
 
   @impl true
-  def model, do: "zai:glm-4-flash"
+  def model, do: "zai:glm-4.5-flash"
 end
 ```
 
@@ -92,7 +92,7 @@ Condukt.stream(local_agent, "What operating system is this? Run `uname -s` and t
     Kino.Frame.append(frame, Kino.Markdown.new("🔧 `#{name}(#{inspect(args)})`"))
     text
 
-  {:tool_result, _id, result}, text ->
+  {:tool_result, _id, result}, _text ->
     Kino.Frame.append(frame, Kino.Markdown.new("📋 `#{String.slice(to_string(result), 0..200)}`"))
     text_frame = Kino.Frame.new()
     Kino.Frame.append(frame, text_frame)
@@ -140,7 +140,7 @@ Condukt.stream(sandbox_agent, "What operating system is this? Run `uname -s` and
     Kino.Frame.append(frame, Kino.Markdown.new("🔧 `#{name}(#{inspect(args)})`"))
     text
 
-  {:tool_result, _id, result}, text ->
+  {:tool_result, _id, result}, _text ->
     Kino.Frame.append(frame, Kino.Markdown.new("📋 `#{String.slice(to_string(result), 0..200)}`"))
     text_frame = Kino.Frame.new()
     Kino.Frame.append(frame, text_frame)
