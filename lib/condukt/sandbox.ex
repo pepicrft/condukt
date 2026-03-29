@@ -204,6 +204,11 @@ defmodule Condukt.Sandbox do
     {:noreply, %{state | subscribers: subscribers}}
   end
 
+  def handle_cast({:unsubscribe, pid, ref}, state) do
+    subscribers = Enum.reject(state.subscribers, fn {p, r} -> p == pid and r == ref end)
+    {:noreply, %{state | subscribers: subscribers}}
+  end
+
   def handle_info(_msg, state) do
     {:noreply, state}
   end
