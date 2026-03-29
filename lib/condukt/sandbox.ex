@@ -256,6 +256,11 @@ defmodule Condukt.Sandbox do
     # Remove sandbox config to avoid infinite recursion on the remote
     agent_opts = Keyword.delete(agent_opts, :sandbox)
 
+    # Start required OTP applications on the remote node
+    Logger.debug("Starting applications on remote node")
+    :peer.call(peer_pid, :application, :ensure_all_started, [:telemetry])
+    :peer.call(peer_pid, :application, :ensure_all_started, [:condukt])
+
     Logger.debug("Starting remote session", agent_module: agent_module)
 
     case :peer.call(peer_pid, Condukt.Session, :start_link, [agent_module, agent_opts]) do
