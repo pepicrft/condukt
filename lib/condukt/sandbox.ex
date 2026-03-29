@@ -256,10 +256,15 @@ defmodule Condukt.Sandbox do
     # Remove sandbox config to avoid infinite recursion on the remote
     agent_opts = Keyword.delete(agent_opts, :sandbox)
 
-    # Start required OTP applications on the remote node
+    # Start all required OTP applications on the remote node.
+    # The remote peer is a bare erl — no applications are started by default.
     Logger.debug("Starting applications on remote node")
-    :peer.call(peer_pid, :application, :ensure_all_started, [:telemetry])
-    :peer.call(peer_pid, :application, :ensure_all_started, [:condukt])
+
+    apps = [:crypto, :asn1, :public_key, :ssl, :inets, :telemetry, :req, :req_llm, :condukt]
+
+    for app <- apps do
+      :peer.call(peer_pid, :application, :ensure_all_started, [app])
+    end
 
     Logger.debug("Starting remote session", agent_module: agent_module)
 
