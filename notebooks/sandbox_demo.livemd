@@ -47,7 +47,7 @@ Kino.Markdown.new("✅ **Ready.** exe.dev token generated from `#{ssh_key_path}`
 
 ## Define an Agent
 
-This agent has access to the `Bash` tool. Notice there's **no mention of sandboxes** in the agent definition — sandbox support is transparent.
+This agent has access to the `Bash` tool. Notice there's **no mention of sandboxes** — sandbox support is transparent.
 
 ```elixir
 defmodule DemoAgent do
@@ -73,9 +73,9 @@ defmodule DemoAgent do
 end
 ```
 
-## Run Locally
+## Stream Locally
 
-First, let's run the agent **locally** — tools execute on this machine.
+The agent runs on **this machine**. `uname` will return Darwin (macOS).
 
 ```elixir
 {:ok, local_agent} = DemoAgent.start_link(api_key: zai_key)
@@ -84,7 +84,7 @@ frame = Kino.Frame.new() |> Kino.render()
 text_frame = Kino.Frame.new()
 Kino.Frame.append(frame, text_frame)
 
-Condukt.stream(local_agent, "What operating system is this? Run `uname -a` to find out.")
+Condukt.stream(local_agent, "What operating system is this? Run `uname -s` and tell me.")
 |> Enum.reduce("", fn
   {:text, chunk}, text ->
     text = text <> chunk
@@ -97,7 +97,6 @@ Condukt.stream(local_agent, "What operating system is this? Run `uname -a` to fi
 
   {:tool_result, _id, result}, text ->
     Kino.Frame.append(frame, Kino.Markdown.new("📋 `#{String.slice(to_string(result), 0..200)}`"))
-    # New text frame for the next response chunk
     text_frame = Kino.Frame.new()
     Kino.Frame.append(frame, text_frame)
     ""
@@ -110,14 +109,14 @@ GenServer.stop(local_agent)
 Kino.nothing()
 ```
 
-## Run in a Sandbox
+## Stream in a Sandbox
 
-Now the same agent, same prompt — but tools execute inside an **exe.dev VM**.
-The only difference is the `:sandbox` option at `start_link`.
+Same agent, same prompt — but the entire session runs inside an **exe.dev VM**.
+The only difference is the `:sandbox` option.
 
 ```elixir
 frame = Kino.Frame.new() |> Kino.render()
-Kino.Frame.append(frame, Kino.Markdown.new("**Starting sandbox...**"))
+Kino.Frame.append(frame, Kino.Markdown.new("⏳ **Provisioning sandbox...**"))
 
 {:ok, sandbox_agent} =
   DemoAgent.start_link(
@@ -128,12 +127,12 @@ Kino.Frame.append(frame, Kino.Markdown.new("**Starting sandbox...**"))
     }
   )
 
-Kino.Frame.append(frame, Kino.Markdown.new("✅ **Sandbox provisioned.** Running prompt..."))
+Kino.Frame.append(frame, Kino.Markdown.new("✅ **Sandbox ready.** Streaming..."))
 
 text_frame = Kino.Frame.new()
 Kino.Frame.append(frame, text_frame)
 
-Condukt.stream(sandbox_agent, "What operating system is this? Run `uname -a` to find out.")
+Condukt.stream(sandbox_agent, "What operating system is this? Run `uname -s` and tell me.")
 |> Enum.reduce("", fn
   {:text, chunk}, text ->
     text = text <> chunk
@@ -160,31 +159,7 @@ Kino.nothing()
 
 ## Compare
 
-Notice the difference:
+* **Local:** `uname -s` returns **Darwin** (macOS)
+* **Sandbox:** `uname -s` returns **Linux** (exe.dev VM)
 
-* **Local:** `uname -a` returns your Mac's kernel (Darwin)
-* **Sandbox:** `uname -a` returns the exe.dev VM's kernel (Linux)
-
-The agent code is identical. The sandbox is invisible to the agent and the LLM — only tool execution is transparently remote.
-
-## How it Works
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Proxy as Local Process<br/>(thin proxy)
-    participant Session as Condukt.Session<br/>(in sandbox)
-    participant LLM as LLM Provider
-    participant Tools as Bash Tool<br/>(in sandbox)
-
-    User->>Proxy: run("What OS is this?")
-    Proxy->>Session: :peer.call(run)
-    Session->>LLM: prompt + tools
-    LLM-->>Session: tool_call: Bash("uname -a")
-    Session->>Tools: Bash.execute("uname -a")
-    Tools-->>Session: "Linux 6.x ..."
-    Session->>LLM: tool_result
-    LLM-->>Session: "You're running Linux..."
-    Session-->>Proxy: {:ok, response}
-    Proxy-->>User: response
-```
+Same agent, same API. The sandbox is invisible.
