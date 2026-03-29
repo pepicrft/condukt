@@ -9,29 +9,13 @@ defmodule Condukt.E2E.SandboxExeTest do
 
   @moduletag :e2e
 
-  defmodule TestAgent do
-    use Condukt
-
-    @impl true
-    def tools, do: [Condukt.Tools.Bash]
-
-    @impl true
-    def system_prompt, do: "You are a helpful assistant. When asked to run a command, use the Bash tool. Be concise."
-
-    @impl true
-    def model, do: "zai:glm-4.5-flash"
-
-    @impl true
-    def thinking_level, do: :off
-  end
-
   @tag timeout: to_timeout(minute: 10)
   test "agent runs entirely inside exe.dev sandbox" do
     token = System.fetch_env!("EXE_DEV_TOKEN")
 
     # Start agent with sandbox — the entire session runs remotely
     {:ok, agent} =
-      TestAgent.start_link(
+      Condukt.TestAgent.start_link(
         sandbox: %{
           provider: Terrarium.Providers.Exe,
           provider_opts: [token: token]

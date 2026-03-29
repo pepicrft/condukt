@@ -163,6 +163,11 @@ defmodule Condukt.Sandbox do
   end
 
   @impl true
+  def handle_cast({:unsubscribe, pid, ref}, state) do
+    subscribers = Enum.reject(state.subscribers, fn {p, r} -> p == pid and r == ref end)
+    {:noreply, %{state | subscribers: subscribers}}
+  end
+
   def handle_cast({:stream, prompt, opts, subscriber_ref}, state) do
     # Run the stream on the remote, collect events, and replay to the subscriber
     parent = self()
@@ -204,13 +209,29 @@ defmodule Condukt.Sandbox do
     {:noreply, %{state | subscribers: subscribers}}
   end
 
-  def handle_cast({:unsubscribe, pid, ref}, state) do
-    subscribers = Enum.reject(state.subscribers, fn {p, r} -> p == pid and r == ref end)
-    {:noreply, %{state | subscribers: subscribers}}
-  end
-
   def handle_info(_msg, state) do
     {:noreply, state}
+  end
+
+  # ============================================================================
+  # Module Loading
+  # ============================================================================
+
+  defp load_module_on_peer(peer_pid, module) do
+    case :code.get_object_code(module) do
+      {^module, binary, filename} ->
+        # Module has a beam file on disk
+        :peer.call(peer_pid, :code, :load_binary, [module, filename, binary])
+
+      :error ->
+        # In-memory module (Livebook, iex, test).
+        # Extract the BEAM binary from the loaded module's abstract code.
+        {:ok, {^module, [{:abstract_code, {_, forms}}]}} =
+          :beam_lib.chunks(module, [:abstract_code])
+
+        {:ok, ^module, binary} = :compile.forms(forms, [:return_errors])
+        :peer.call(peer_pid, :code, :load_binary, [module, ~c"#{module}.beam", binary])
+    end
   end
 
   # ============================================================================
@@ -263,11 +284,15 @@ defmodule Condukt.Sandbox do
     # on a flat ebin deployment). The req_llm modules work fine without it.
     Logger.debug("Starting applications on remote node")
 
-    infra_apps = [:crypto, :asn1, :public_key, :ssl, :inets, :telemetry, :mint, :finch, :req]
+    infra_apps = [:crypto, :asn1, :public_key, :ssl, :inets, :telemetry, :mint, :finch, :req, :req_llm]
 
     for app <- infra_apps do
       :peer.call(peer_pid, :application, :ensure_all_started, [app])
     end
+
+    # Ensure the agent module is available on the remote node.
+    # It may not be in the deployed ebin (e.g. defined inline in a Livebook or test).
+    load_module_on_peer(peer_pid, agent_module)
 
     Logger.debug("Starting remote session", agent_module: agent_module)
 
