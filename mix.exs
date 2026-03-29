@@ -24,11 +24,11 @@ defmodule Condukt.MixProject do
   def application do
     [
       mod: {Condukt.Application, []},
-      extra_applications: [:logger]
+      extra_applications: [:logger, :ssh]
     ]
   end
 
-  defp elixirc_paths(:test), do: ["lib"]
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
 
   defp deps do
@@ -36,8 +36,8 @@ defmodule Condukt.MixProject do
       # LLM client (supports Anthropic, OpenAI, Google, and 15+ more providers)
       {:req_llm, "~> 1.6"},
 
-      # Command execution with child process shutdown propagation
-      {:muontrap, "~> 1.7"},
+      # Sandbox environments
+      {:terrarium, "~> 0.10.0"},
 
       # Telemetry
       {:telemetry, "~> 1.0"},
@@ -47,7 +47,9 @@ defmodule Condukt.MixProject do
       {:ex_doc, "~> 0.35", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:mimic, "~> 2.0", only: :test}
+      {:mimic, "~> 2.0", only: :test},
+      {:terrarium_daytona, "~> 0.3.0", only: :test},
+      {:terrarium_exe, "~> 0.1", only: :test}
     ]
   end
 
