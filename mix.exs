@@ -37,7 +37,7 @@ defmodule Condukt.MixProject do
       {:req_llm, "~> 1.6"},
 
       # Sandbox environments
-      {:terrarium, "~> 0.9.0"},
+      {:terrarium, "~> 0.10.0"},
 
       # Telemetry
       {:telemetry, "~> 1.0"},

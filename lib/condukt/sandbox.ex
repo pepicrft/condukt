@@ -239,6 +239,21 @@ defmodule Condukt.Sandbox do
   # ============================================================================
 
   @doc false
+  def setup_remote_apps do
+    # Load all .app specs from the code path
+    :code.get_path()
+    |> Enum.each(fn ebin_path ->
+      ebin_dir = List.to_string(ebin_path)
+
+      Path.wildcard(Path.join(ebin_dir, "*.app"))
+      |> Enum.each(fn app_file ->
+        app_name = app_file |> Path.basename(".app") |> String.to_atom()
+        :application.load(app_name)
+      end)
+    end)
+  end
+
+  @doc false
   def collect_stream(session, prompt, opts) do
     Condukt.Session.stream(session, prompt, opts)
     |> Enum.to_list()
@@ -277,12 +292,12 @@ defmodule Condukt.Sandbox do
     # Remove sandbox config to avoid infinite recursion on the remote
     agent_opts = Keyword.delete(agent_opts, :sandbox)
 
-    # Start required OTP applications on the remote node.
-    # The remote peer is a bare erl — no applications are started by default.
-    # We start infrastructure apps but skip req_llm's Application (which tries
-    # to load llm_db's packaged database via Application.app_dir, which fails
-    # on a flat ebin deployment). The req_llm modules work fine without it.
+    # Register deployed app directories and start required applications.
+    # The remote peer is a bare erl — apps are loaded via -pa but their
+    # lib dirs aren't registered, so Application.app_dir/1 won't work.
+    # We load each app spec explicitly so app_dir resolves correctly.
     Logger.debug("Starting applications on remote node")
+    :peer.call(peer_pid, __MODULE__, :setup_remote_apps, [])
 
     infra_apps = [:crypto, :asn1, :public_key, :ssl, :inets, :telemetry, :mint, :finch, :req, :req_llm]
 
