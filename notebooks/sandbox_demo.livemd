@@ -2,7 +2,7 @@
 
 ```elixir
 Mix.install([
-  {:condukt, "~> 0.5"},
+  {:condukt, path: Path.join(__DIR__, "..")},
   {:terrarium, "~> 0.9"},
   {:terrarium_exe, "~> 0.4"},
   {:kino, "~> 0.14"}
