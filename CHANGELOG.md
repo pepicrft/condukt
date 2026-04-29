@@ -1,6 +1,12 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.6.1] - 2026-04-29
+
+### Bug Fixes
+
+- fix: update repo references after move to tuist org (#8)
+
 ## [0.6.0] - 2026-03-25
 
 ### Features
