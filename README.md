@@ -2,7 +2,7 @@
 
 [![Hex.pm](https://img.shields.io/hexpm/v/condukt.svg)](https://hex.pm/packages/condukt)
 [![HexDocs](https://img.shields.io/badge/docs-hexdocs-blue.svg)](https://hexdocs.pm/condukt/)
-[![CI](https://github.com/pepicrft/condukt/actions/workflows/condukt.yml/badge.svg)](https://github.com/pepicrft/condukt/actions/workflows/condukt.yml)
+[![CI](https://github.com/tuist/condukt/actions/workflows/condukt.yml/badge.svg)](https://github.com/tuist/condukt/actions/workflows/condukt.yml)
 
 A framework for building AI agents in Elixir.
 
