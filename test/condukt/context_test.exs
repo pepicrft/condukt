@@ -4,11 +4,11 @@ defmodule Condukt.ContextTest do
   alias Condukt.Context
 
   @tag :tmp_dir
-  test "discovers agents instructions and local skills from a project root", %{tmp_dir: workspace_root} do
-    File.write!(Path.join(workspace_root, "AGENTS.md"), "Follow the workspace instructions.")
-    File.write!(Path.join(workspace_root, "CLAUDE.md"), "Prefer concise responses.")
+  test "discovers agents instructions and local skills from a project root", %{tmp_dir: project_root} do
+    File.write!(Path.join(project_root, "AGENTS.md"), "Follow the project instructions.")
+    File.write!(Path.join(project_root, "CLAUDE.md"), "Prefer concise responses.")
 
-    skill_dir = Path.join(workspace_root, ".agents/skills/review")
+    skill_dir = Path.join(project_root, ".agents/skills/review")
     File.mkdir_p!(skill_dir)
 
     File.write!(
@@ -23,9 +23,9 @@ defmodule Condukt.ContextTest do
       """
     )
 
-    context = Context.discover(workspace_root)
+    context = Context.discover(project_root)
 
-    assert context.agents_md =~ "Follow the workspace instructions."
+    assert context.agents_md =~ "Follow the project instructions."
     assert context.agents_md =~ "Prefer concise responses."
 
     assert context.skills == [
@@ -42,13 +42,13 @@ defmodule Condukt.ContextTest do
   end
 
   @tag :tmp_dir
-  test "deduplicates AGENTS.md and a symlinked CLAUDE.md", %{tmp_dir: workspace_root} do
-    File.write!(Path.join(workspace_root, "AGENTS.md"), "Follow the workspace instructions.")
-    assert :ok = File.ln_s("AGENTS.md", Path.join(workspace_root, "CLAUDE.md"))
+  test "deduplicates AGENTS.md and a symlinked CLAUDE.md", %{tmp_dir: project_root} do
+    File.write!(Path.join(project_root, "AGENTS.md"), "Follow the project instructions.")
+    assert :ok = File.ln_s("AGENTS.md", Path.join(project_root, "CLAUDE.md"))
 
-    context = Context.discover(workspace_root)
+    context = Context.discover(project_root)
 
-    assert context.agents_md == "Follow the workspace instructions."
+    assert context.agents_md == "Follow the project instructions."
   end
 
   test "composes base and discovered prompts" do

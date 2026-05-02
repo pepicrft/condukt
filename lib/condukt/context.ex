@@ -16,9 +16,9 @@ defmodule Condukt.Context do
     %{agents_md: nil, skills: [], prompt: nil}
   end
 
-  def discover(workspace_root) when is_binary(workspace_root) do
-    agents_md = read_agents_md(workspace_root)
-    skills = discover_skills(workspace_root)
+  def discover(project_root) when is_binary(project_root) do
+    agents_md = read_agents_md(project_root)
+    skills = discover_skills(project_root)
 
     %{
       agents_md: agents_md,
@@ -29,8 +29,8 @@ defmodule Condukt.Context do
 
   def compose_system_prompt(base_prompt, nil), do: present(base_prompt)
 
-  def compose_system_prompt(base_prompt, workspace_prompt) do
-    [present(base_prompt), present(workspace_prompt)]
+  def compose_system_prompt(base_prompt, project_instructions_prompt) do
+    [present(base_prompt), present(project_instructions_prompt)]
     |> Enum.reject(&is_nil/1)
     |> case do
       [] -> nil
@@ -38,9 +38,9 @@ defmodule Condukt.Context do
     end
   end
 
-  def read_agents_md(workspace_root) when is_binary(workspace_root) do
+  def read_agents_md(project_root) when is_binary(project_root) do
     @context_files
-    |> Enum.map(&Path.join(workspace_root, &1))
+    |> Enum.map(&Path.join(project_root, &1))
     |> Enum.filter(&File.regular?/1)
     |> Enum.uniq_by(&(Path.expand(&1) |> File.stat!() |> file_identity()))
     |> Enum.map(&File.read!/1)
@@ -52,8 +52,8 @@ defmodule Condukt.Context do
     end
   end
 
-  def discover_skills(workspace_root) when is_binary(workspace_root) do
-    skills_dir = Path.join(workspace_root, @skills_dir)
+  def discover_skills(project_root) when is_binary(project_root) do
+    skills_dir = Path.join(project_root, @skills_dir)
 
     if File.dir?(skills_dir) do
       skills_dir

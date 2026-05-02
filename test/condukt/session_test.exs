@@ -170,7 +170,7 @@ defmodule Condukt.SessionTest do
       system_prompt: "prompt\n\n## Project Instructions\n\nUse mix test.",
       cwd: "/tmp/agent",
       session_store: {RecordingStore, test_pid: self()},
-      workspace_context: %{agents_md: nil, skills: [], prompt: nil},
+      project_context: %{agents_md: nil, skills: [], prompt: nil},
       user_state: :ok
     }
 
@@ -192,7 +192,7 @@ defmodule Condukt.SessionTest do
   end
 
   @tag :tmp_dir
-  test "discovers workspace instructions and local skills from the project root", %{tmp_dir: cwd} do
+  test "discovers project instructions and local skills from the project root", %{tmp_dir: cwd} do
     File.write!(Path.join(cwd, "AGENTS.md"), "Always run project checks.")
 
     skill_dir = Path.join(cwd, ".agents/skills/release")
@@ -222,7 +222,7 @@ defmodule Condukt.SessionTest do
     assert state.system_prompt =~ "Always run project checks."
     assert state.system_prompt =~ ".agents/skills/release/SKILL.md"
 
-    assert state.workspace_context.skills == [
+    assert state.project_context.skills == [
              %Condukt.Context.Skill{
                name: "release",
                path: ".agents/skills/release/SKILL.md",
@@ -247,7 +247,7 @@ defmodule Condukt.SessionTest do
     state = :sys.get_state(pid)
 
     assert state.system_prompt == "base prompt"
-    assert state.workspace_context == %{agents_md: nil, skills: [], prompt: nil}
+    assert state.project_context == %{agents_md: nil, skills: [], prompt: nil}
 
     GenServer.stop(pid)
   end
