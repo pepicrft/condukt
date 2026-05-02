@@ -112,7 +112,7 @@ end
 
 ## Operations 🎯
 
-Sometimes you don't want to chat with an agent — you want to call it like a
+Sometimes you don't want to chat with an agent. You want to call it like a
 typed function: known input, validated output, no conversation history. The
 `operation` macro declares one of those entrypoints at compile time.
 
@@ -172,7 +172,7 @@ Reach for an operation when you want to:
 - Get input/output validation identical to what the LLM provider sees
 
 Reach for `start_link` + `Condukt.run/2` when continuity across turns
-matters — when the next message depends on the last one.
+matters: when the next message depends on the last one.
 
 Schemas are JSON Schema maps, validated with [JSV](https://hex.pm/packages/jsv).
 Input validation runs before any LLM call; output validation runs after the
@@ -317,7 +317,7 @@ Built-in session stores:
 ### Compaction
 
 Long-running agents accumulate messages that grow past the model's context
-window. Pass a compactor to keep history bounded — Condukt applies it after
+window. Pass a compactor to keep history bounded. Condukt applies it after
 each completed turn, and `Condukt.compact/1` triggers it manually.
 
 ```elixir
@@ -334,9 +334,9 @@ MyApp.CodingAgent.start_link(
 
 Built-in strategies:
 
-- `Condukt.Compactor.Sliding` — keeps the last N messages, drops orphaned
+- `Condukt.Compactor.Sliding`: keeps the last N messages, drops orphaned
   tool results.
-- `Condukt.Compactor.ToolResultPrune` — replaces oversized historical tool
+- `Condukt.Compactor.ToolResultPrune`: replaces oversized historical tool
   result payloads with a placeholder, preserving the surrounding reasoning.
 
 Implement `Condukt.Compactor` to provide your own strategy. Each compaction
