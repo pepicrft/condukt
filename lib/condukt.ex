@@ -100,6 +100,11 @@ defmodule Condukt do
     quote location: :keep do
       @behaviour Condukt
 
+      import Condukt.Operation, only: [operation: 2]
+
+      Module.register_attribute(__MODULE__, :condukt_operations, accumulate: true)
+      @before_compile Condukt.Operation
+
       # Default implementations
       @impl Condukt
       def system_prompt, do: nil
