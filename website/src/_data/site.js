@@ -3,7 +3,7 @@ module.exports = {
   tagline: "A framework for building AI agents in Elixir.",
   description:
     "Condukt treats AI agents as first-class OTP processes that can reason, use tools, and orchestrate complex workflows.",
-  url: "https://condukt.dev",
+  url: "https://condukt.tuist.dev",
   repo: "https://github.com/tuist/condukt",
   hex: "https://hex.pm/packages/condukt",
   docs: "https://hexdocs.pm/condukt",

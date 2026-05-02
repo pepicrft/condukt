@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://condukt.dev/sitemap.xml
+Sitemap: https://condukt.tuist.dev/sitemap.xml

@@ -60,7 +60,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment:
       name: production
-      url: https://condukt.dev
+      url: https://condukt.tuist.dev
     defaults:
       run:
         working-directory: website
