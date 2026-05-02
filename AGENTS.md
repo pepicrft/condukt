@@ -26,6 +26,15 @@ The marketing site lives under `website/` and is built with [Eleventy](https://w
 - Worker config: `website/wrangler.toml` (static-assets only — no server code).
 - Toolchain: Node and aube are pinned in `mise.toml`; bump there rather than ad-hoc.
 
+## Documentation (`guides/`)
+
+Per-feature ExDoc pages live under `guides/` and are wired into `mix.exs` via `extras` and `groups_for_extras`. They are published to HexDocs alongside the API reference.
+
+- When adding, removing, or meaningfully changing a feature (tools, sessions, compaction, redaction, providers, telemetry, project instructions, streaming, etc.), update the corresponding page under `guides/` in the same change.
+- When introducing a new top-level feature, add a new guide page and register it in both `extras` and `groups_for_extras` in `mix.exs`.
+- Avoid em dashes in guide prose (use colons, commas, or periods).
+- Verify with `mix docs` before committing.
+
 ## Keeping this file up to date
 
 - Whenever a change adds, removes, or meaningfully alters an agent capability, workflow, deployment target, or required tool, update this file in the same change. The agent reads `AGENTS.md` at startup and stale entries cause it to act on outdated assumptions.
