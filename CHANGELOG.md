@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.11.0] - 2026-05-02
+
+### Features
+
+- typed operations on agent modules
+
+
 ## [0.10.0] - 2026-05-02
 
 ### Features
