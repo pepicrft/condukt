@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% if title %}{{ title }} · {{ site.name }}{% else %}{{ site.name }} · {{ site.tagline }}{% endif %}</title>
+    <meta name="description" content="{{ description or site.description }}" />
+    <meta property="og:title" content="{% if title %}{{ title }} · {{ site.name }}{% else %}{{ site.name }}{% endif %}" />
+    <meta property="og:description" content="{{ description or site.description }}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="{{ site.url }}{{ page.url }}" />
+    <link rel="stylesheet" href="/assets/styles.css" />
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container">
+        <a class="brand" href="/">
+          <span class="brand-mark">●</span>
+          <span class="brand-name">{{ site.name }}</span>
+        </a>
+        <nav class="site-nav">
+          <a href="/#features">Features</a>
+          <a href="/#install">Install</a>
+          <a href="{{ site.docs }}">Docs</a>
+          <a href="{{ site.repo }}">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>{{ content | safe }}</main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <p>{{ site.tagline }}</p>
+        <p class="muted">
+          MIT licensed · <a href="{{ site.repo }}">github.com/tuist/condukt</a>
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
