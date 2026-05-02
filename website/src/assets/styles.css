@@ -58,13 +58,16 @@ a:hover { text-decoration: underline; }
 }
 
 .brand-mark {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
   object-fit: contain;
   background: #ffffff;
+  padding: 3px;
   display: block;
 }
+
+.brand-name { font-size: 1.1rem; }
 
 .site-nav a {
   margin-left: 1.25rem;
