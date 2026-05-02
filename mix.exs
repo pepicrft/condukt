@@ -69,7 +69,9 @@ defmodule Condukt.MixProject do
           Condukt.SessionStore.Memory,
           Condukt.SessionStore.Disk,
           Condukt.Tool,
-          Condukt.Telemetry
+          Condukt.Telemetry,
+          Condukt.Redactor,
+          Condukt.Redactors.Regex
         ],
         Tools: [
           Condukt.Tools,
