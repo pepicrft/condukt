@@ -33,6 +33,7 @@ Rather than wrapping JavaScript agent frameworks, we built Condukt from scratch 
 - **Scoped Commands**: Expose trusted executables like `git`, `gh`, or `mix` without shell parsing
 - **Tool System**: Extensible tools for file operations, shell commands, and more
 - **Multi-Provider**: 18+ LLM providers via [ReqLLM](https://github.com/agentjido/req_llm) (Anthropic, OpenAI, Google, etc.)
+- **Redaction**: Pluggable secret redaction on outbound messages with a regex-based default
 - **Telemetry**: Built-in observability with `:telemetry` events
 
 ## Installation 📦
@@ -175,6 +176,7 @@ MyApp.CodingAgent.start_link(
   load_project_instructions: true,              # Auto-load AGENTS.md, CLAUDE.md, and local skills
   cwd: "/path/to/project",                      # Overrides config/default cwd
   session_store: Condukt.SessionStore.Memory,   # Optional session persistence
+  redactor: Condukt.Redactors.Regex,            # Optional outbound secret redaction
   name: MyApp.CodingAgent                       # GenServer name
 )
 ```
@@ -267,6 +269,45 @@ Built-in strategies:
 Implement `Condukt.Compactor` to provide your own strategy. Each compaction
 emits a `[:condukt, :compact, :stop]` telemetry event with `before`/`after`
 message counts.
+
+### Sensitive Data Redaction
+
+Redaction rewrites user input and tool results before they leave the BEAM
+process and reach the LLM provider. Assistant output and the system prompt
+are left untouched. The original messages remain in session history; each
+turn re-runs the redactor on the messages about to be sent.
+
+The built-in `Condukt.Redactors.Regex` covers common high-precision patterns
+(emails, JWTs, PEM private keys, Anthropic/OpenAI/GitHub/Google/AWS/Slack
+tokens) and replaces matches with `[REDACTED:KIND]` placeholders the LLM can
+still reason about.
+
+```elixir
+# Use the built-in defaults
+{:ok, agent} = MyApp.CodingAgent.start_link(redactor: Condukt.Redactors.Regex)
+
+# Add project-specific patterns to the defaults
+{:ok, agent} =
+  MyApp.CodingAgent.start_link(
+    redactor:
+      {Condukt.Redactors.Regex,
+       extra_patterns: [{~r/cust_[a-z0-9]+/, "CUSTOMER"}]}
+  )
+```
+
+Implement `Condukt.Redactor` to plug in a custom redactor (e.g. NER-based
+PII detection):
+
+```elixir
+defmodule MyApp.Redactor do
+  @behaviour Condukt.Redactor
+
+  @impl true
+  def redact(text, _opts), do: MyApp.PiiScanner.scrub(text)
+end
+
+MyApp.CodingAgent.start_link(redactor: MyApp.Redactor)
+```
 
 ### Supported Providers
 
