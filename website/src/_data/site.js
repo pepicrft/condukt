@@ -7,4 +7,7 @@ module.exports = {
   repo: "https://github.com/tuist/condukt",
   hex: "https://hex.pm/packages/condukt",
   docs: "https://hexdocs.pm/condukt",
+  locale: "en_US",
+  twitter: "@tuistdev",
+  themeColor: "#0b0d10",
 };

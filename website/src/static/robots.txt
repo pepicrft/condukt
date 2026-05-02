@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://condukt.dev/sitemap.xml

@@ -3,17 +3,62 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{% if title %}{{ title }} · {{ site.name }}{% else %}{{ site.name }} · {{ site.tagline }}{% endif %}</title>
-    <meta name="description" content="{{ description or site.description }}" />
-    <meta property="og:title" content="{% if title %}{{ title }} · {{ site.name }}{% else %}{{ site.name }}{% endif %}" />
-    <meta property="og:description" content="{{ description or site.description }}" />
+    {% set pageTitle = title and (title + " · " + site.name) or (site.name + " · " + site.tagline) %}
+    {% set pageDesc = description or site.description %}
+    {% set pageUrl = site.url + page.url %}
+    {% set socialImage = site.url + "/assets/social-card.png" %}
+    <title>{{ pageTitle }}</title>
+    <meta name="description" content="{{ pageDesc }}" />
+    <meta name="author" content="Tuist" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="{{ site.themeColor }}" />
+    <link rel="canonical" href="{{ pageUrl }}" />
+    <link rel="alternate" type="application/atom+xml" href="https://github.com/tuist/condukt/releases.atom" title="Condukt releases" />
+
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="{{ site.url }}{{ page.url }}" />
+    <meta property="og:site_name" content="{{ site.name }}" />
+    <meta property="og:locale" content="{{ site.locale }}" />
+    <meta property="og:title" content="{{ pageTitle }}" />
+    <meta property="og:description" content="{{ pageDesc }}" />
+    <meta property="og:url" content="{{ pageUrl }}" />
+    <meta property="og:image" content="{{ socialImage }}" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="{{ site.name }}: {{ site.tagline }}" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="{{ site.twitter }}" />
+    <meta name="twitter:creator" content="{{ site.twitter }}" />
+    <meta name="twitter:title" content="{{ pageTitle }}" />
+    <meta name="twitter:description" content="{{ pageDesc }}" />
+    <meta name="twitter:image" content="{{ socialImage }}" />
+    <meta name="twitter:image:alt" content="{{ site.name }}: {{ site.tagline }}" />
+
     <link rel="stylesheet" href="/assets/styles.css" />
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png" />
-    <meta property="og:image" content="{{ site.url }}/assets/favicon-512.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareSourceCode",
+      "name": "{{ site.name }}",
+      "description": "{{ site.description }}",
+      "url": "{{ site.url }}",
+      "codeRepository": "{{ site.repo }}",
+      "programmingLanguage": "Elixir",
+      "license": "https://opensource.org/licenses/MIT",
+      "author": {
+        "@type": "Organization",
+        "name": "Tuist",
+        "url": "https://tuist.dev"
+      },
+      "image": "{{ socialImage }}"
+    }
+    </script>
   </head>
   <body>
     <header class="site-header">
