@@ -18,7 +18,13 @@ body = """
 {% for group, commits in commits | group_by(attribute="group") %}
 ### {{ group }}
 {% for commit in commits %}
-- {{ commit.message | split(pat="\n") | first | trim }}
+{% set title = commit.remote.pr_title | default(value=commit.message) -%}
+{% set parts = title | split(pat=": ") -%}
+{% if parts | length > 1 -%}
+- {{ parts | slice(start=1) | join(sep=": ") }}
+{% else -%}
+- {{ title }}
+{% endif %}
 {% endfor %}
 {% endfor %}
 """
