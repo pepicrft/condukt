@@ -52,6 +52,7 @@ defmodule Condukt.Operation do
   """
 
   alias Condukt.Operation.SubmitTool
+  alias Condukt.Telemetry
 
   defstruct [:name, :input_schema, :output_schema, :instructions]
 
@@ -107,11 +108,13 @@ defmodule Condukt.Operation do
   - any error returned by the underlying `Condukt.Session.run/3`
   """
   def run(agent_module, name, args, opts \\ []) do
-    with {:ok, operation} <- fetch_operation(agent_module, name),
-         {:ok, normalized} <- normalize(args),
-         :ok <- validate_input(operation, normalized) do
-      execute(agent_module, operation, normalized, opts)
-    end
+    Telemetry.span(:operation, %{agent: agent_module, operation: name}, fn ->
+      with {:ok, operation} <- fetch_operation(agent_module, name),
+           {:ok, normalized} <- normalize(args),
+           :ok <- validate_input(operation, normalized) do
+        execute(agent_module, operation, normalized, opts)
+      end
+    end)
   end
 
   defp fetch_operation(agent_module, name) do

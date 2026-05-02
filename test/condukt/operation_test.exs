@@ -83,6 +83,36 @@ defmodule Condukt.OperationTest do
     end
   end
 
+  describe "telemetry" do
+    test "emits :start and :stop around an operation invocation" do
+      handler_id = "operation-telemetry-#{inspect(make_ref())}"
+      test_pid = self()
+
+      :telemetry.attach_many(
+        handler_id,
+        [
+          [:condukt, :operation, :start],
+          [:condukt, :operation, :stop]
+        ],
+        fn event, measurements, metadata, _ ->
+          send(test_pid, {:telemetry, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      # Use the input-validation failure path so we don't need ReqLLM mocks here.
+      assert {:error, {:invalid_input, _}} = ReviewAgent.review_pr(%{repo: "x"})
+
+      assert_receive {:telemetry, [:condukt, :operation, :start], %{system_time: _},
+                      %{agent: ReviewAgent, operation: :review_pr}}
+
+      assert_receive {:telemetry, [:condukt, :operation, :stop], %{duration: _},
+                      %{agent: ReviewAgent, operation: :review_pr}}
+
+      :telemetry.detach(handler_id)
+    end
+  end
+
   describe "end-to-end happy path" do
     test "runs the agent loop, captures submit_result, validates, and returns atomized output" do
       submitted_args = %{"verdict" => "approve", "summary" => "Looks good."}
