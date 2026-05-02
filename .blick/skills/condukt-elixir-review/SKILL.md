@@ -15,9 +15,8 @@ For each finding, cite `path:line` and quote the relevant snippet.
 
 ## 1. Command execution must use MuonTrap
 
-`lib/condukt/tools/muon_trap_runner.ex` is the shared seam for command
-execution. The repo convention is to use `MuonTrap` so child processes
-are cleaned up with the calling process.
+The repo convention is to use `MuonTrap` for command execution so child
+processes are cleaned up with the calling process.
 
 ### Flag
 
@@ -25,9 +24,6 @@ are cleaned up with the calling process.
   `System.cmd/3`, `Port.open/2`, `:os.cmd/1`, or another direct OS
   process primitive instead of `MuonTrap`.** This breaks the repo's
   shutdown guarantees. **Severity: high.**
-- **Production code that calls `MuonTrap.cmd/3` directly in a place that
-  should preserve the runner seam used by tests** (for example, bypassing
-  `Condukt.Tools.MuonTrapRunner`). **Severity: medium.**
 
 ### Do not flag
 

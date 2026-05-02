@@ -10,13 +10,13 @@ defmodule Condukt.Tools.CommandTest do
   setup :verify_on_exit!
 
   test "executes a trusted command with structured arguments", %{tmp_dir: tmp_dir} do
-    Condukt.Tools.MuonTrapRunner
+    MuonTrap
     |> expect(:cmd, fn "git", ["status", "--short"], opts ->
       assert opts[:cd] == tmp_dir
       assert opts[:stderr_to_stdout] == true
       assert opts[:timeout] == 120_000
       assert {"TERM", "dumb"} in opts[:env]
-      {:ok, {"M README.md\n", 0}}
+      {"M README.md\n", 0}
     end)
 
     context = %{cwd: tmp_dir, opts: [command: "git"]}
@@ -26,12 +26,12 @@ defmodule Condukt.Tools.CommandTest do
   end
 
   test "injects trusted environment from tool options", %{tmp_dir: tmp_dir} do
-    Condukt.Tools.MuonTrapRunner
+    MuonTrap
     |> expect(:cmd, fn "gh", ["pr", "view"], opts ->
       assert opts[:cd] == tmp_dir
       assert {"GH_TOKEN", "secret-token"} in opts[:env]
       assert {"PAGER", "cat"} in opts[:env]
-      {:ok, {"#9\n", 0}}
+      {"#9\n", 0}
     end)
 
     context = %{cwd: tmp_dir, opts: [command: "gh", env: [GH_TOKEN: "secret-token"]]}
@@ -44,10 +44,10 @@ defmodule Condukt.Tools.CommandTest do
     nested_dir = Path.join(tmp_dir, "nested")
     File.mkdir_p!(nested_dir)
 
-    Condukt.Tools.MuonTrapRunner
+    MuonTrap
     |> expect(:cmd, fn "mix", ["test"], opts ->
       assert opts[:cd] == nested_dir
-      {:ok, {"1 test, 0 failures\n", 0}}
+      {"1 test, 0 failures\n", 0}
     end)
 
     context = %{cwd: tmp_dir, opts: [command: "mix"]}
@@ -64,14 +64,14 @@ defmodule Condukt.Tools.CommandTest do
   end
 
   test "returns runner errors as command failures", %{tmp_dir: tmp_dir} do
-    Condukt.Tools.MuonTrapRunner
+    MuonTrap
     |> expect(:cmd, fn "git", ["status"], _opts ->
-      {:error, "enoent"}
+      raise ErlangError, original: :enoent
     end)
 
     context = %{cwd: tmp_dir, opts: [command: "git"]}
 
-    assert {:error, "Command failed: enoent"} =
+    assert {:error, "Command failed: Erlang error: :enoent"} =
              Command.call(%{"args" => ["status"]}, context)
   end
 end

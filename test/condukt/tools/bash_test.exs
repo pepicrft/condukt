@@ -10,13 +10,13 @@ defmodule Condukt.Tools.BashTest do
   setup :verify_on_exit!
 
   test "executes simple command", %{tmp_dir: tmp_dir} do
-    Condukt.Tools.MuonTrapRunner
+    MuonTrap
     |> expect(:cmd, fn "bash", ["-c", "echo hello"], opts ->
       assert opts[:cd] == tmp_dir
       assert opts[:stderr_to_stdout] == true
       assert opts[:timeout] == 120_000
       assert {"TERM", "dumb"} in opts[:env]
-      {:ok, {"hello\n", 0}}
+      {"hello\n", 0}
     end)
 
     context = %{cwd: tmp_dir, opts: []}
@@ -26,10 +26,10 @@ defmodule Condukt.Tools.BashTest do
   end
 
   test "captures stderr", %{tmp_dir: tmp_dir} do
-    Condukt.Tools.MuonTrapRunner
+    MuonTrap
     |> expect(:cmd, fn "bash", ["-c", "echo error >&2"], opts ->
       assert opts[:cd] == tmp_dir
-      {:ok, {"error\n", 0}}
+      {"error\n", 0}
     end)
 
     context = %{cwd: tmp_dir, opts: []}
@@ -39,10 +39,10 @@ defmodule Condukt.Tools.BashTest do
   end
 
   test "returns exit code for failures", %{tmp_dir: tmp_dir} do
-    Condukt.Tools.MuonTrapRunner
+    MuonTrap
     |> expect(:cmd, fn "bash", ["-c", "exit 42"], opts ->
       assert opts[:cd] == tmp_dir
-      {:ok, {"", 42}}
+      {"", 42}
     end)
 
     context = %{cwd: tmp_dir, opts: []}
@@ -52,10 +52,10 @@ defmodule Condukt.Tools.BashTest do
   end
 
   test "respects cwd", %{tmp_dir: tmp_dir} do
-    Condukt.Tools.MuonTrapRunner
+    MuonTrap
     |> expect(:cmd, fn "bash", ["-c", "pwd"], opts ->
       assert opts[:cd] == tmp_dir
-      {:ok, {"#{tmp_dir}\n", 0}}
+      {"#{tmp_dir}\n", 0}
     end)
 
     context = %{cwd: tmp_dir, opts: []}
@@ -68,10 +68,10 @@ defmodule Condukt.Tools.BashTest do
     nested_dir = Path.join(tmp_dir, "nested")
     File.mkdir_p!(nested_dir)
 
-    Condukt.Tools.MuonTrapRunner
+    MuonTrap
     |> expect(:cmd, fn "bash", ["-c", "pwd"], opts ->
       assert opts[:cd] == nested_dir
-      {:ok, {"#{nested_dir}\n", 0}}
+      {"#{nested_dir}\n", 0}
     end)
 
     context = %{cwd: tmp_dir, opts: []}
@@ -81,14 +81,14 @@ defmodule Condukt.Tools.BashTest do
   end
 
   test "returns runner errors as command failures", %{tmp_dir: tmp_dir} do
-    Condukt.Tools.MuonTrapRunner
+    MuonTrap
     |> expect(:cmd, fn "bash", ["-c", "pwd"], _opts ->
-      {:error, "enoent"}
+      raise ErlangError, original: :enoent
     end)
 
     context = %{cwd: tmp_dir, opts: []}
 
-    assert {:error, "Command failed: enoent"} =
+    assert {:error, "Command failed: Erlang error: :enoent"} =
              Bash.call(%{"command" => "pwd"}, context)
   end
 end

@@ -10,8 +10,6 @@ defmodule Condukt.Tools.Command do
 
   use Condukt.Tool
 
-  alias Condukt.Tools.MuonTrapRunner
-
   @max_lines 2000
   @max_bytes 50 * 1024
   @default_timeout 120_000
@@ -119,7 +117,7 @@ defmodule Condukt.Tools.Command do
   end
 
   defp execute_command(command, args, cwd, timeout, env) do
-    case MuonTrapRunner.cmd(command, args,
+    case run_muontrap(command, args,
            cd: cwd,
            stderr_to_stdout: true,
            env: env,
@@ -128,6 +126,20 @@ defmodule Condukt.Tools.Command do
       {:ok, {_output, :timeout}} -> {:error, :timeout}
       {:ok, {output, exit_code}} -> {:ok, output, exit_code}
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp run_muontrap(command, args, opts) do
+    {:ok, MuonTrap.cmd(command, args, opts)}
+  catch
+    :error, error -> {:error, format_error(error)}
+  end
+
+  defp format_error(error) do
+    if is_exception(error) do
+      Exception.message(error)
+    else
+      inspect(error)
     end
   end
 
