@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.12.0] - 2026-05-02
+
+### Features
+
+- Add Eleventy marketing site with Cloudflare Workers deploy
+
+
 ## [0.11.0] - 2026-05-02
 
 ### Features
