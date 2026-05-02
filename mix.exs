@@ -56,34 +56,78 @@ defmodule Condukt.MixProject do
 
   defp docs do
     [
-      main: "Condukt",
-      extras: ["README.md"],
+      main: "readme",
+      extras: [
+        "README.md": [title: "Overview"],
+        "guides/getting_started.md": [title: "Getting Started"],
+        "guides/agents.md": [title: "Agents"],
+        "guides/tools.md": [title: "Tools"],
+        "guides/streaming_and_events.md": [title: "Streaming and Events"],
+        "guides/sessions_and_persistence.md": [title: "Sessions and Persistence"],
+        "guides/compaction.md": [title: "Compaction"],
+        "guides/redaction.md": [title: "Redaction"],
+        "guides/project_instructions.md": [title: "Project Instructions"],
+        "guides/telemetry.md": [title: "Telemetry"],
+        "guides/providers.md": [title: "Providers"],
+        "CHANGELOG.md": [title: "Changelog"]
+      ],
+      groups_for_extras: [
+        Introduction: [
+          "README.md",
+          "guides/getting_started.md"
+        ],
+        Guides: [
+          "guides/agents.md",
+          "guides/tools.md",
+          "guides/streaming_and_events.md",
+          "guides/sessions_and_persistence.md",
+          "guides/compaction.md",
+          "guides/redaction.md",
+          "guides/project_instructions.md",
+          "guides/telemetry.md",
+          "guides/providers.md"
+        ],
+        Reference: [
+          "CHANGELOG.md"
+        ]
+      ],
       source_ref: @version,
       source_url: @source_url,
       groups_for_modules: [
         Core: [
           Condukt,
-          Condukt.Context,
-          Condukt.Context.Skill,
-          Condukt.Operation,
           Condukt.Session,
+          Condukt.Operation,
           Condukt.Message,
-          Condukt.SessionStore,
-          Condukt.SessionStore.Snapshot,
-          Condukt.SessionStore.Memory,
-          Condukt.SessionStore.Disk,
-          Condukt.Tool,
-          Condukt.Telemetry,
-          Condukt.Redactor,
-          Condukt.Redactors.Regex
+          Condukt.Telemetry
+        ],
+        "Project Context": [
+          Condukt.Context,
+          Condukt.Context.Skill
         ],
         Tools: [
+          Condukt.Tool,
           Condukt.Tools,
           Condukt.Tools.Read,
           Condukt.Tools.Bash,
           Condukt.Tools.Command,
           Condukt.Tools.Edit,
           Condukt.Tools.Write
+        ],
+        "Session Stores": [
+          Condukt.SessionStore,
+          Condukt.SessionStore.Snapshot,
+          Condukt.SessionStore.Memory,
+          Condukt.SessionStore.Disk
+        ],
+        Compaction: [
+          Condukt.Compactor,
+          Condukt.Compactor.Sliding,
+          Condukt.Compactor.ToolResultPrune
+        ],
+        Redaction: [
+          Condukt.Redactor,
+          Condukt.Redactors.Regex
         ],
         Providers: [
           Condukt.Providers.Ollama
@@ -98,7 +142,7 @@ defmodule Condukt.MixProject do
       links: %{
         "GitHub" => @source_url
       },
-      files: ~w(lib .formatter.exs mix.exs README.md CHANGELOG.md LICENSE MIT.md)
+      files: ~w(lib guides .formatter.exs mix.exs README.md CHANGELOG.md LICENSE MIT.md)
     ]
   end
 
