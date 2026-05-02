@@ -7,10 +7,17 @@
     "build": "eleventy",
     "dev": "eleventy --serve --quiet",
     "clean": "rm -rf _site",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "aube run build && wrangler deploy"
   },
   "devDependencies": {
     "@11ty/eleventy": "^3.0.0",
     "wrangler": "^4.0.0"
+  },
+  "aube": {
+    "allowBuilds": {
+      "esbuild": true,
+      "sharp": true,
+      "workerd": true
+    }
   }
 }
