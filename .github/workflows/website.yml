@@ -32,6 +32,14 @@ jobs:
         with:
           cache: true
 
+      - name: Restore aube store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/aube/store
+          key: aube-store-${{ runner.os }}-${{ hashFiles('website/package-lock.json') }}
+          restore-keys: |
+            aube-store-${{ runner.os }}-
+
       - name: Install dependencies
         run: aube ci
 
@@ -64,6 +72,14 @@ jobs:
         uses: jdx/mise-action@v3
         with:
           cache: true
+
+      - name: Restore aube store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/aube/store
+          key: aube-store-${{ runner.os }}-${{ hashFiles('website/package-lock.json') }}
+          restore-keys: |
+            aube-store-${{ runner.os }}-
 
       - name: Install dependencies
         run: aube ci
