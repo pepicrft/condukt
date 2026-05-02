@@ -4,7 +4,7 @@ defmodule Condukt.ContextTest do
   alias Condukt.Context
 
   @tag :tmp_dir
-  test "discovers agents instructions and local skills from a workspace root", %{tmp_dir: workspace_root} do
+  test "discovers agents instructions and local skills from a project root", %{tmp_dir: workspace_root} do
     File.write!(Path.join(workspace_root, "AGENTS.md"), "Follow the workspace instructions.")
     File.write!(Path.join(workspace_root, "CLAUDE.md"), "Prefer concise responses.")
 
@@ -36,7 +36,7 @@ defmodule Condukt.ContextTest do
              }
            ]
 
-    assert context.prompt =~ "## Workspace Instructions"
+    assert context.prompt =~ "## Project Instructions"
     assert context.prompt =~ "## Available Skills"
     assert context.prompt =~ "read `.agents/skills/review/SKILL.md` before using it"
   end
@@ -55,10 +55,10 @@ defmodule Condukt.ContextTest do
     composed =
       Context.compose_system_prompt(
         "You are a helpful assistant.",
-        "## Workspace Instructions\n\nUse mix test."
+        "## Project Instructions\n\nUse mix test."
       )
 
     assert composed ==
-             "You are a helpful assistant.\n\n## Workspace Instructions\n\nUse mix test."
+             "You are a helpful assistant.\n\n## Project Instructions\n\nUse mix test."
   end
 end

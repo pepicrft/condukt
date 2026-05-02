@@ -176,8 +176,8 @@ MyApp.CodingAgent.start_link(
 
 ### Project Instructions
 
-By default, Condukt inspects the agent workspace root configured by `cwd` at
-startup and appends local workspace guidance to the effective system prompt:
+By default, Condukt inspects the project root configured by `cwd` at startup
+and appends local project guidance to the effective system prompt:
 
 - `AGENTS.md`
 - `CLAUDE.md`

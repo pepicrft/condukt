@@ -167,7 +167,7 @@ defmodule Condukt.SessionTest do
       model: "openai:gpt-4o-mini",
       thinking_level: :medium,
       configured_system_prompt: "prompt",
-      system_prompt: "prompt\n\n## Workspace Instructions\n\nUse mix test.",
+      system_prompt: "prompt\n\n## Project Instructions\n\nUse mix test.",
       cwd: "/tmp/agent",
       session_store: {RecordingStore, test_pid: self()},
       workspace_context: %{agents_md: nil, skills: [], prompt: nil},

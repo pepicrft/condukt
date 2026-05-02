@@ -1,11 +1,11 @@
 defmodule Condukt.Context do
   @moduledoc """
-  Discovers workspace context from an agent workspace root.
+  Loads project instructions and local skills from a project root.
 
   Condukt automatically looks for local instruction files such as `AGENTS.md`
   and reusable workflows under `.agents/skills/*/SKILL.md`. The discovered
-  context is appended to the configured system prompt so agents can adapt to the
-  project they are running in.
+  instructions are appended to the configured system prompt so agents can adapt
+  to the project they are running in.
   """
 
   alias Condukt.Context.Skill
@@ -133,11 +133,11 @@ defmodule Condukt.Context do
 
   defp agents_prompt(agents_md) do
     """
-    ## Workspace Instructions
+    ## Project Instructions
 
     The following instructions were discovered from `AGENTS.md` or `CLAUDE.md`
-    in the working directory. Treat them as project-specific operating
-    instructions for this workspace.
+    in the project root. Treat them as project-specific operating instructions
+    for this project.
 
     #{agents_md}
     """
@@ -161,9 +161,9 @@ defmodule Condukt.Context do
     """
     ## Available Skills
 
-    The following reusable workflows were discovered in this workspace. If one
-    seems relevant, read its `SKILL.md` file before following it so you have the
-    full instructions.
+    The following reusable workflows were discovered in this project. If one
+    seems relevant, read its `SKILL.md` file before following it so you have
+    the full instructions.
 
     #{skill_lines}
     """
