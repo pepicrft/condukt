@@ -1,12 +1,12 @@
-<p align="left">
+<p align="center">
   <img src="docs/assets/readme-header.png" alt="Condukt header" width="300" />
 </p>
 
-# Condukt ⚓
-
-[![Hex.pm](https://img.shields.io/hexpm/v/condukt.svg)](https://hex.pm/packages/condukt)
-[![HexDocs](https://img.shields.io/badge/docs-hexdocs-blue.svg)](https://hexdocs.pm/condukt/)
-[![CI](https://github.com/tuist/condukt/actions/workflows/condukt.yml/badge.svg)](https://github.com/tuist/condukt/actions/workflows/condukt.yml)
+<p align="center">
+  <a href="https://hex.pm/packages/condukt"><img src="https://img.shields.io/hexpm/v/condukt.svg" alt="Hex.pm" /></a>
+  <a href="https://hexdocs.pm/condukt/"><img src="https://img.shields.io/badge/docs-hexdocs-blue.svg" alt="HexDocs" /></a>
+  <a href="https://github.com/tuist/condukt/actions/workflows/condukt.yml"><img src="https://github.com/tuist/condukt/actions/workflows/condukt.yml/badge.svg" alt="CI" /></a>
+</p>
 
 A framework for building AI agents in Elixir.
 
