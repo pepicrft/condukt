@@ -23,7 +23,7 @@ defmodule Condukt.Session do
 
   use GenServer
 
-  alias Condukt.{Message, SessionStore, Telemetry, Tool}
+  alias Condukt.{Context, Message, SessionStore, Telemetry, Tool}
   alias Condukt.SessionStore.Snapshot
   alias ReqLLM.ToolCall
 
@@ -36,12 +36,14 @@ defmodule Condukt.Session do
     :agent_module,
     :model,
     :thinking_level,
+    :configured_system_prompt,
     :system_prompt,
     :tools,
     :cwd,
     :api_key,
     :base_url,
     :session_store,
+    :workspace_context,
     :user_state,
     messages: [],
     streaming: false,
@@ -71,6 +73,7 @@ defmodule Condukt.Session do
       |> put_configured_opt(config, :model, fn -> agent_module.model() end)
       |> put_configured_opt(config, :thinking_level, fn -> agent_module.thinking_level() end)
       |> put_configured_opt(config, :system_prompt, fn -> agent_module.system_prompt() end)
+      |> put_configured_opt(config, :discover_workspace_context, fn -> true end)
       |> Keyword.put_new(:tools, agent_module.tools())
       |> put_configured_opt(config, :cwd, &File.cwd!/0)
       |> put_configured_opt(config, :session_store)
@@ -170,17 +173,22 @@ defmodule Condukt.Session do
 
     case agent_module.init(opts) do
       {:ok, user_state} ->
+        configured_system_prompt = restore_value(opts, :system_prompt, snapshot && snapshot.system_prompt)
+        workspace_context = load_workspace_context(opts)
+
         state =
           %__MODULE__{
             agent_module: agent_module,
             model: restore_value(opts, :model, snapshot && snapshot.model),
             thinking_level: restore_value(opts, :thinking_level, snapshot && snapshot.thinking_level),
-            system_prompt: restore_value(opts, :system_prompt, snapshot && snapshot.system_prompt),
+            configured_system_prompt: configured_system_prompt,
+            system_prompt: Context.compose_system_prompt(configured_system_prompt, workspace_context.prompt),
             tools: Keyword.fetch!(opts, :tools),
             cwd: Keyword.fetch!(opts, :cwd),
             api_key: opts[:api_key],
             base_url: opts[:base_url],
             session_store: session_store,
+            workspace_context: workspace_context,
             user_state: user_state
           }
           |> restore_messages(snapshot)
@@ -721,7 +729,7 @@ defmodule Condukt.Session do
       messages: state.messages,
       model: state.model,
       thinking_level: state.thinking_level,
-      system_prompt: state.system_prompt
+      system_prompt: state.configured_system_prompt
     }
 
     case SessionStore.save(state.session_store, snapshot, session_store_opts(state)) do
@@ -746,5 +754,15 @@ defmodule Condukt.Session do
       agent_module: state.agent_module,
       cwd: state.cwd
     ]
+  end
+
+  defp load_workspace_context(opts) do
+    if Keyword.get(opts, :discover_workspace_context, true) do
+      opts
+      |> Keyword.fetch!(:cwd)
+      |> Context.discover()
+    else
+      Context.empty()
+    end
   end
 end

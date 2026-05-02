@@ -25,6 +25,7 @@ Rather than wrapping JavaScript agent frameworks, we built Condukt from scratch 
 
 - **OTP-native**: Agents are GenServers that integrate naturally with supervision trees
 - **Streaming**: Real-time event streaming for responsive UIs
+- **Workspace Context**: Auto-discovers `AGENTS.md`, `CLAUDE.md`, and local skills from the project directory
 - **Tool System**: Extensible tools for file operations, shell commands, and more
 - **Multi-Provider**: 18+ LLM providers via [ReqLLM](https://github.com/agentjido/req_llm) (Anthropic, OpenAI, Google, etc.)
 - **Telemetry**: Built-in observability with `:telemetry` events
@@ -166,10 +167,40 @@ MyApp.CodingAgent.start_link(
   base_url: "http://localhost:11434/v1",        # Override provider's default URL
   system_prompt: "You are helpful.",            # Overrides config/module default
   thinking_level: :medium,                      # Overrides config/module default
+  discover_workspace_context: true,             # Auto-load AGENTS.md, CLAUDE.md, and local skills
   cwd: "/path/to/project",                      # Overrides config/default cwd
-  session_store: Condukt.SessionStore.Memory,  # Optional session persistence
+  session_store: Condukt.SessionStore.Memory,   # Optional session persistence
   name: MyApp.CodingAgent                       # GenServer name
 )
+```
+
+### Workspace Context Discovery
+
+By default, Condukt inspects the agent's `cwd` at startup and appends local
+workspace guidance to the effective system prompt:
+
+- `AGENTS.md`
+- `CLAUDE.md`
+- `.agents/skills/*/SKILL.md`
+
+Discovered skills are listed in the prompt with their file paths so the agent
+can read the full `SKILL.md` instructions when needed.
+
+```elixir
+{:ok, agent} =
+  MyApp.CodingAgent.start_link(
+    cwd: "/path/to/project",
+    system_prompt: "You are a helpful coding assistant."
+  )
+```
+
+Disable this behavior if you need a fully static prompt:
+
+```elixir
+{:ok, agent} =
+  MyApp.CodingAgent.start_link(
+    discover_workspace_context: false
+  )
 ```
 
 ### Session Storage
