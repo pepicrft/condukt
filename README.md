@@ -32,6 +32,7 @@ Rather than wrapping JavaScript agent frameworks, we built Condukt from scratch 
 - **Project Instructions**: Auto-discovers `AGENTS.md`, `CLAUDE.md`, and local skills from the project directory
 - **Scoped Commands**: Expose trusted executables like `git`, `gh`, or `mix` without shell parsing
 - **Tool System**: Extensible tools for file operations, shell commands, and more
+- **Operations**: Compile-time typed entrypoints with JSON Schema input/output validation
 - **Multi-Provider**: 18+ LLM providers via [ReqLLM](https://github.com/agentjido/req_llm) (Anthropic, OpenAI, Google, etc.)
 - **Redaction**: Pluggable secret redaction on outbound messages with a regex-based default
 - **Telemetry**: Built-in observability with `:telemetry` events
@@ -108,6 +109,78 @@ defmodule MyApp.Application do
   end
 end
 ```
+
+## Operations 🎯
+
+Sometimes you don't want to chat with an agent. You want to call it like a
+typed function: known input, validated output, no conversation history. The
+`operation` macro declares one of those entrypoints at compile time.
+
+```elixir
+defmodule MyApp.ReviewAgent do
+  use Condukt
+
+  @impl true
+  def tools do
+    [
+      Condukt.Tools.Read,
+      {Condukt.Tools.Command, command: "gh", env: [GH_TOKEN: System.fetch_env!("GH_TOKEN")]}
+    ]
+  end
+
+  operation :review_pr,
+    input: %{
+      type: "object",
+      properties: %{
+        repo: %{type: "string"},
+        pr_number: %{type: "integer"}
+      },
+      required: ["repo", "pr_number"]
+    },
+    output: %{
+      type: "object",
+      properties: %{
+        verdict: %{type: "string", enum: ["approve", "request_changes", "comment"]},
+        summary: %{type: "string"},
+        blockers: %{type: "array", items: %{type: "string"}}
+      },
+      required: ["verdict", "summary", "blockers"]
+    },
+    instructions: """
+    1. Fetch the PR with `gh pr view <number> --repo <repo> --json files,title,body`.
+    2. Read each changed file.
+    3. Decide a verdict and list concrete blockers.
+    """
+end
+
+# Each operation generates a typed function on the module.
+{:ok, %{verdict: "approve", blockers: []}} =
+  MyApp.ReviewAgent.review_pr(%{repo: "tuist/condukt", pr_number: 1})
+```
+
+Each call spins up a transient `Condukt.Session` with the agent's tools plus
+a synthetic `submit_result` tool whose schema *is* the declared output
+schema. The agent loop runs until the model calls `submit_result`; the
+captured arguments are validated against the output schema and returned. No
+process needs to be supervised, and no conversation history is kept across
+calls.
+
+Reach for an operation when you want to:
+
+- Drive agents from CI, webhooks, cron jobs, or `.exs` scripts
+- Compose one agent's typed entrypoint into another agent's tool list
+- Get input/output validation identical to what the LLM provider sees
+
+Reach for `start_link` + `Condukt.run/2` when continuity across turns
+matters: when the next message depends on the last one.
+
+Schemas are JSON Schema maps, validated with [JSV](https://hex.pm/packages/jsv).
+Input validation runs before any LLM call; output validation runs after the
+model submits its result. Operations also emit
+`[:condukt, :operation, :start | :stop | :exception]` telemetry events
+alongside the inner agent-loop events.
+
+See `Condukt.Operation` for the full reference.
 
 ## LiveBook 📓
 
@@ -244,7 +317,7 @@ Built-in session stores:
 ### Compaction
 
 Long-running agents accumulate messages that grow past the model's context
-window. Pass a compactor to keep history bounded — Condukt applies it after
+window. Pass a compactor to keep history bounded. Condukt applies it after
 each completed turn, and `Condukt.compact/1` triggers it manually.
 
 ```elixir
@@ -261,9 +334,9 @@ MyApp.CodingAgent.start_link(
 
 Built-in strategies:
 
-- `Condukt.Compactor.Sliding` — keeps the last N messages, drops orphaned
+- `Condukt.Compactor.Sliding`: keeps the last N messages, drops orphaned
   tool results.
-- `Condukt.Compactor.ToolResultPrune` — replaces oversized historical tool
+- `Condukt.Compactor.ToolResultPrune`: replaces oversized historical tool
   result payloads with a placeholder, preserving the surrounding reasoning.
 
 Implement `Condukt.Compactor` to provide your own strategy. Each compaction
@@ -444,7 +517,9 @@ Condukt emits telemetry events for observability:
     [:condukt, :agent, :start],
     [:condukt, :agent, :stop],
     [:condukt, :tool_call, :start],
-    [:condukt, :tool_call, :stop]
+    [:condukt, :tool_call, :stop],
+    [:condukt, :operation, :start],
+    [:condukt, :operation, :stop]
   ],
   fn event, measurements, metadata, _config ->
     Logger.info("#{inspect(event)}: #{inspect(measurements)}")

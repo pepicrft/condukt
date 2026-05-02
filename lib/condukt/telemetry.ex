@@ -35,6 +35,24 @@ defmodule Condukt.Telemetry do
     - Measurements: `%{duration: integer}`
     - Metadata: `%{tool: string, kind: atom, reason: term, stacktrace: list}`
 
+  ### Operation Events
+
+  Wrap a full `Condukt.Operation.run/4` call (input validation, transient
+  session run, output validation). The inner LLM loop still emits the
+  `[:condukt, :agent, ...]` events for free.
+
+  - `[:condukt, :operation, :start]` - Operation invocation started
+    - Measurements: `%{system_time: integer}`
+    - Metadata: `%{agent: module, operation: atom}`
+
+  - `[:condukt, :operation, :stop]` - Operation invocation finished
+    - Measurements: `%{duration: integer}`
+    - Metadata: `%{agent: module, operation: atom}`
+
+  - `[:condukt, :operation, :exception]` - Operation raised an exception
+    - Measurements: `%{duration: integer}`
+    - Metadata: `%{agent: module, operation: atom, kind: atom, reason: term, stacktrace: list}`
+
   ## Example: Attaching Handlers
 
       :telemetry.attach_many(

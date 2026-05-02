@@ -36,6 +36,9 @@ defmodule Condukt.MixProject do
       # LLM client (supports Anthropic, OpenAI, Google, and 15+ more providers)
       {:req_llm, "~> 1.6"},
 
+      # JSON Schema validation for operation input/output
+      {:jsv, "~> 0.16"},
+
       # Command execution with child process shutdown propagation
       {:muontrap, "~> 1.7"},
 
@@ -62,6 +65,7 @@ defmodule Condukt.MixProject do
           Condukt,
           Condukt.Context,
           Condukt.Context.Skill,
+          Condukt.Operation,
           Condukt.Session,
           Condukt.Message,
           Condukt.SessionStore,
