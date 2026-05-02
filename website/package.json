@@ -11,6 +11,8 @@
   },
   "devDependencies": {
     "@11ty/eleventy": "^3.0.0",
+    "@lumis-sh/lumis": "^0.4.0",
+    "@lumis-sh/themes": "^0.1.0",
     "wrangler": "^4.0.0"
   },
   "aube": {

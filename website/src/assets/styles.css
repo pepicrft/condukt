@@ -111,19 +111,29 @@ a:hover { text-decoration: underline; }
 .btn.primary { background: var(--accent); color: #fff; }
 .btn.ghost { border-color: var(--border); color: var(--fg); }
 
-.install {
-  background: var(--code-bg);
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  padding: 1rem 1.25rem;
-  overflow-x: auto;
-  font-size: 0.95rem;
-  max-width: 36rem;
-}
+.install { max-width: 36rem; }
 
 pre, code {
   font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
+
+.code-block {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  font-size: 0.9rem;
+}
+
+.code-block pre.lumis {
+  margin: 0;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  line-height: 1.55;
+}
+
+.code-block pre.lumis code { background: transparent; }
+.code-block .line { display: block; }
+.code-block .line[data-line]::before { content: none; }
 
 .features { padding: 4rem 0; border-top: 1px solid var(--border); }
 .features h2, .install-section h2 {
@@ -168,14 +178,7 @@ pre, code {
 
 .steps h3 { margin: 0 0 0.5rem; }
 
-.steps pre {
-  background: var(--code-bg);
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  padding: 1rem 1.25rem;
-  overflow-x: auto;
-  margin: 0;
-}
+.steps .code-block { margin: 0; }
 
 .site-footer {
   border-top: 1px solid var(--border);

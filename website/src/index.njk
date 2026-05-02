@@ -17,9 +17,9 @@ description: A framework for building AI agents in Elixir, with OTP-native primi
       <a class="btn primary" href="{{ site.docs }}">Read the docs</a>
       <a class="btn ghost" href="{{ site.repo }}">View on GitHub</a>
     </div>
-    <pre class="install"><code>def deps do
+    <div class="code-block install">{% highlight "elixir" %}def deps do
   [{:condukt, "~> 0.10"}]
-end</code></pre>
+end{% endhighlight %}</div>
   </div>
 </section>
 
@@ -67,24 +67,24 @@ end</code></pre>
     <ol class="steps">
       <li>
         <h3>Add the dependency</h3>
-        <pre><code>{:condukt, "~> 0.10"}</code></pre>
+        <div class="code-block">{% highlight "elixir" %}{:condukt, "~> 0.10"}{% endhighlight %}</div>
       </li>
       <li>
         <h3>Define an agent</h3>
-        <pre><code>defmodule MyApp.CodingAgent do
+        <div class="code-block">{% highlight "elixir" %}defmodule MyApp.CodingAgent do
   use Condukt
 
   @impl true
   def tools, do: Condukt.Tools.coding_tools()
-end</code></pre>
+end{% endhighlight %}</div>
       </li>
       <li>
         <h3>Run it</h3>
-        <pre><code>{:ok, agent} = MyApp.CodingAgent.start_link(
+        <div class="code-block">{% highlight "elixir" %}{:ok, agent} = MyApp.CodingAgent.start_link(
   api_key: System.get_env("ANTHROPIC_API_KEY")
 )
 
-{:ok, response} = Condukt.run(agent, "Refactor this module.")</code></pre>
+{:ok, response} = Condukt.run(agent, "Refactor this module."){% endhighlight %}</div>
       </li>
     </ol>
   </div>
