@@ -226,8 +226,6 @@ defmodule Condukt.SessionTest do
         load_project_instructions: false
       )
 
-    state = :sys.get_state(pid)
-
     :sys.replace_state(pid, fn s ->
       %{s | messages: [Message.user("a"), Message.user("b"), Message.user("c")]}
     end)
@@ -237,7 +235,6 @@ defmodule Condukt.SessionTest do
     assert length(history) == 1
     assert hd(history).content == "c"
 
-    _ = state
     GenServer.stop(pid)
   end
 
