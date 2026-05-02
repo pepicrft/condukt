@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.8.0] - 2026-05-02
+
+### Features
+
+- add scoped command tool
+
+
 ## [0.7.2] - 2026-05-02
 
 ### Bug Fixes
