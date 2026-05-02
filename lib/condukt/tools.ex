@@ -11,6 +11,7 @@ defmodule Condukt.Tools do
 
   - `Condukt.Tools.Read` - Read file contents
   - `Condukt.Tools.Bash` - Execute bash commands
+  - `Condukt.Tools.Command` - Execute one trusted command without shell parsing
   - `Condukt.Tools.Edit` - Surgical file edits
   - `Condukt.Tools.Write` - Write files
 
@@ -42,7 +43,6 @@ defmodule Condukt.Tools do
 
   These tools provide full filesystem access for coding agents.
   """
-  @spec coding_tools() :: [module()]
   def coding_tools do
     [Read, Bash, Edit, Write]
   end
@@ -51,10 +51,10 @@ defmodule Condukt.Tools do
   Returns read-only tools: Read, Bash.
 
   Use these when you want the agent to explore but not modify files.
-  Note that Bash can still execute arbitrary commands - consider
-  implementing command allowlists for production.
+  Note that Bash can still execute arbitrary commands. Prefer a parameterized
+  `Condukt.Tools.Command` when you want to grant a specific executable such as
+  `git`, `gh`, or `mix`.
   """
-  @spec read_only_tools() :: [module()]
   def read_only_tools do
     [Read, Bash]
   end
@@ -62,7 +62,6 @@ defmodule Condukt.Tools do
   @doc """
   Returns all available built-in tools.
   """
-  @spec all() :: [module()]
   def all do
     [Read, Bash, Edit, Write]
   end

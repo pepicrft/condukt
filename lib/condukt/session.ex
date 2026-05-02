@@ -246,33 +246,16 @@ defmodule Condukt.Session do
   end
 
   @impl true
+  def handle_cast({:stream, _prompt, _opts, subscriber_ref}, %{streaming: true} = state) do
+    broadcast(state, subscriber_ref, {:error, :already_streaming})
+    broadcast(state, subscriber_ref, :done)
+    {:noreply, state}
+  end
+
   def handle_cast({:stream, prompt, opts, subscriber_ref}, state) do
-    if state.streaming do
-      broadcast(state, subscriber_ref, {:error, :already_streaming})
-      broadcast(state, subscriber_ref, :done)
-      {:noreply, state}
-    else
-      state = %{state | streaming: true, abort_ref: make_ref()}
-      parent = self()
-      abort_ref = state.abort_ref
-
-      Task.start(fn ->
-        result =
-          do_stream(
-            state,
-            prompt,
-            opts,
-            fn event ->
-              GenServer.cast(parent, {:broadcast_event, event, subscriber_ref})
-            end,
-            abort_ref
-          )
-
-        GenServer.cast(parent, {:stream_complete, subscriber_ref, result})
-      end)
-
-      {:noreply, state}
-    end
+    state = %{state | streaming: true, abort_ref: make_ref()}
+    start_stream_task(state, prompt, opts, subscriber_ref)
+    {:noreply, state}
   end
 
   def handle_cast({:unsubscribe, pid, ref}, state) do
@@ -376,48 +359,86 @@ defmodule Condukt.Session do
     {:ok, messages, response}
   end
 
-  defp streaming_loop(state, messages, max_turns, turn, emit, abort_ref) do
-    if state.abort_ref == abort_ref do
-      emit.(:turn_start)
+  defp streaming_loop(%{abort_ref: abort_ref} = state, messages, max_turns, turn, emit, abort_ref) do
+    emit.(:turn_start)
+    stream_turn(state, messages, max_turns, turn, emit, abort_ref)
+  end
 
-      context = build_context(state, messages)
-      tools = build_req_llm_tools(state.tools, state)
-      llm_opts = build_llm_opts(state, tools)
+  defp streaming_loop(_state, _messages, _max_turns, _turn, _emit, _abort_ref) do
+    {:error, :aborted}
+  end
 
-      case ReqLLM.stream_text(state.model, context, llm_opts) do
-        {:ok, stream_response} ->
-          case ReqLLM.StreamResponse.process_stream(
-                 stream_response,
-                 on_result: fn chunk -> emit.({:text, chunk}) end,
-                 on_thinking: fn chunk -> emit.({:thinking, chunk}) end
-               ) do
-            {:ok, response} ->
-              assistant_message = response_to_message(response)
-              text = ReqLLM.Response.text(response) || ""
-              emit.(:turn_end)
+  defp start_stream_task(state, prompt, opts, subscriber_ref) do
+    parent = self()
+    abort_ref = state.abort_ref
 
-              if Message.has_tool_calls?(assistant_message) do
-                messages = messages ++ [assistant_message]
-                {tool_results, messages} = execute_tool_calls_streaming(state, assistant_message, messages, emit)
-                messages = messages ++ tool_results
-                streaming_loop(state, messages, max_turns, turn + 1, emit, abort_ref)
-              else
-                messages = messages ++ [assistant_message]
-                {:ok, messages, text}
-              end
+    Task.start(fn ->
+      result =
+        do_stream(
+          state,
+          prompt,
+          opts,
+          &broadcast_stream_event(parent, subscriber_ref, &1),
+          abort_ref
+        )
 
-            {:error, reason} ->
-              emit.({:error, reason})
-              {:error, reason}
-          end
+      GenServer.cast(parent, {:stream_complete, subscriber_ref, result})
+    end)
+  end
 
-        {:error, reason} ->
-          emit.({:error, reason})
-          {:error, reason}
-      end
-    else
-      {:error, :aborted}
+  defp broadcast_stream_event(parent, subscriber_ref, event) do
+    GenServer.cast(parent, {:broadcast_event, event, subscriber_ref})
+  end
+
+  defp stream_turn(state, messages, max_turns, turn, emit, abort_ref) do
+    context = build_context(state, messages)
+    tools = build_req_llm_tools(state.tools, state)
+    llm_opts = build_llm_opts(state, tools)
+
+    case ReqLLM.stream_text(state.model, context, llm_opts) do
+      {:ok, stream_response} ->
+        process_stream_turn(state, stream_response, messages, max_turns, turn, emit, abort_ref)
+
+      {:error, reason} ->
+        emit_stream_error(emit, reason)
     end
+  end
+
+  defp process_stream_turn(state, stream_response, messages, max_turns, turn, emit, abort_ref) do
+    case ReqLLM.StreamResponse.process_stream(
+           stream_response,
+           on_result: fn chunk -> emit.({:text, chunk}) end,
+           on_thinking: fn chunk -> emit.({:thinking, chunk}) end
+         ) do
+      {:ok, response} ->
+        handle_stream_response(state, response, messages, max_turns, turn, emit, abort_ref)
+
+      {:error, reason} ->
+        emit_stream_error(emit, reason)
+    end
+  end
+
+  defp handle_stream_response(state, response, messages, max_turns, turn, emit, abort_ref) do
+    assistant_message = response_to_message(response)
+    text = ReqLLM.Response.text(response) || ""
+    messages = messages ++ [assistant_message]
+    emit.(:turn_end)
+
+    case Message.has_tool_calls?(assistant_message) do
+      true ->
+        {tool_results, messages} =
+          execute_tool_calls_streaming(state, assistant_message, messages, emit)
+
+        streaming_loop(state, messages ++ tool_results, max_turns, turn + 1, emit, abort_ref)
+
+      false ->
+        {:ok, messages, text}
+    end
+  end
+
+  defp emit_stream_error(emit, reason) do
+    emit.({:error, reason})
+    {:error, reason}
   end
 
   defp build_context(state, messages) do

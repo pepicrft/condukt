@@ -65,6 +65,7 @@ defmodule Condukt.MixProject do
           Condukt.Session,
           Condukt.Message,
           Condukt.SessionStore,
+          Condukt.SessionStore.Snapshot,
           Condukt.SessionStore.Memory,
           Condukt.SessionStore.Disk,
           Condukt.Tool,
@@ -74,6 +75,7 @@ defmodule Condukt.MixProject do
           Condukt.Tools,
           Condukt.Tools.Read,
           Condukt.Tools.Bash,
+          Condukt.Tools.Command,
           Condukt.Tools.Edit,
           Condukt.Tools.Write
         ],

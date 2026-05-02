@@ -20,27 +20,6 @@ defmodule Condukt.Message do
   - `{:tool_call, id, name, args}` - A tool invocation
   """
 
-  @type role :: :user | :assistant | :tool_result
-
-  @type content_block ::
-          {:text, String.t()}
-          | {:thinking, String.t()}
-          | {:tool_call, String.t(), String.t(), map()}
-
-  @type image :: %{
-          type: :base64,
-          media_type: String.t(),
-          data: String.t()
-        }
-
-  @type t :: %__MODULE__{
-          role: role(),
-          content: [content_block()] | String.t() | term(),
-          tool_call_id: String.t() | nil,
-          images: [image()],
-          timestamp: DateTime.t()
-        }
-
   @enforce_keys [:role, :content]
   defstruct [:role, :content, :tool_call_id, images: [], timestamp: nil]
 
@@ -52,7 +31,6 @@ defmodule Condukt.Message do
       Message.user("Hello!")
       Message.user("What's in this image?", [%{type: :base64, media_type: "image/png", data: "..."}])
   """
-  @spec user(String.t(), [image()]) :: t()
   def user(text, images \\ []) do
     %__MODULE__{
       role: :user,
@@ -67,7 +45,6 @@ defmodule Condukt.Message do
 
   Content can be a string or a list of content blocks.
   """
-  @spec assistant(String.t() | [content_block()]) :: t()
   def assistant(content) do
     %__MODULE__{
       role: :assistant,
@@ -81,7 +58,6 @@ defmodule Condukt.Message do
 
   The content will be JSON-encoded if not a string.
   """
-  @spec tool_result(String.t(), term()) :: t()
   def tool_result(tool_call_id, content) do
     %__MODULE__{
       role: :tool_result,
@@ -97,7 +73,6 @@ defmodule Condukt.Message do
   Returns the concatenated text blocks for assistant messages,
   or the content directly for user messages.
   """
-  @spec text(t()) :: String.t()
   def text(%__MODULE__{content: content}) when is_binary(content), do: content
 
   def text(%__MODULE__{content: blocks}) when is_list(blocks) do
@@ -111,13 +86,11 @@ defmodule Condukt.Message do
   @doc """
   Extracts the content from a tool result message for display.
   """
-  @spec tool_result_content(t()) :: term()
   def tool_result_content(%__MODULE__{role: :tool_result, content: content}), do: content
 
   @doc """
   Checks if the message contains any tool calls.
   """
-  @spec has_tool_calls?(t()) :: boolean()
   def has_tool_calls?(%__MODULE__{content: blocks}) when is_list(blocks) do
     Enum.any?(blocks, &match?({:tool_call, _, _, _}, &1))
   end
@@ -129,7 +102,6 @@ defmodule Condukt.Message do
 
   Returns a list of `{id, name, args}` tuples.
   """
-  @spec tool_calls(t()) :: [{String.t(), String.t(), map()}]
   def tool_calls(%__MODULE__{content: blocks}) when is_list(blocks) do
     blocks
     |> Enum.filter(&match?({:tool_call, _, _, _}, &1))
@@ -141,7 +113,6 @@ defmodule Condukt.Message do
   @doc """
   Extracts thinking content from a message.
   """
-  @spec thinking(t()) :: String.t() | nil
   def thinking(%__MODULE__{content: blocks}) when is_list(blocks) do
     blocks
     |> Enum.filter(&match?({:thinking, _}, &1))

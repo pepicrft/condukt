@@ -36,18 +36,17 @@ defmodule Condukt.SessionStore.Memory do
   defp ensure_table! do
     case :ets.whereis(@table) do
       :undefined ->
-        :global.trans({__MODULE__, :ensure_table}, fn ->
-          case :ets.whereis(@table) do
-            :undefined ->
-              :ets.new(@table, [:named_table, :public, :set, read_concurrency: true])
-
-            tid ->
-              tid
-          end
-        end)
+        :global.trans({__MODULE__, :ensure_table}, &ensure_table_exists/0)
 
       tid ->
         tid
+    end
+  end
+
+  defp ensure_table_exists do
+    case :ets.whereis(@table) do
+      :undefined -> :ets.new(@table, [:named_table, :public, :set, read_concurrency: true])
+      tid -> tid
     end
   end
 

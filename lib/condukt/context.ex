@@ -87,20 +87,25 @@ defmodule Condukt.Context do
 
     case Regex.named_captures(regex, content) do
       %{"frontmatter" => frontmatter} ->
-        fields =
-          frontmatter
-          |> String.split("\n", trim: true)
-          |> Enum.reduce(%{}, fn line, acc ->
-            case String.split(line, ":", parts: 2) do
-              [key, value] -> Map.put(acc, String.trim(key), String.trim(value))
-              _ -> acc
-            end
-          end)
+        fields = parse_frontmatter_fields(frontmatter)
 
         {Map.get(fields, "name", default_name), Map.get(fields, "description")}
 
       _ ->
         {default_name, nil}
+    end
+  end
+
+  defp parse_frontmatter_fields(frontmatter) do
+    frontmatter
+    |> String.split("\n", trim: true)
+    |> Enum.reduce(%{}, &put_frontmatter_field/2)
+  end
+
+  defp put_frontmatter_field(line, acc) do
+    case String.split(line, ":", parts: 2) do
+      [key, value] -> Map.put(acc, String.trim(key), String.trim(value))
+      _ -> acc
     end
   end
 

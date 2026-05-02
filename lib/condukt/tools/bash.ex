@@ -23,17 +23,6 @@ defmodule Condukt.Tools.Bash do
   @max_bytes 50 * 1024
   @default_timeout 120_000
 
-  defmodule CommandRunner do
-    @callback cmd(binary(), [binary()], keyword()) :: {Collectable.t(), non_neg_integer() | :timeout}
-  end
-
-  defmodule MuonTrapRunner do
-    @behaviour CommandRunner
-
-    @impl true
-    def cmd(command, args, opts), do: MuonTrap.cmd(command, args, opts)
-  end
-
   @impl true
   def name, do: "Bash"
 
@@ -94,7 +83,7 @@ defmodule Condukt.Tools.Bash do
         {:error, "Command timed out after #{div(timeout, 1000)} seconds"}
 
       {:error, reason} ->
-        {:error, "Command failed: #{inspect(reason)}"}
+        {:error, "Command failed: #{reason}"}
     end
   end
 
@@ -109,17 +98,30 @@ defmodule Condukt.Tools.Bash do
   end
 
   defp execute_command(command, cwd, timeout) do
-    case MuonTrapRunner.cmd("bash", ["-c", command],
+    case run_muontrap("bash", ["-c", command],
            cd: cwd,
            stderr_to_stdout: true,
            env: build_env(),
            timeout: timeout
          ) do
-      {_output, :timeout} -> {:error, :timeout}
-      {output, exit_code} -> {:ok, output, exit_code}
+      {:ok, {_output, :timeout}} -> {:error, :timeout}
+      {:ok, {output, exit_code}} -> {:ok, output, exit_code}
+      {:error, reason} -> {:error, reason}
     end
-  rescue
-    error -> {:error, Exception.message(error)}
+  end
+
+  defp run_muontrap(command, args, opts) do
+    {:ok, MuonTrap.cmd(command, args, opts)}
+  catch
+    :error, error -> {:error, format_error(error)}
+  end
+
+  defp format_error(error) do
+    if is_exception(error) do
+      Exception.message(error)
+    else
+      inspect(error)
+    end
   end
 
   defp build_env do

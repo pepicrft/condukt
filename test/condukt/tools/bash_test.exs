@@ -10,7 +10,7 @@ defmodule Condukt.Tools.BashTest do
   setup :verify_on_exit!
 
   test "executes simple command", %{tmp_dir: tmp_dir} do
-    Condukt.Tools.Bash.MuonTrapRunner
+    MuonTrap
     |> expect(:cmd, fn "bash", ["-c", "echo hello"], opts ->
       assert opts[:cd] == tmp_dir
       assert opts[:stderr_to_stdout] == true
@@ -26,7 +26,7 @@ defmodule Condukt.Tools.BashTest do
   end
 
   test "captures stderr", %{tmp_dir: tmp_dir} do
-    Condukt.Tools.Bash.MuonTrapRunner
+    MuonTrap
     |> expect(:cmd, fn "bash", ["-c", "echo error >&2"], opts ->
       assert opts[:cd] == tmp_dir
       {"error\n", 0}
@@ -39,7 +39,7 @@ defmodule Condukt.Tools.BashTest do
   end
 
   test "returns exit code for failures", %{tmp_dir: tmp_dir} do
-    Condukt.Tools.Bash.MuonTrapRunner
+    MuonTrap
     |> expect(:cmd, fn "bash", ["-c", "exit 42"], opts ->
       assert opts[:cd] == tmp_dir
       {"", 42}
@@ -52,7 +52,7 @@ defmodule Condukt.Tools.BashTest do
   end
 
   test "respects cwd", %{tmp_dir: tmp_dir} do
-    Condukt.Tools.Bash.MuonTrapRunner
+    MuonTrap
     |> expect(:cmd, fn "bash", ["-c", "pwd"], opts ->
       assert opts[:cd] == tmp_dir
       {"#{tmp_dir}\n", 0}
@@ -68,7 +68,7 @@ defmodule Condukt.Tools.BashTest do
     nested_dir = Path.join(tmp_dir, "nested")
     File.mkdir_p!(nested_dir)
 
-    Condukt.Tools.Bash.MuonTrapRunner
+    MuonTrap
     |> expect(:cmd, fn "bash", ["-c", "pwd"], opts ->
       assert opts[:cd] == nested_dir
       {"#{nested_dir}\n", 0}
@@ -78,5 +78,17 @@ defmodule Condukt.Tools.BashTest do
     {:ok, result} = Bash.call(%{"command" => "pwd", "cwd" => "nested"}, context)
 
     assert String.contains?(result, nested_dir)
+  end
+
+  test "returns runner errors as command failures", %{tmp_dir: tmp_dir} do
+    MuonTrap
+    |> expect(:cmd, fn "bash", ["-c", "pwd"], _opts ->
+      raise ErlangError, original: :enoent
+    end)
+
+    context = %{cwd: tmp_dir, opts: []}
+
+    assert {:error, "Command failed: Erlang error: :enoent"} =
+             Bash.call(%{"command" => "pwd"}, context)
   end
 end

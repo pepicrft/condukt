@@ -80,14 +80,6 @@ defmodule Condukt.Tool do
       end
   """
 
-  @type context :: %{
-          agent: pid(),
-          cwd: String.t(),
-          opts: keyword()
-        }
-
-  @type result :: {:ok, term()} | {:error, term()}
-
   @doc """
   Returns the tool name as it will appear to the LLM.
   """
@@ -109,7 +101,7 @@ defmodule Condukt.Tool do
   @doc """
   Executes the tool with the given arguments.
   """
-  @callback call(args :: map(), context()) :: result()
+  @callback call(args :: map(), context :: map()) :: {:ok, term()} | {:error, term()}
 
   @optional_callbacks [name: 1, description: 1, parameters: 1]
 
@@ -136,14 +128,12 @@ defmodule Condukt.Tool do
   @doc """
   Gets the tool name for a tool spec.
   """
-  @spec name(module() | {module(), keyword()}) :: String.t()
   def name({module, opts}), do: module.name(opts)
   def name(module) when is_atom(module), do: module.name()
 
   @doc """
   Builds a tool specification for the LLM provider.
   """
-  @spec to_spec(module() | {module(), keyword()}) :: map()
   def to_spec({module, opts}) do
     %{
       name: module.name(opts),
@@ -163,26 +153,29 @@ defmodule Condukt.Tool do
   @doc """
   Executes a tool by name with arguments.
   """
-  @spec execute(module() | {module(), keyword()}, map(), context()) :: result()
   def execute({module, opts}, args, context) do
-    context = Map.put(context, :opts, opts)
-
-    try do
-      module.call(args, context)
-    rescue
-      e ->
-        {:error, Exception.message(e)}
-    end
+    context
+    |> Map.put(:opts, opts)
+    |> execute_call(module, args)
   end
 
   def execute(module, args, context) when is_atom(module) do
-    context = Map.put(context, :opts, [])
+    context
+    |> Map.put(:opts, [])
+    |> execute_call(module, args)
+  end
 
-    try do
-      module.call(args, context)
-    rescue
-      e ->
-        {:error, Exception.message(e)}
+  defp execute_call(context, module, args) do
+    module.call(args, context)
+  catch
+    :error, error -> {:error, format_error(error)}
+  end
+
+  defp format_error(error) do
+    if is_exception(error) do
+      Exception.message(error)
+    else
+      inspect(error)
     end
   end
 end
