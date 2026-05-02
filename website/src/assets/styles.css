@@ -155,6 +155,20 @@ pre, code {
   padding: 1.25rem;
 }
 
+.feature-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.5rem;
+  background: rgba(124, 92, 255, 0.12);
+  color: var(--accent);
+  margin-bottom: 0.85rem;
+}
+
+.feature-icon svg { width: 1.15rem; height: 1.15rem; }
+
 .feature-grid h3 {
   margin: 0 0 0.5rem;
   font-size: 1.05rem;
