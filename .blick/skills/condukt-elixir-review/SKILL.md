@@ -1,6 +1,6 @@
 ---
 name: condukt-elixir-review
-description: Project-specific PR-review rules for the Condukt Elixir codebase. Focuses on command execution, cwd scoping, session restore precedence, session store safety, and Mimic placement.
+description: Project-specific PR-review rules for the Condukt Elixir codebase. Focuses on command execution, cwd scoping, session restore precedence, session store safety, Mimic placement, and the repo's no-typespec convention.
 ---
 
 # Condukt Elixir Review
@@ -15,10 +15,9 @@ For each finding, cite `path:line` and quote the relevant snippet.
 
 ## 1. Command execution must use MuonTrap
 
-`lib/condukt/tools/bash.ex` uses `MuonTrap` through
-`Condukt.Tools.Bash.MuonTrapRunner`. The repo convention is to use
-`MuonTrap` for bash commands so child processes are cleaned up with the
-calling process.
+`lib/condukt/tools/muon_trap_runner.ex` is the shared seam for command
+execution. The repo convention is to use `MuonTrap` so child processes
+are cleaned up with the calling process.
 
 ### Flag
 
@@ -28,7 +27,7 @@ calling process.
   shutdown guarantees. **Severity: high.**
 - **Production code that calls `MuonTrap.cmd/3` directly in a place that
   should preserve the runner seam used by tests** (for example, bypassing
-  `Condukt.Tools.Bash.MuonTrapRunner`). **Severity: medium.**
+  `Condukt.Tools.MuonTrapRunner`). **Severity: medium.**
 
 ### Do not flag
 
@@ -98,7 +97,29 @@ exists. `Condukt.SessionStore.Disk` decodes snapshots with
   `.condukt/session.store` under the configured cwd when no explicit
   `path:` was provided.** **Severity: medium.**
 
-## 5. Mimic copies belong in `test/test_helper.exs`
+## 5. Elixir production code should not add typespecs or custom types
+
+This repo does not want `@spec`, `@type`, `@typep`, or `@opaque` in
+production Elixir code. Callback definitions are the exception when a
+behaviour contract needs to exist, but reviewers should not ask for or
+encourage additional typespec-style annotations beyond that.
+
+### Flag
+
+- **Any new `@spec`, `@type`, `@typep`, or `@opaque` in `lib/`.**
+  **Severity: medium.**
+- **Review feedback that asks for missing typespecs, type aliases, or
+  stronger type annotations in Elixir production code.**
+  **Severity: medium.**
+
+### Do not flag
+
+- Existing or new `@callback` / `@macrocallback` declarations needed to
+  define a behaviour.
+- Plain runtime validation, guards, or pattern matching that make code
+  safer without adding typespec annotations.
+
+## 6. Mimic copies belong in `test/test_helper.exs`
 
 This repo centralizes `Mimic.copy(...)` in `test/test_helper.exs`.
 
@@ -117,5 +138,5 @@ This repo centralizes `Mimic.copy(...)` in `test/test_helper.exs`.
 ## Out of scope (handled elsewhere - do not flag)
 
 - Generic naming, formatting, module layout, or pipe style
-- Missing docs or typespecs
+- Missing docs
 - README wording tweaks unless they violate one of the rules above

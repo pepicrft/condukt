@@ -7,15 +7,9 @@ defmodule Condukt.SessionStore do
   and callers can provide their own store modules.
   """
 
-  alias Condukt.SessionStore.Snapshot
-
-  @type spec :: module() | {module(), keyword()}
-
-  @callback load(keyword()) :: {:ok, Snapshot.t()} | :not_found | {:error, term()}
-  @callback save(Snapshot.t(), keyword()) :: :ok | {:error, term()}
+  @callback load(keyword()) :: {:ok, term()} | :not_found | {:error, term()}
+  @callback save(term(), keyword()) :: :ok | {:error, term()}
   @callback clear(keyword()) :: :ok | {:error, term()}
-
-  @spec load(spec(), keyword()) :: {:ok, Snapshot.t()} | :not_found | {:error, term()}
   def load(store, default_opts \\ [])
 
   def load({module, opts}, default_opts) do
@@ -26,7 +20,6 @@ defmodule Condukt.SessionStore do
     module.load(default_opts)
   end
 
-  @spec save(spec(), Snapshot.t(), keyword()) :: :ok | {:error, term()}
   def save(store, snapshot, default_opts \\ [])
 
   def save({module, opts}, snapshot, default_opts) do
@@ -37,7 +30,6 @@ defmodule Condukt.SessionStore do
     module.save(snapshot, default_opts)
   end
 
-  @spec clear(spec(), keyword()) :: :ok | {:error, term()}
   def clear(store, default_opts \\ [])
 
   def clear({module, opts}, default_opts) do

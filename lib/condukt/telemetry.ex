@@ -54,7 +54,6 @@ defmodule Condukt.Telemetry do
 
   Emits start, stop, and exception events for the given event name.
   """
-  @spec span(atom(), map(), (-> result)) :: result when result: var
   def span(event, metadata, fun) when is_atom(event) and is_map(metadata) and is_function(fun, 0) do
     event_prefix = [:condukt, event]
     start_time = System.monotonic_time()
@@ -107,7 +106,6 @@ defmodule Condukt.Telemetry do
   @doc """
   Emits a telemetry event.
   """
-  @spec emit(atom(), map(), map()) :: :ok
   def emit(event, measurements \\ %{}, metadata \\ %{}) when is_atom(event) do
     :telemetry.execute([:condukt, event], measurements, metadata)
   end

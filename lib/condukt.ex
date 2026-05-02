@@ -51,25 +51,6 @@ defmodule Condukt do
   - **Event** - Notifications during agent execution for streaming/UI
   """
 
-  @type thinking_level :: :off | :minimal | :low | :medium | :high
-
-  @type event ::
-          {:text, String.t()}
-          | {:thinking, String.t()}
-          | {:tool_call, name :: String.t(), id :: String.t(), args :: map()}
-          | {:tool_result, id :: String.t(), result :: term()}
-          | {:error, term()}
-          | :agent_start
-          | :agent_end
-          | :turn_start
-          | :turn_end
-          | :message_start
-          | :message_end
-          | :done
-
-  @type tool_spec :: module() | {module(), keyword()}
-  @type session_store_spec :: module() | {module(), keyword()}
-
   # ============================================================================
   # Behaviour Definition
   # ============================================================================
@@ -85,7 +66,7 @@ defmodule Condukt do
   @doc """
   Returns the list of tools this agent can use.
   """
-  @callback tools() :: [tool_spec()]
+  @callback tools() :: [module() | {module(), keyword()}]
 
   @doc """
   Returns the model identifier.
@@ -97,7 +78,7 @@ defmodule Condukt do
   @doc """
   Returns the default thinking level.
   """
-  @callback thinking_level() :: thinking_level()
+  @callback thinking_level() :: :off | :minimal | :low | :medium | :high
 
   @doc """
   Initializes agent state from options.
@@ -107,7 +88,7 @@ defmodule Condukt do
   @doc """
   Handles events during execution.
   """
-  @callback handle_event(event(), term()) :: {:noreply, term()} | {:stop, term(), term()}
+  @callback handle_event(term(), term()) :: {:noreply, term()} | {:stop, term(), term()}
 
   @optional_callbacks [system_prompt: 0, tools: 0, model: 0, thinking_level: 0, init: 1, handle_event: 2]
 
@@ -189,8 +170,6 @@ defmodule Condukt do
 
       {:ok, response} = Condukt.run(agent, "Hello!")
   """
-  @spec run(GenServer.server(), String.t(), keyword()) ::
-          {:ok, String.t()} | {:error, term()}
   defdelegate run(agent, prompt, opts \\ []), to: Condukt.Session
 
   @doc """
@@ -209,25 +188,21 @@ defmodule Condukt do
   - `:turn_end` - Turn completed
   - `:done` - Stream complete
   """
-  @spec stream(GenServer.server(), String.t(), keyword()) :: Enumerable.t()
   defdelegate stream(agent, prompt, opts \\ []), to: Condukt.Session
 
   @doc """
   Returns the conversation history.
   """
-  @spec history(GenServer.server()) :: [Condukt.Message.t()]
   defdelegate history(agent), to: Condukt.Session
 
   @doc """
   Clears conversation history.
   """
-  @spec clear(GenServer.server()) :: :ok
   defdelegate clear(agent), to: Condukt.Session
 
   @doc """
   Aborts current operation.
   """
-  @spec abort(GenServer.server()) :: :ok
   defdelegate abort(agent), to: Condukt.Session
 
   @doc """
@@ -236,7 +211,6 @@ defmodule Condukt do
   This message will be delivered after the current tool completes,
   and remaining tool calls will be skipped.
   """
-  @spec steer(GenServer.server(), String.t()) :: :ok
   defdelegate steer(agent, message), to: Condukt.Session
 
   @doc """
@@ -244,6 +218,5 @@ defmodule Condukt do
 
   This message will be delivered when the agent finishes its current work.
   """
-  @spec follow_up(GenServer.server(), String.t()) :: :ok
   defdelegate follow_up(agent, message), to: Condukt.Session
 end
