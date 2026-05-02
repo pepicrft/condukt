@@ -19,20 +19,11 @@ defmodule Condukt.Tools.Bash do
 
   use Condukt.Tool
 
+  alias Condukt.Tools.MuonTrapRunner
+
   @max_lines 2000
   @max_bytes 50 * 1024
   @default_timeout 120_000
-
-  defmodule CommandRunner do
-    @callback cmd(binary(), [binary()], keyword()) :: {Collectable.t(), non_neg_integer() | :timeout}
-  end
-
-  defmodule MuonTrapRunner do
-    @behaviour CommandRunner
-
-    @impl true
-    def cmd(command, args, opts), do: MuonTrap.cmd(command, args, opts)
-  end
 
   @impl true
   def name, do: "Bash"

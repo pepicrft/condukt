@@ -7,25 +7,7 @@ defmodule Condukt.SessionStore do
   and callers can provide their own store modules.
   """
 
-  alias Condukt.Message
-
-  defmodule Snapshot do
-    @moduledoc """
-    Serializable session snapshot persisted by session stores.
-    """
-
-    @type t :: %__MODULE__{
-            messages: [Message.t()],
-            model: String.t() | nil,
-            thinking_level: Condukt.thinking_level() | nil,
-            system_prompt: String.t() | nil
-          }
-
-    defstruct messages: [],
-              model: nil,
-              thinking_level: nil,
-              system_prompt: nil
-  end
+  alias Condukt.SessionStore.Snapshot
 
   @type spec :: module() | {module(), keyword()}
 

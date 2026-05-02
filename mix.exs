@@ -65,6 +65,7 @@ defmodule Condukt.MixProject do
           Condukt.Session,
           Condukt.Message,
           Condukt.SessionStore,
+          Condukt.SessionStore.Snapshot,
           Condukt.SessionStore.Memory,
           Condukt.SessionStore.Disk,
           Condukt.Tool,

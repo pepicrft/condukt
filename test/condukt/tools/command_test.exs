@@ -10,7 +10,7 @@ defmodule Condukt.Tools.CommandTest do
   setup :verify_on_exit!
 
   test "executes a trusted command with structured arguments", %{tmp_dir: tmp_dir} do
-    Condukt.Tools.Command.MuonTrapRunner
+    Condukt.Tools.MuonTrapRunner
     |> expect(:cmd, fn "git", ["status", "--short"], opts ->
       assert opts[:cd] == tmp_dir
       assert opts[:stderr_to_stdout] == true
@@ -26,7 +26,7 @@ defmodule Condukt.Tools.CommandTest do
   end
 
   test "injects trusted environment from tool options", %{tmp_dir: tmp_dir} do
-    Condukt.Tools.Command.MuonTrapRunner
+    Condukt.Tools.MuonTrapRunner
     |> expect(:cmd, fn "gh", ["pr", "view"], opts ->
       assert opts[:cd] == tmp_dir
       assert {"GH_TOKEN", "secret-token"} in opts[:env]
@@ -44,7 +44,7 @@ defmodule Condukt.Tools.CommandTest do
     nested_dir = Path.join(tmp_dir, "nested")
     File.mkdir_p!(nested_dir)
 
-    Condukt.Tools.Command.MuonTrapRunner
+    Condukt.Tools.MuonTrapRunner
     |> expect(:cmd, fn "mix", ["test"], opts ->
       assert opts[:cd] == nested_dir
       {"1 test, 0 failures\n", 0}

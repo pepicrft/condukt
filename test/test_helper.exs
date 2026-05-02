@@ -1,3 +1,2 @@
-Mimic.copy(Condukt.Tools.Bash.MuonTrapRunner)
-Mimic.copy(Condukt.Tools.Command.MuonTrapRunner)
+Mimic.copy(Condukt.Tools.MuonTrapRunner)
 ExUnit.start()
