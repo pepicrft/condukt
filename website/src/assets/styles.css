@@ -57,7 +57,14 @@ a:hover { text-decoration: underline; }
   font-weight: 600;
 }
 
-.brand-mark { color: var(--accent); }
+.brand-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: contain;
+  background: #ffffff;
+  display: block;
+}
 
 .site-nav a {
   margin-left: 1.25rem;

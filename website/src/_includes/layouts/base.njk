@@ -10,13 +10,16 @@
     <meta property="og:type" content="website" />
     <meta property="og:url" content="{{ site.url }}{{ page.url }}" />
     <link rel="stylesheet" href="/assets/styles.css" />
-    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png" />
+    <meta property="og:image" content="{{ site.url }}/assets/favicon-512.png" />
   </head>
   <body>
     <header class="site-header">
       <div class="container">
         <a class="brand" href="/">
-          <span class="brand-mark">●</span>
+          <img class="brand-mark" src="/assets/logo-square.png" alt="" width="32" height="32" />
           <span class="brand-name">{{ site.name }}</span>
         </a>
         <nav class="site-nav">
