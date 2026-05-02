@@ -22,3 +22,9 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 agent-*.tar
 
+# Node.js dependencies (installed locally for the website or stray invocations).
+node_modules/
+
+# macOS Finder metadata.
+.DS_Store
+

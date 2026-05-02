@@ -1,0 +1,25 @@
+{
+  "name": "condukt-website",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Marketing site for Condukt, a framework for building AI agents in Elixir.",
+  "scripts": {
+    "build": "eleventy",
+    "dev": "eleventy --serve --quiet",
+    "clean": "rm -rf _site",
+    "deploy": "aube run build && wrangler deploy"
+  },
+  "devDependencies": {
+    "@11ty/eleventy": "^3.0.0",
+    "@lumis-sh/lumis": "^0.4.0",
+    "@lumis-sh/themes": "^0.1.0",
+    "wrangler": "^4.0.0"
+  },
+  "aube": {
+    "allowBuilds": {
+      "esbuild": true,
+      "sharp": true,
+      "workerd": true
+    }
+  }
+}

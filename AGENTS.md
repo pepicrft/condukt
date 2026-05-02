@@ -13,3 +13,19 @@
 ## Elixir
 
 - Do not type Elixir code by hand when avoidable. Prefer structural edits and tool-assisted changes.
+
+## Marketing site (`website/`)
+
+The marketing site lives under `website/` and is built with [Eleventy](https://www.11ty.dev/).
+
+- Source: `website/src/` (templates use Nunjucks, layouts in `website/src/_includes/layouts/`).
+- Package manager: [aube](https://github.com/endevco/aube), pinned in `mise.toml`. Use `aube ci`, `aube install`, `aube add <pkg>`, `aube run <script>` (or `aubr <script>`). Do not invoke `npm`/`pnpm`/`yarn` directly.
+- Build: `cd website && aube ci && aube run build` — outputs to `website/_site`.
+- Local preview: `cd website && aube run dev`.
+- Deployment: pushes to `main` that touch `website/**` deploy to Cloudflare Workers via `.github/workflows/website.yml`. The job uses `cloudflare/wrangler-action` and reads `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` from repo secrets.
+- Worker config: `website/wrangler.toml` (static-assets only — no server code).
+- Toolchain: Node and aube are pinned in `mise.toml`; bump there rather than ad-hoc.
+
+## Keeping this file up to date
+
+- Whenever a change adds, removes, or meaningfully alters an agent capability, workflow, deployment target, or required tool, update this file in the same change. The agent reads `AGENTS.md` at startup and stale entries cause it to act on outdated assumptions.

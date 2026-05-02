@@ -2,3 +2,5 @@
 erlang = "28"
 elixir = "1.19.5-otp-28"
 git-cliff = "2.12.0"
+node = "22"
+aube = "1.6.2"

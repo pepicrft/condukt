@@ -1,0 +1,212 @@
+:root {
+  --bg: #0b0d10;
+  --bg-elev: #14181d;
+  --fg: #e6e8eb;
+  --fg-muted: #9aa3ad;
+  --accent: #7c5cff;
+  --accent-2: #00d4a8;
+  --border: #1f242b;
+  --code-bg: #0f1216;
+  --max-width: 64rem;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.container {
+  width: 100%;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.site-header {
+  border-bottom: 1px solid var(--border);
+  background: rgba(11, 13, 16, 0.85);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.site-header .container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.brand-name { font-size: 1.1rem; }
+
+.hero-logo {
+  display: block;
+  width: 120px;
+  height: 120px;
+  margin-bottom: 1.5rem;
+}
+
+.site-nav a {
+  margin-left: 1.25rem;
+  color: var(--fg-muted);
+  font-size: 0.95rem;
+}
+.site-nav a:hover { color: var(--fg); }
+
+.hero {
+  padding: 5rem 0 4rem;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.8rem;
+  color: var(--accent-2);
+  margin: 0 0 1rem;
+}
+
+.hero h1 {
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  line-height: 1.1;
+  margin: 0 0 1rem;
+  letter-spacing: -0.02em;
+}
+
+.lede {
+  font-size: 1.15rem;
+  color: var(--fg-muted);
+  max-width: 36rem;
+  margin: 0 0 2rem;
+}
+
+.cta-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 2.5rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-block;
+  padding: 0.7rem 1.1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+  transition: transform 0.05s ease;
+}
+.btn:hover { text-decoration: none; transform: translateY(-1px); }
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.ghost { border-color: var(--border); color: var(--fg); }
+
+.install { max-width: 36rem; }
+
+pre, code {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.code-block {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  font-size: 0.9rem;
+}
+
+.code-block pre.lumis {
+  margin: 0;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  line-height: 1.55;
+}
+
+.code-block pre.lumis code { background: transparent; }
+.code-block .line { display: block; }
+.code-block .line[data-line]::before { content: none; }
+
+.features { padding: 4rem 0; border-top: 1px solid var(--border); }
+.features h2, .install-section h2 {
+  font-size: 1.75rem;
+  margin: 0 0 2rem;
+  letter-spacing: -0.01em;
+}
+
+.feature-grid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.feature-grid article {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 1.25rem;
+}
+
+.feature-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.5rem;
+  background: rgba(124, 92, 255, 0.12);
+  color: var(--accent);
+  margin-bottom: 0.85rem;
+}
+
+.feature-icon svg { width: 1.15rem; height: 1.15rem; }
+
+.feature-grid h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.feature-grid p {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.95rem;
+}
+
+.install-section { padding: 4rem 0 6rem; border-top: 1px solid var(--border); }
+
+.steps {
+  list-style: decimal;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.steps h3 { margin: 0 0 0.5rem; }
+
+.steps .code-block { margin: 0; }
+
+.site-footer {
+  border-top: 1px solid var(--border);
+  padding: 2rem 0;
+  color: var(--fg-muted);
+  font-size: 0.9rem;
+}
+
+.site-footer p { margin: 0 0 0.25rem; }
+.muted { color: var(--fg-muted); }
