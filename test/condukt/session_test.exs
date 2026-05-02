@@ -40,6 +40,25 @@ defmodule Condukt.SessionTest do
     end
   end
 
+  test "stores the configured :redactor on the session state" do
+    {:ok, pid} =
+      ConfigAgent.start_link(
+        redactor: {Condukt.Redactors.Regex, extra_patterns: []},
+        load_project_instructions: false
+      )
+
+    state = :sys.get_state(pid)
+    assert state.redactor == {Condukt.Redactors.Regex, extra_patterns: []}
+
+    GenServer.stop(pid)
+  end
+
+  test "redactor defaults to nil when no option is given" do
+    {:ok, pid} = ConfigAgent.start_link(load_project_instructions: false)
+    assert :sys.get_state(pid).redactor == nil
+    GenServer.stop(pid)
+  end
+
   test "uses config defaults when options are omitted" do
     {:ok, pid} =
       ConfigAgent.start_link(

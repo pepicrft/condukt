@@ -23,7 +23,7 @@ defmodule Condukt.Session do
 
   use GenServer
 
-  alias Condukt.{Compactor, Context, Message, SessionStore, Telemetry, Tool}
+  alias Condukt.{Compactor, Context, Message, Redactor, SessionStore, Telemetry, Tool}
   alias Condukt.SessionStore.Snapshot
   alias ReqLLM.ToolCall
 
@@ -44,6 +44,7 @@ defmodule Condukt.Session do
     :base_url,
     :session_store,
     :compactor,
+    :redactor,
     :project_context,
     :user_state,
     messages: [],
@@ -79,6 +80,7 @@ defmodule Condukt.Session do
       |> put_configured_opt(config, :cwd, &File.cwd!/0)
       |> put_configured_opt(config, :session_store)
       |> put_configured_opt(config, :compactor)
+      |> put_configured_opt(config, :redactor)
 
     GenServer.start_link(__MODULE__, agent_opts, gen_opts)
   end
@@ -201,6 +203,7 @@ defmodule Condukt.Session do
             base_url: opts[:base_url],
             session_store: session_store,
             compactor: opts[:compactor],
+            redactor: opts[:redactor],
             project_context: project_context,
             user_state: user_state
           }
@@ -462,7 +465,8 @@ defmodule Condukt.Session do
 
   defp build_context(state, messages) do
     context_messages =
-      messages
+      state.redactor
+      |> Redactor.redact_messages(messages)
       |> Enum.map(&message_to_req_llm/1)
       |> List.flatten()
 
