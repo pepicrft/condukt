@@ -73,7 +73,7 @@ defmodule Condukt.Session do
       |> put_configured_opt(config, :model, fn -> agent_module.model() end)
       |> put_configured_opt(config, :thinking_level, fn -> agent_module.thinking_level() end)
       |> put_configured_opt(config, :system_prompt, fn -> agent_module.system_prompt() end)
-      |> put_configured_opt(config, :discover_workspace_context, fn -> true end)
+      |> put_configured_opt(config, :load_project_instructions, fn -> true end)
       |> Keyword.put_new(:tools, agent_module.tools())
       |> put_configured_opt(config, :cwd, &File.cwd!/0)
       |> put_configured_opt(config, :session_store)
@@ -757,7 +757,7 @@ defmodule Condukt.Session do
   end
 
   defp load_workspace_context(opts) do
-    if Keyword.get(opts, :discover_workspace_context, true) do
+    if Keyword.get(opts, :load_project_instructions, true) do
       opts
       |> Keyword.fetch!(:cwd)
       |> Context.discover()

@@ -3,9 +3,8 @@ defmodule Condukt.ContextTest do
 
   alias Condukt.Context
 
-  test "discovers agents instructions and local skills from a workspace root" do
-    workspace_root = tmp_dir!("workspace-context")
-
+  @tag :tmp_dir
+  test "discovers agents instructions and local skills from a workspace root", %{tmp_dir: workspace_root} do
     File.write!(Path.join(workspace_root, "AGENTS.md"), "Follow the workspace instructions.")
     File.write!(Path.join(workspace_root, "CLAUDE.md"), "Prefer concise responses.")
 
@@ -42,9 +41,8 @@ defmodule Condukt.ContextTest do
     assert context.prompt =~ "read `.agents/skills/review/SKILL.md` before using it"
   end
 
-  test "deduplicates AGENTS.md and a symlinked CLAUDE.md" do
-    workspace_root = tmp_dir!("workspace-context-symlink")
-
+  @tag :tmp_dir
+  test "deduplicates AGENTS.md and a symlinked CLAUDE.md", %{tmp_dir: workspace_root} do
     File.write!(Path.join(workspace_root, "AGENTS.md"), "Follow the workspace instructions.")
     assert :ok = File.ln_s("AGENTS.md", Path.join(workspace_root, "CLAUDE.md"))
 
@@ -62,15 +60,5 @@ defmodule Condukt.ContextTest do
 
     assert composed ==
              "You are a helpful assistant.\n\n## Workspace Instructions\n\nUse mix test."
-  end
-
-  defp tmp_dir!(prefix) do
-    path =
-      Path.join(System.tmp_dir!(), "#{prefix}-#{System.unique_integer([:positive, :monotonic])}")
-
-    File.rm_rf!(path)
-    File.mkdir_p!(path)
-    on_exit(fn -> File.rm_rf!(path) end)
-    path
   end
 end

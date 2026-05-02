@@ -167,14 +167,14 @@ MyApp.CodingAgent.start_link(
   base_url: "http://localhost:11434/v1",        # Override provider's default URL
   system_prompt: "You are helpful.",            # Overrides config/module default
   thinking_level: :medium,                      # Overrides config/module default
-  discover_workspace_context: true,             # Auto-load AGENTS.md, CLAUDE.md, and local skills
+  load_project_instructions: true,              # Auto-load AGENTS.md, CLAUDE.md, and local skills
   cwd: "/path/to/project",                      # Overrides config/default cwd
   session_store: Condukt.SessionStore.Memory,   # Optional session persistence
   name: MyApp.CodingAgent                       # GenServer name
 )
 ```
 
-### Workspace Context Discovery
+### Project Instructions
 
 By default, Condukt inspects the agent workspace root configured by `cwd` at
 startup and appends local workspace guidance to the effective system prompt:
@@ -199,7 +199,7 @@ Disable this behavior if you need a fully static prompt:
 ```elixir
 {:ok, agent} =
   MyApp.CodingAgent.start_link(
-    discover_workspace_context: false
+    load_project_instructions: false
   )
 ```
 

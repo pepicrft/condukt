@@ -50,7 +50,7 @@ defmodule Condukt.SessionTest do
           thinking_level: :low,
           cwd: "/tmp/agent"
         ],
-        discover_workspace_context: false
+        load_project_instructions: false
       )
 
     state = :sys.get_state(pid)
@@ -74,7 +74,7 @@ defmodule Condukt.SessionTest do
         ],
         api_key: "option-key",
         system_prompt: "option prompt",
-        discover_workspace_context: false
+        load_project_instructions: false
       )
 
     state = :sys.get_state(pid)
@@ -97,7 +97,7 @@ defmodule Condukt.SessionTest do
     {:ok, pid} =
       ConfigAgent.start_link(
         session_store: {RecordingStore, snapshot: snapshot, test_pid: self()},
-        discover_workspace_context: false
+        load_project_instructions: false
       )
 
     state = :sys.get_state(pid)
@@ -124,7 +124,7 @@ defmodule Condukt.SessionTest do
         thinking_level: :high,
         system_prompt: "explicit prompt",
         session_store: {RecordingStore, snapshot: snapshot, test_pid: self()},
-        discover_workspace_context: false
+        load_project_instructions: false
       )
 
     state = :sys.get_state(pid)
@@ -148,7 +148,7 @@ defmodule Condukt.SessionTest do
     {:ok, pid} =
       ConfigAgent.start_link(
         session_store: {RecordingStore, snapshot: snapshot, test_pid: self()},
-        discover_workspace_context: false
+        load_project_instructions: false
       )
 
     assert :ok = Condukt.clear(pid)
@@ -191,9 +191,8 @@ defmodule Condukt.SessionTest do
                     }}
   end
 
-  test "discovers workspace instructions and local skills from cwd" do
-    cwd = tmp_dir!("session-context")
-
+  @tag :tmp_dir
+  test "discovers workspace instructions and local skills from the project root", %{tmp_dir: cwd} do
     File.write!(Path.join(cwd, "AGENTS.md"), "Always run project checks.")
 
     skill_dir = Path.join(cwd, ".agents/skills/release")
@@ -234,15 +233,15 @@ defmodule Condukt.SessionTest do
     GenServer.stop(pid)
   end
 
-  test "workspace discovery can be disabled" do
-    cwd = tmp_dir!("session-context-disabled")
+  @tag :tmp_dir
+  test "project instructions can be disabled", %{tmp_dir: cwd} do
     File.write!(Path.join(cwd, "AGENTS.md"), "Do not leak into the prompt.")
 
     {:ok, pid} =
       ConfigAgent.start_link(
         cwd: cwd,
         system_prompt: "base prompt",
-        discover_workspace_context: false
+        load_project_instructions: false
       )
 
     state = :sys.get_state(pid)
@@ -251,15 +250,5 @@ defmodule Condukt.SessionTest do
     assert state.workspace_context == %{agents_md: nil, skills: [], prompt: nil}
 
     GenServer.stop(pid)
-  end
-
-  defp tmp_dir!(prefix) do
-    path =
-      Path.join(System.tmp_dir!(), "#{prefix}-#{System.unique_integer([:positive, :monotonic])}")
-
-    File.rm_rf!(path)
-    File.mkdir_p!(path)
-    on_exit(fn -> File.rm_rf!(path) end)
-    path
   end
 end
