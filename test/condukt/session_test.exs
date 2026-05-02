@@ -158,6 +158,86 @@ defmodule Condukt.SessionTest do
     GenServer.stop(pid)
   end
 
+  defmodule LastOneCompactor do
+    @behaviour Condukt.Compactor
+
+    @impl true
+    def compact(messages, _opts) do
+      {:ok, Enum.take(messages, -1)}
+    end
+  end
+
+  test "compactor is applied after stream_complete and the trimmed history is persisted" do
+    ref = make_ref()
+    messages = [Message.user("a"), Message.assistant("b"), Message.user("c"), Message.assistant("d")]
+
+    state = %Condukt.Session{
+      agent_module: ConfigAgent,
+      model: "openai:gpt-4o-mini",
+      thinking_level: :medium,
+      configured_system_prompt: "prompt",
+      system_prompt: "prompt",
+      cwd: "/tmp/agent",
+      session_store: {RecordingStore, test_pid: self()},
+      compactor: LastOneCompactor,
+      project_context: %{agents_md: nil, skills: [], prompt: nil},
+      user_state: :ok
+    }
+
+    :telemetry.attach(
+      "compact-test-#{inspect(ref)}",
+      [:condukt, :compact, :stop],
+      fn _event, measurements, metadata, _ ->
+        send(self(), {:compact_telemetry, measurements, metadata})
+      end,
+      nil
+    )
+
+    assert {:noreply, updated_state} =
+             Condukt.Session.handle_cast(
+               {:stream_complete, ref, {:ok, messages, "d"}},
+               state
+             )
+
+    assert length(updated_state.messages) == 1
+    assert hd(updated_state.messages).content == "d"
+
+    assert_receive {:saved_snapshot, %Snapshot{messages: persisted}}
+    assert length(persisted) == 1
+
+    assert_receive {:compact_telemetry, %{before: 4, after: 1, duration: _}, %{agent: ConfigAgent}}
+
+    :telemetry.detach("compact-test-#{inspect(ref)}")
+  end
+
+  test "compact/1 is a no-op when no compactor is configured" do
+    {:ok, pid} =
+      ConfigAgent.start_link(load_project_instructions: false)
+
+    assert :ok = Condukt.compact(pid)
+
+    GenServer.stop(pid)
+  end
+
+  test "compact/1 trims history using the configured compactor" do
+    {:ok, pid} =
+      ConfigAgent.start_link(
+        compactor: LastOneCompactor,
+        load_project_instructions: false
+      )
+
+    :sys.replace_state(pid, fn s ->
+      %{s | messages: [Message.user("a"), Message.user("b"), Message.user("c")]}
+    end)
+
+    assert :ok = Condukt.compact(pid)
+    history = Condukt.history(pid)
+    assert length(history) == 1
+    assert hd(history).content == "c"
+
+    GenServer.stop(pid)
+  end
+
   test "stream completion updates history and persists the final snapshot" do
     ref = make_ref()
     messages = [Message.user("hello"), Message.assistant("world")]

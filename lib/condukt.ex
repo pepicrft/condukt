@@ -134,6 +134,8 @@ defmodule Condukt do
       - `:thinking_level` - Override the thinking level
       - `:cwd` - Working directory for tools (default: File.cwd!())
       - `:session_store` - Session store module or `{module, opts}` tuple
+      - `:compactor` - Compactor module or `{module, opts}` tuple
+        (see `Condukt.Compactor`)
       - `:name` - GenServer registration name
 
       Plus all standard GenServer options.
@@ -204,6 +206,13 @@ defmodule Condukt do
   Aborts current operation.
   """
   defdelegate abort(agent), to: Condukt.Session
+
+  @doc """
+  Runs the configured compactor against the conversation history.
+
+  See `Condukt.Compactor` for details and built-in strategies.
+  """
+  defdelegate compact(agent), to: Condukt.Session
 
   @doc """
   Injects a message mid-execution (steering).
