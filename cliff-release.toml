@@ -7,7 +7,13 @@ body = """
 {% for group, commits in commits | group_by(attribute="group") %}
 ### {{ group }}
 {% for commit in commits %}
-- {{ commit.message | split(pat="\n") | first | trim }}
+{% set title = commit.remote.pr_title | default(value=commit.message) -%}
+{% set parts = title | split(pat=": ") -%}
+{% if parts | length > 1 -%}
+- {{ parts | slice(start=1) | join(sep=": ") }}{% if commit.remote.pr_number %} ([#{{ commit.remote.pr_number }}](https://github.com/tuist/condukt/pull/{{ commit.remote.pr_number }}) by @{{ commit.remote.username | default(value=commit.author.name) }}){% endif %}
+{% else -%}
+- {{ title }}{% if commit.remote.pr_number %} ([#{{ commit.remote.pr_number }}](https://github.com/tuist/condukt/pull/{{ commit.remote.pr_number }}) by @{{ commit.remote.username | default(value=commit.author.name) }}){% endif %}
+{% endif %}
 {% endfor %}
 {% endfor %}
 """
