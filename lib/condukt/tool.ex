@@ -154,24 +154,28 @@ defmodule Condukt.Tool do
   Executes a tool by name with arguments.
   """
   def execute({module, opts}, args, context) do
-    context = Map.put(context, :opts, opts)
-
-    try do
-      module.call(args, context)
-    rescue
-      e ->
-        {:error, Exception.message(e)}
-    end
+    context
+    |> Map.put(:opts, opts)
+    |> execute_call(module, args)
   end
 
   def execute(module, args, context) when is_atom(module) do
-    context = Map.put(context, :opts, [])
+    context
+    |> Map.put(:opts, [])
+    |> execute_call(module, args)
+  end
 
-    try do
-      module.call(args, context)
-    rescue
-      e ->
-        {:error, Exception.message(e)}
+  defp execute_call(context, module, args) do
+    module.call(args, context)
+  catch
+    :error, error -> {:error, format_error(error)}
+  end
+
+  defp format_error(error) do
+    if is_exception(error) do
+      Exception.message(error)
+    else
+      inspect(error)
     end
   end
 end

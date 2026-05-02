@@ -86,7 +86,7 @@ defmodule Condukt.Tools.Command do
           {:error, "Command timed out after #{div(timeout, 1000)} seconds"}
 
         {:error, reason} ->
-          {:error, "Command failed: #{inspect(reason)}"}
+          {:error, "Command failed: #{reason}"}
       end
     end
   end
@@ -125,11 +125,10 @@ defmodule Condukt.Tools.Command do
            env: env,
            timeout: timeout
          ) do
-      {_output, :timeout} -> {:error, :timeout}
-      {output, exit_code} -> {:ok, output, exit_code}
+      {:ok, {_output, :timeout}} -> {:error, :timeout}
+      {:ok, {output, exit_code}} -> {:ok, output, exit_code}
+      {:error, reason} -> {:error, reason}
     end
-  rescue
-    error -> {:error, Exception.message(error)}
   end
 
   defp build_env(overrides) do

@@ -16,7 +16,7 @@ defmodule Condukt.Tools.CommandTest do
       assert opts[:stderr_to_stdout] == true
       assert opts[:timeout] == 120_000
       assert {"TERM", "dumb"} in opts[:env]
-      {"M README.md\n", 0}
+      {:ok, {"M README.md\n", 0}}
     end)
 
     context = %{cwd: tmp_dir, opts: [command: "git"]}
@@ -31,7 +31,7 @@ defmodule Condukt.Tools.CommandTest do
       assert opts[:cd] == tmp_dir
       assert {"GH_TOKEN", "secret-token"} in opts[:env]
       assert {"PAGER", "cat"} in opts[:env]
-      {"#9\n", 0}
+      {:ok, {"#9\n", 0}}
     end)
 
     context = %{cwd: tmp_dir, opts: [command: "gh", env: [GH_TOKEN: "secret-token"]]}
@@ -47,7 +47,7 @@ defmodule Condukt.Tools.CommandTest do
     Condukt.Tools.MuonTrapRunner
     |> expect(:cmd, fn "mix", ["test"], opts ->
       assert opts[:cd] == nested_dir
-      {"1 test, 0 failures\n", 0}
+      {:ok, {"1 test, 0 failures\n", 0}}
     end)
 
     context = %{cwd: tmp_dir, opts: [command: "mix"]}
@@ -61,5 +61,17 @@ defmodule Condukt.Tools.CommandTest do
 
     assert {:error, "Command arguments must be an array of strings"} =
              Command.call(%{"args" => ["status", 1]}, context)
+  end
+
+  test "returns runner errors as command failures", %{tmp_dir: tmp_dir} do
+    Condukt.Tools.MuonTrapRunner
+    |> expect(:cmd, fn "git", ["status"], _opts ->
+      {:error, "enoent"}
+    end)
+
+    context = %{cwd: tmp_dir, opts: [command: "git"]}
+
+    assert {:error, "Command failed: enoent"} =
+             Command.call(%{"args" => ["status"]}, context)
   end
 end

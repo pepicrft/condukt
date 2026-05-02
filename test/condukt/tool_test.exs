@@ -5,6 +5,22 @@ defmodule Condukt.ToolTest do
   alias Condukt.Tools.Command
   alias Condukt.Tools.Read
 
+  defmodule RaisingTool do
+    use Condukt.Tool
+
+    @impl true
+    def name, do: "RaisingTool"
+
+    @impl true
+    def description, do: "Raises while executing"
+
+    @impl true
+    def parameters, do: %{type: "object", properties: %{}}
+
+    @impl true
+    def call(_args, _context), do: raise("boom")
+  end
+
   test "builds spec from module" do
     spec = Tool.to_spec(Read)
 
@@ -19,5 +35,9 @@ defmodule Condukt.ToolTest do
     assert spec.name == "Git"
     assert spec.description =~ "`git`"
     assert spec.parameters[:properties][:args][:type] == "array"
+  end
+
+  test "returns an error tuple when a tool raises" do
+    assert {:error, "boom"} = Tool.execute(RaisingTool, %{}, %{agent: self(), cwd: ".", opts: []})
   end
 end

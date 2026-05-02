@@ -119,7 +119,30 @@ encourage additional typespec-style annotations beyond that.
 - Plain runtime validation, guards, or pattern matching that make code
   safer without adding typespec annotations.
 
-## 6. Mimic copies belong in `test/test_helper.exs`
+## 6. Elixir production code should avoid `rescue`
+
+Prefer functions and APIs that return tagged tuples, then handle them
+with `case`, `with`, and pattern matching. Do not add `rescue` blocks
+in `lib/` just to normalize control flow. If a boundary truly must
+observe non-local failures, keep it narrow and explicit.
+
+### Flag
+
+- **Any new `rescue` block in `lib/`.** Prefer a tuple-returning API and
+  pattern matching instead. **Severity: medium.**
+- **Code review feedback that asks for `rescue` around ordinary control
+  flow that could be handled with tagged tuples and matching.**
+  **Severity: medium.**
+
+### Do not flag
+
+- Explicit pattern matching with `case`, `with`, function heads, or
+  guards.
+- Narrow boundary code that still needs a `try/catch` because it is
+  instrumenting or normalizing failures from a callback or external
+  library and cannot rely on return values alone.
+
+## 7. Mimic copies belong in `test/test_helper.exs`
 
 This repo centralizes `Mimic.copy(...)` in `test/test_helper.exs`.
 

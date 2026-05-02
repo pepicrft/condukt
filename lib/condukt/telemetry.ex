@@ -74,19 +74,6 @@ defmodule Condukt.Telemetry do
       )
 
       result
-    rescue
-      e ->
-        :telemetry.execute(
-          event_prefix ++ [:exception],
-          %{duration: System.monotonic_time() - start_time},
-          Map.merge(metadata, %{
-            kind: :error,
-            reason: e,
-            stacktrace: __STACKTRACE__
-          })
-        )
-
-        reraise e, __STACKTRACE__
     catch
       kind, reason ->
         :telemetry.execute(
