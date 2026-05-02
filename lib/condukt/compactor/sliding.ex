@@ -23,7 +23,7 @@ defmodule Condukt.Compactor.Sliding do
   @default_keep 20
 
   @impl true
-  def compact(messages, opts \\ []) do
+  def compact(messages, opts) do
     keep = Keyword.get(opts, :keep, @default_keep)
 
     if length(messages) <= keep do

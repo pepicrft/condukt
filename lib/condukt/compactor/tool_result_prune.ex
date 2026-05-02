@@ -30,7 +30,7 @@ defmodule Condukt.Compactor.ToolResultPrune do
   @default_max_size 4096
 
   @impl true
-  def compact(messages, opts \\ []) do
+  def compact(messages, opts) do
     keep_recent = Keyword.get(opts, :keep_recent, @default_keep_recent)
     max_size = Keyword.get(opts, :max_size, @default_max_size)
 

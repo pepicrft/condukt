@@ -40,7 +40,7 @@ defmodule Condukt.CompactorTest do
 
     test "uses default keep when no option is provided" do
       messages = for i <- 1..50, do: Message.user("hi #{i}")
-      {:ok, kept} = Sliding.compact(messages)
+      {:ok, kept} = Sliding.compact(messages, [])
       assert length(kept) == 20
     end
   end
