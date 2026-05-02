@@ -1,3 +1,7 @@
+<p align="left">
+  <img src="docs/assets/readme-header.png" alt="Condukt header" width="300" />
+</p>
+
 # Condukt ⚓
 
 [![Hex.pm](https://img.shields.io/hexpm/v/condukt.svg)](https://hex.pm/packages/condukt)
