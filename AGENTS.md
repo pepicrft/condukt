@@ -9,3 +9,7 @@
 ## Workflow
 
 - After every change, create a git commit and push it to the current branch.
+
+## Elixir
+
+- Do not type Elixir code by hand when avoidable. Prefer structural edits and tool-assisted changes.

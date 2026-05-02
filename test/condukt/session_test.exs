@@ -257,6 +257,7 @@ defmodule Condukt.SessionTest do
     path =
       Path.join(System.tmp_dir!(), "#{prefix}-#{System.unique_integer([:positive, :monotonic])}")
 
+    File.rm_rf!(path)
     File.mkdir_p!(path)
     on_exit(fn -> File.rm_rf!(path) end)
     path

@@ -3,13 +3,13 @@ defmodule Condukt.ContextTest do
 
   alias Condukt.Context
 
-  test "discovers agents instructions and local skills from cwd" do
-    cwd = tmp_dir!("workspace-context")
+  test "discovers agents instructions and local skills from a workspace root" do
+    workspace_root = tmp_dir!("workspace-context")
 
-    File.write!(Path.join(cwd, "AGENTS.md"), "Follow the workspace instructions.")
-    File.write!(Path.join(cwd, "CLAUDE.md"), "Prefer concise responses.")
+    File.write!(Path.join(workspace_root, "AGENTS.md"), "Follow the workspace instructions.")
+    File.write!(Path.join(workspace_root, "CLAUDE.md"), "Prefer concise responses.")
 
-    skill_dir = Path.join(cwd, ".agents/skills/review")
+    skill_dir = Path.join(workspace_root, ".agents/skills/review")
     File.mkdir_p!(skill_dir)
 
     File.write!(
@@ -24,7 +24,7 @@ defmodule Condukt.ContextTest do
       """
     )
 
-    context = Context.discover(cwd)
+    context = Context.discover(workspace_root)
 
     assert context.agents_md =~ "Follow the workspace instructions."
     assert context.agents_md =~ "Prefer concise responses."
@@ -42,6 +42,17 @@ defmodule Condukt.ContextTest do
     assert context.prompt =~ "read `.agents/skills/review/SKILL.md` before using it"
   end
 
+  test "deduplicates AGENTS.md and a symlinked CLAUDE.md" do
+    workspace_root = tmp_dir!("workspace-context-symlink")
+
+    File.write!(Path.join(workspace_root, "AGENTS.md"), "Follow the workspace instructions.")
+    assert :ok = File.ln_s("AGENTS.md", Path.join(workspace_root, "CLAUDE.md"))
+
+    context = Context.discover(workspace_root)
+
+    assert context.agents_md == "Follow the workspace instructions."
+  end
+
   test "composes base and discovered prompts" do
     composed =
       Context.compose_system_prompt(
@@ -57,6 +68,7 @@ defmodule Condukt.ContextTest do
     path =
       Path.join(System.tmp_dir!(), "#{prefix}-#{System.unique_integer([:positive, :monotonic])}")
 
+    File.rm_rf!(path)
     File.mkdir_p!(path)
     on_exit(fn -> File.rm_rf!(path) end)
     path

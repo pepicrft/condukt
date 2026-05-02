@@ -1,6 +1,6 @@
 defmodule Condukt.Context do
   @moduledoc """
-  Discovers workspace context from the agent's current working directory.
+  Discovers workspace context from an agent workspace root.
 
   Condukt automatically looks for local instruction files such as `AGENTS.md`
   and reusable workflows under `.agents/skills/*/SKILL.md`. The discovered
@@ -30,9 +30,9 @@ defmodule Condukt.Context do
   end
 
   @spec discover(String.t()) :: t()
-  def discover(cwd) when is_binary(cwd) do
-    agents_md = read_agents_md(cwd)
-    skills = discover_skills(cwd)
+  def discover(workspace_root) when is_binary(workspace_root) do
+    agents_md = read_agents_md(workspace_root)
+    skills = discover_skills(workspace_root)
 
     %{
       agents_md: agents_md,
@@ -54,10 +54,11 @@ defmodule Condukt.Context do
   end
 
   @spec read_agents_md(String.t()) :: String.t() | nil
-  def read_agents_md(cwd) when is_binary(cwd) do
+  def read_agents_md(workspace_root) when is_binary(workspace_root) do
     @context_files
-    |> Enum.map(&Path.join(cwd, &1))
+    |> Enum.map(&Path.join(workspace_root, &1))
     |> Enum.filter(&File.regular?/1)
+    |> Enum.uniq_by(&(Path.expand(&1) |> File.stat!() |> file_identity()))
     |> Enum.map(&File.read!/1)
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
@@ -68,8 +69,8 @@ defmodule Condukt.Context do
   end
 
   @spec discover_skills(String.t()) :: [skill()]
-  def discover_skills(cwd) when is_binary(cwd) do
-    skills_dir = Path.join(cwd, @skills_dir)
+  def discover_skills(workspace_root) when is_binary(workspace_root) do
+    skills_dir = Path.join(workspace_root, @skills_dir)
 
     if File.dir?(skills_dir) do
       skills_dir
@@ -176,5 +177,9 @@ defmodule Condukt.Context do
       "" -> nil
       trimmed -> trimmed
     end
+  end
+
+  defp file_identity(%File.Stat{type: type, inode: inode, major_device: major, minor_device: minor}) do
+    {type, inode, major, minor}
   end
 end
