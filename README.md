@@ -274,9 +274,9 @@ def tools, do: Condukt.Tools.read_only_tools()
 
 ### Scoped Command Grants
 
-Prefer `Condukt.Tools.command/2` over `Condukt.Tools.Bash` when you want to
-grant access to a specific executable or attach trusted environment variables
-without exposing them in the prompt.
+Prefer a parameterized `Condukt.Tools.Command` over `Condukt.Tools.Bash` when
+you want to grant access to a specific executable or attach trusted
+environment variables without exposing them in the prompt.
 
 ```elixir
 defmodule MyApp.ReviewAgent do
@@ -286,8 +286,8 @@ defmodule MyApp.ReviewAgent do
   def tools do
     [
       Condukt.Tools.Read,
-      Condukt.Tools.command("git"),
-      Condukt.Tools.command("gh", env: [GH_TOKEN: System.fetch_env!("GH_TOKEN")])
+      {Condukt.Tools.Command, command: "git"},
+      {Condukt.Tools.Command, command: "gh", env: [GH_TOKEN: System.fetch_env!("GH_TOKEN")]}
     ]
   end
 end
