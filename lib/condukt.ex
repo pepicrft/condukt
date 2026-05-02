@@ -149,6 +149,7 @@ defmodule Condukt do
       - `:model` - Override the default model (format: "provider:model")
       - `:base_url` - Override the provider's default base URL
       - `:system_prompt` - System prompt for the agent
+      - `:load_project_instructions` - Auto-load `AGENTS.md`, `CLAUDE.md`, and local skills from the project root (default: `true`)
       - `:thinking_level` - Override the thinking level
       - `:cwd` - Working directory for tools (default: File.cwd!())
       - `:session_store` - Session store module or `{module, opts}` tuple

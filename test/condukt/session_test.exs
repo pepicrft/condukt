@@ -49,7 +49,8 @@ defmodule Condukt.SessionTest do
           system_prompt: "config prompt",
           thinking_level: :low,
           cwd: "/tmp/agent"
-        ]
+        ],
+        load_project_instructions: false
       )
 
     state = :sys.get_state(pid)
@@ -72,7 +73,8 @@ defmodule Condukt.SessionTest do
           system_prompt: "config prompt"
         ],
         api_key: "option-key",
-        system_prompt: "option prompt"
+        system_prompt: "option prompt",
+        load_project_instructions: false
       )
 
     state = :sys.get_state(pid)
@@ -93,7 +95,10 @@ defmodule Condukt.SessionTest do
     }
 
     {:ok, pid} =
-      ConfigAgent.start_link(session_store: {RecordingStore, snapshot: snapshot, test_pid: self()})
+      ConfigAgent.start_link(
+        session_store: {RecordingStore, snapshot: snapshot, test_pid: self()},
+        load_project_instructions: false
+      )
 
     state = :sys.get_state(pid)
 
@@ -118,7 +123,8 @@ defmodule Condukt.SessionTest do
         model: "anthropic:claude-sonnet-4-20250514",
         thinking_level: :high,
         system_prompt: "explicit prompt",
-        session_store: {RecordingStore, snapshot: snapshot, test_pid: self()}
+        session_store: {RecordingStore, snapshot: snapshot, test_pid: self()},
+        load_project_instructions: false
       )
 
     state = :sys.get_state(pid)
@@ -140,7 +146,10 @@ defmodule Condukt.SessionTest do
     }
 
     {:ok, pid} =
-      ConfigAgent.start_link(session_store: {RecordingStore, snapshot: snapshot, test_pid: self()})
+      ConfigAgent.start_link(
+        session_store: {RecordingStore, snapshot: snapshot, test_pid: self()},
+        load_project_instructions: false
+      )
 
     assert :ok = Condukt.clear(pid)
     assert_receive :cleared_snapshot
@@ -157,9 +166,11 @@ defmodule Condukt.SessionTest do
       agent_module: ConfigAgent,
       model: "openai:gpt-4o-mini",
       thinking_level: :medium,
-      system_prompt: "prompt",
+      configured_system_prompt: "prompt",
+      system_prompt: "prompt\n\n## Project Instructions\n\nUse mix test.",
       cwd: "/tmp/agent",
       session_store: {RecordingStore, test_pid: self()},
+      project_context: %{agents_md: nil, skills: [], prompt: nil},
       user_state: :ok
     }
 
@@ -178,5 +189,66 @@ defmodule Condukt.SessionTest do
                       thinking_level: :medium,
                       system_prompt: "prompt"
                     }}
+  end
+
+  @tag :tmp_dir
+  test "discovers project instructions and local skills from the project root", %{tmp_dir: cwd} do
+    File.write!(Path.join(cwd, "AGENTS.md"), "Always run project checks.")
+
+    skill_dir = Path.join(cwd, ".agents/skills/release")
+    File.mkdir_p!(skill_dir)
+
+    File.write!(
+      Path.join(skill_dir, "SKILL.md"),
+      """
+      ---
+      description: Prepare a release safely.
+      ---
+
+      Verify the changelog and version before releasing.
+      """
+    )
+
+    {:ok, pid} =
+      ConfigAgent.start_link(
+        cwd: cwd,
+        system_prompt: "base prompt"
+      )
+
+    state = :sys.get_state(pid)
+
+    assert state.configured_system_prompt == "base prompt"
+    assert state.system_prompt =~ "base prompt"
+    assert state.system_prompt =~ "Always run project checks."
+    assert state.system_prompt =~ ".agents/skills/release/SKILL.md"
+
+    assert state.project_context.skills == [
+             %Condukt.Context.Skill{
+               name: "release",
+               path: ".agents/skills/release/SKILL.md",
+               description: "Prepare a release safely."
+             }
+           ]
+
+    GenServer.stop(pid)
+  end
+
+  @tag :tmp_dir
+  test "project instructions can be disabled", %{tmp_dir: cwd} do
+    File.write!(Path.join(cwd, "AGENTS.md"), "Do not leak into the prompt.")
+
+    {:ok, pid} =
+      ConfigAgent.start_link(
+        cwd: cwd,
+        system_prompt: "base prompt",
+        load_project_instructions: false
+      )
+
+    state = :sys.get_state(pid)
+
+    assert state.system_prompt == "base prompt"
+    assert state.project_context == %{agents_md: nil, skills: [], prompt: nil}
+
+    GenServer.stop(pid)
   end
 end

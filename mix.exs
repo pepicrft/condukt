@@ -60,6 +60,8 @@ defmodule Condukt.MixProject do
       groups_for_modules: [
         Core: [
           Condukt,
+          Condukt.Context,
+          Condukt.Context.Skill,
           Condukt.Session,
           Condukt.Message,
           Condukt.SessionStore,
