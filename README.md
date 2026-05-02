@@ -25,7 +25,8 @@ Rather than wrapping JavaScript agent frameworks, we built Condukt from scratch 
 
 - **OTP-native**: Agents are GenServers that integrate naturally with supervision trees
 - **Streaming**: Real-time event streaming for responsive UIs
-- **Workspace Context**: Auto-discovers `AGENTS.md`, `CLAUDE.md`, and local skills from the project directory
+- **Project Instructions**: Auto-discovers `AGENTS.md`, `CLAUDE.md`, and local skills from the project directory
+- **Scoped Commands**: Expose trusted executables like `git`, `gh`, or `mix` without shell parsing
 - **Tool System**: Extensible tools for file operations, shell commands, and more
 - **Multi-Provider**: 18+ LLM providers via [ReqLLM](https://github.com/agentjido/req_llm) (Anthropic, OpenAI, Google, etc.)
 - **Telemetry**: Built-in observability with `:telemetry` events
@@ -267,8 +268,36 @@ def tools, do: Condukt.Tools.read_only_tools()
 |------|-------------|
 | `Condukt.Tools.Read` | Read file contents, supports images |
 | `Condukt.Tools.Bash` | Execute shell commands |
+| `Condukt.Tools.Command` | Execute one trusted command without shell parsing |
 | `Condukt.Tools.Edit` | Surgical file edits (find & replace) |
 | `Condukt.Tools.Write` | Create or overwrite files |
+
+### Scoped Command Grants
+
+Prefer `Condukt.Tools.command/2` over `Condukt.Tools.Bash` when you want to
+grant access to a specific executable or attach trusted environment variables
+without exposing them in the prompt.
+
+```elixir
+defmodule MyApp.ReviewAgent do
+  use Condukt
+
+  @impl true
+  def tools do
+    [
+      Condukt.Tools.Read,
+      Condukt.Tools.command("git"),
+      Condukt.Tools.command("gh", env: [GH_TOKEN: System.fetch_env!("GH_TOKEN")])
+    ]
+  end
+end
+```
+
+Each scoped command tool accepts:
+
+- `args` - array of strings passed directly to the configured executable
+- `cwd` - optional working directory
+- `timeout` - optional timeout in seconds
 
 ## Custom Tools 🛠️
 
