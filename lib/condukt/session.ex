@@ -23,7 +23,7 @@ defmodule Condukt.Session do
 
   use GenServer
 
-  alias Condukt.{Context, Message, SessionStore, Telemetry, Tool}
+  alias Condukt.{Compactor, Context, Message, SessionStore, Telemetry, Tool}
   alias Condukt.SessionStore.Snapshot
   alias ReqLLM.ToolCall
 
@@ -43,6 +43,7 @@ defmodule Condukt.Session do
     :api_key,
     :base_url,
     :session_store,
+    :compactor,
     :project_context,
     :user_state,
     messages: [],
@@ -77,6 +78,7 @@ defmodule Condukt.Session do
       |> Keyword.put_new(:tools, agent_module.tools())
       |> put_configured_opt(config, :cwd, &File.cwd!/0)
       |> put_configured_opt(config, :session_store)
+      |> put_configured_opt(config, :compactor)
 
     GenServer.start_link(__MODULE__, agent_opts, gen_opts)
   end
@@ -148,6 +150,16 @@ defmodule Condukt.Session do
   end
 
   @doc """
+  Runs the configured compactor against the current message history.
+
+  No-op when no compactor is configured. The compacted snapshot is
+  immediately persisted if a session store is configured.
+  """
+  def compact(agent) do
+    GenServer.call(agent, :compact)
+  end
+
+  @doc """
   Injects a steering message.
   """
   def steer(agent, message) do
@@ -188,6 +200,7 @@ defmodule Condukt.Session do
             api_key: opts[:api_key],
             base_url: opts[:base_url],
             session_store: session_store,
+            compactor: opts[:compactor],
             project_context: project_context,
             user_state: user_state
           }
@@ -235,6 +248,12 @@ defmodule Condukt.Session do
     {:reply, :ok, %{state | abort_ref: make_ref(), streaming: false}}
   end
 
+  def handle_call(:compact, _from, state) do
+    state = maybe_compact(state)
+    persist_snapshot(state)
+    {:reply, :ok, state}
+  end
+
   def handle_call({:steer, message}, _from, state) do
     msg = Message.user(message)
     {:reply, :ok, %{state | steering_messages: state.steering_messages ++ [msg]}}
@@ -270,14 +289,14 @@ defmodule Condukt.Session do
 
   def handle_cast({:run_complete, from, {result, messages}}, state) do
     GenServer.reply(from, result)
-    state = %{state | streaming: false, messages: messages}
+    state = %{state | streaming: false, messages: messages} |> maybe_compact()
     persist_snapshot(state)
     {:noreply, state}
   end
 
   def handle_cast({:stream_complete, ref, {:ok, messages, _response}}, state) do
     broadcast(state, ref, :done)
-    state = %{state | streaming: false, messages: messages}
+    state = %{state | streaming: false, messages: messages} |> maybe_compact()
     persist_snapshot(state)
     {:noreply, state}
   end
@@ -775,6 +794,32 @@ defmodule Condukt.Session do
       agent_module: state.agent_module,
       cwd: state.cwd
     ]
+  end
+
+  defp maybe_compact(%__MODULE__{compactor: nil} = state), do: state
+
+  defp maybe_compact(%__MODULE__{} = state) do
+    before_count = length(state.messages)
+    start_time = System.monotonic_time()
+
+    case Compactor.compact(state.compactor, state.messages) do
+      {:ok, messages} ->
+        :telemetry.execute(
+          [:condukt, :compact, :stop],
+          %{
+            duration: System.monotonic_time() - start_time,
+            before: before_count,
+            after: length(messages)
+          },
+          %{agent: state.agent_module}
+        )
+
+        %{state | messages: messages}
+
+      {:error, reason} ->
+        Logger.warning("compaction failed: #{inspect(reason)}")
+        state
+    end
   end
 
   defp load_project_context(opts) do

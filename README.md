@@ -239,6 +239,35 @@ Built-in session stores:
   )
 ```
 
+### Compaction
+
+Long-running agents accumulate messages that grow past the model's context
+window. Pass a compactor to keep history bounded — Condukt applies it after
+each completed turn, and `Condukt.compact/1` triggers it manually.
+
+```elixir
+# Keep the last 40 messages
+MyApp.CodingAgent.start_link(
+  compactor: {Condukt.Compactor.Sliding, keep: 40}
+)
+
+# Elide oversized old tool result payloads, leave the most recent five intact
+MyApp.CodingAgent.start_link(
+  compactor: {Condukt.Compactor.ToolResultPrune, keep_recent: 5, max_size: 4_000}
+)
+```
+
+Built-in strategies:
+
+- `Condukt.Compactor.Sliding` — keeps the last N messages, drops orphaned
+  tool results.
+- `Condukt.Compactor.ToolResultPrune` — replaces oversized historical tool
+  result payloads with a placeholder, preserving the surrounding reasoning.
+
+Implement `Condukt.Compactor` to provide your own strategy. Each compaction
+emits a `[:condukt, :compact, :stop]` telemetry event with `before`/`after`
+message counts.
+
 ### Supported Providers
 
 Thanks to [ReqLLM](https://github.com/agentjido/req_llm), Condukt supports 18+ providers:
