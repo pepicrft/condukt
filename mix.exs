@@ -61,6 +61,7 @@ defmodule Condukt.MixProject do
         Core: [
           Condukt,
           Condukt.Context,
+          Condukt.Context.Skill,
           Condukt.Session,
           Condukt.Message,
           Condukt.SessionStore,

@@ -8,18 +8,10 @@ defmodule Condukt.Context do
   project they are running in.
   """
 
+  alias Condukt.Context.Skill
+
   @context_files ["AGENTS.md", "CLAUDE.md"]
   @skills_dir ".agents/skills"
-
-  defmodule Skill do
-    @moduledoc """
-    Metadata for a discovered local skill.
-    """
-
-    @enforce_keys [:name, :path]
-    defstruct [:name, :path, description: nil]
-  end
-
   @type skill :: %Skill{
           name: String.t(),
           path: String.t(),
