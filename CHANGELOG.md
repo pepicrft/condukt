@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.10.0] - 2026-05-02
+
+### Features
+
+- pluggable outbound redactor with regex default
+
+
 ## [0.9.0] - 2026-05-02
 
 ### Features
