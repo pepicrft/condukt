@@ -12,24 +12,10 @@ defmodule Condukt.Context do
 
   @context_files ["AGENTS.md", "CLAUDE.md"]
   @skills_dir ".agents/skills"
-  @type skill :: %Skill{
-          name: String.t(),
-          path: String.t(),
-          description: String.t() | nil
-        }
-
-  @type t :: %{
-          agents_md: String.t() | nil,
-          skills: [skill()],
-          prompt: String.t() | nil
-        }
-
-  @spec empty() :: t()
   def empty do
     %{agents_md: nil, skills: [], prompt: nil}
   end
 
-  @spec discover(String.t()) :: t()
   def discover(workspace_root) when is_binary(workspace_root) do
     agents_md = read_agents_md(workspace_root)
     skills = discover_skills(workspace_root)
@@ -41,7 +27,6 @@ defmodule Condukt.Context do
     }
   end
 
-  @spec compose_system_prompt(String.t() | nil, String.t() | nil) :: String.t() | nil
   def compose_system_prompt(base_prompt, nil), do: present(base_prompt)
 
   def compose_system_prompt(base_prompt, workspace_prompt) do
@@ -53,7 +38,6 @@ defmodule Condukt.Context do
     end
   end
 
-  @spec read_agents_md(String.t()) :: String.t() | nil
   def read_agents_md(workspace_root) when is_binary(workspace_root) do
     @context_files
     |> Enum.map(&Path.join(workspace_root, &1))
@@ -68,7 +52,6 @@ defmodule Condukt.Context do
     end
   end
 
-  @spec discover_skills(String.t()) :: [skill()]
   def discover_skills(workspace_root) when is_binary(workspace_root) do
     skills_dir = Path.join(workspace_root, @skills_dir)
 
