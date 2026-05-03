@@ -13,6 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       MIX_ENV: test
+      # Compile the NIF module as plain stubs on Linux CI. A loaded
+      # bashkit NIF segfaults BEAM at process exit on these runners
+      # regardless of test execution; stubbing avoids loading the .so
+      # entirely. Default mix test excludes :virtual_sandbox tests, so
+      # the stubs are never invoked in CI.
+      CONDUKT_BASHKIT_DISABLE: "1"
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
@@ -51,6 +57,7 @@ jobs:
     needs: compile
     env:
       MIX_ENV: test
+      CONDUKT_BASHKIT_DISABLE: "1"
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
@@ -74,19 +81,8 @@ jobs:
       - name: Fetch dependencies
         run: mix deps.get
 
-      - name: Compile then strip the bashkit NIF library
-        # Default `mix test` excludes :virtual_sandbox tests, so the NIF
-        # library is unused. Loading it into the BEAM on Linux runners
-        # has triggered segfaults in BEAM teardown; pre-compiling and
-        # then deleting the .so leaves only stub function bodies in the
-        # .beam, so the on_load callback fails gracefully and no native
-        # code is mapped into the test process.
-        run: |
-          mix compile
-          rm -f priv/native/condukt_bashkit.so
-
       - name: Run test suite
-        run: mix test --no-compile
+        run: mix test
 
   format:
     name: Check formatting
@@ -94,6 +90,7 @@ jobs:
     needs: compile
     env:
       MIX_ENV: test
+      CONDUKT_BASHKIT_DISABLE: "1"
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
@@ -126,6 +123,7 @@ jobs:
     needs: compile
     env:
       MIX_ENV: test
+      CONDUKT_BASHKIT_DISABLE: "1"
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
