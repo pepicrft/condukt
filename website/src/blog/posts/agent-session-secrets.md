@@ -7,7 +7,7 @@ author: The Condukt team
 
 A pattern keeps showing up in agentic development workflows: the moment the agent needs to do something useful outside the repository, credentials enter the room.
 
-Review a pull request with `gh`. Run a smoke test against a staging database. Hit a private API. Publish a package. Deploy a preview. These tasks are not exotic. They are the normal work of software development. And if agents are going to take more of that work, they will need access to the same credentials humans have been using from terminals and CI systems for years.
+Review a pull request with the GitHub CLI. Run a smoke test against a staging database. Hit a private API. Publish a package. Deploy a preview. These tasks are not exotic. They are the normal work of software development. And if agents are going to take more of that work, they will need access to the same credentials humans have been using from terminals and CI systems for years.
 
 But there is a difference that we need to make more explicit. A human can hold a secret in their head, paste it into a terminal, and understand the social and security implications of where it goes. An agent operates through context, tools, logs, and subprocesses. If we put a secret in the wrong place, it can become part of a prompt, a transcript, a snapshot, a debug file, or a tool result that gets sent back to the model.
 
@@ -85,7 +85,7 @@ and have the runtime do the boring work:
 4. Redact it if it appears in tool output.
 5. Avoid storing it in the session snapshot.
 
-The agent never needs to see the token. It only needs to know that `gh` is configured.
+The agent never needs to see the token. It only needs to know that the GitHub CLI is configured.
 
 That is a small API choice, but it changes the way the system feels. The developer declares capability. The session resolves it. Tools receive it. The model reasons around it without ingesting it.
 
@@ -134,7 +134,7 @@ That means:
 
 It also means accepting that secrets will sometimes be environment variables. We can argue that environment variables are an imperfect primitive, and we would be right. They are inherited by subprocesses. They can leak into debug output. They are coarse.
 
-But they are also the primitive that most developer tools understand. `gh`, `aws`, `stripe`, `flyctl`, `op`, `mix`, test suites, and deploy scripts already know how to read them. If we want agents to work with existing tools, environment variables are the narrow waist.
+But they are also the primitive that most developer tools understand. The GitHub CLI, `aws`, `stripe`, `flyctl`, `op`, `mix`, test suites, and deploy scripts already know how to read them. If we want agents to work with existing tools, environment variables are the narrow waist.
 
 The important design choice is not whether environment variables exist. They will. The important choice is who resolves them, when they are available, and whether they enter the model context.
 
@@ -173,7 +173,7 @@ This is not the end of the design. It is the beginning of a more explicit model.
 
 We would like to see this evolve in a few directions.
 
-First, tool-specific grants. A session might have five secrets, but not every tool should receive all five. `gh` needs `GH_TOKEN`. A database migration command needs `DATABASE_URL`. A generic `Bash` tool probably should receive fewer secrets than a scoped `Command` tool. The current model is useful, but the next step is finer-grained exposure.
+First, tool-specific grants. A session might have five secrets, but not every tool should receive all five. The GitHub CLI needs `GH_TOKEN`. A database migration command needs `DATABASE_URL`. A generic `Bash` tool probably should receive fewer secrets than a scoped `Command` tool. The current model is useful, but the next step is finer-grained exposure.
 
 Second, short-lived credentials. Static tokens are convenient, but agents are a good forcing function for better security. If a session can request a credential that expires in ten minutes and is scoped to one repository, that is better than a long-lived token sitting in a vault.
 
