@@ -22,8 +22,8 @@ The marketing site lives under `website/` and is built with [Eleventy](https://w
 - Package manager: [aube](https://github.com/endevco/aube), pinned in `mise.toml`. Use `aube ci`, `aube install`, `aube add <pkg>`, `aube run <script>` (or `aubr <script>`). Do not invoke `npm`/`pnpm`/`yarn` directly.
 - Build: `cd website && aube ci && aube run build` — outputs to `website/_site`.
 - Local preview: `cd website && aube run dev`.
-- Deployment: pushes to `main` that touch `website/**` deploy to Cloudflare Workers via `.github/workflows/website.yml`. The job uses `cloudflare/wrangler-action` and reads `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` from repo secrets.
-- Worker config: `website/wrangler.toml` (static-assets only — no server code).
+- Deployment: pushes to `main` that touch `website/**` deploy to the Cloudflare Pages project `condukt-website` via `.github/workflows/website.yml`. The job uses `cloudflare/wrangler-action` (`wrangler pages deploy`) and reads `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` from repo secrets. The custom domain `condukt.tuist.dev` is bound to that Pages project in the Cloudflare dashboard.
+- Pages config: `website/wrangler.toml` declares the project name and `pages_build_output_dir`.
 - Toolchain: Node and aube are pinned in `mise.toml`; bump there rather than ad-hoc.
 
 ## Documentation (`guides/`)

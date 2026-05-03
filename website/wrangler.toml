@@ -1,6 +1,3 @@
-name = "condukt-marketing"
+name = "condukt-website"
 compatibility_date = "2025-01-15"
-
-[assets]
-directory = "./_site"
-not_found_handling = "404-page"
+pages_build_output_dir = "./_site"
