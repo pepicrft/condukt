@@ -1,0 +1,144 @@
+defmodule Condukt.Sandbox.Virtual do
+  @moduledoc """
+  Sandbox that runs against an in-memory virtual filesystem and a
+  Rust-implemented bash interpreter via the bashkit NIF.
+
+  No host process spawning by default. Host directories can be mounted into
+  the virtual filesystem at construction time via `:mounts`, or at runtime via
+  `Condukt.Sandbox.Virtual.Tools.Mount`.
+
+  ## Initializing
+
+      {:ok, sandbox} = Condukt.Sandbox.new(Condukt.Sandbox.Virtual)
+
+      # Mount the host project at /workspace, read-only:
+      {:ok, sandbox} =
+        Condukt.Sandbox.new(Condukt.Sandbox.Virtual,
+          mounts: [{File.cwd!(), "/workspace", :readonly}]
+        )
+
+  ## Notes
+
+  Each `exec/3` call is stateless: shell variables, `cd`, and `export` do not
+  persist across calls. This matches `Sandbox.Local`'s contract and lets the
+  Bash tool behave identically in both sandboxes. For a stateful interactive
+  shell, use `Condukt.Sandbox.Virtual.Tools.Shell` (planned).
+  """
+
+  @behaviour Condukt.Sandbox
+
+  alias Condukt.Bashkit.NIF
+  alias Condukt.Sandbox
+
+  defmodule State do
+    @moduledoc false
+    defstruct [:session, :base_cwd]
+  end
+
+  # ============================================================================
+  # Sandbox callbacks
+  # ============================================================================
+
+  @impl Sandbox
+  def init(opts) do
+    mounts = opts |> Keyword.get(:mounts, []) |> normalize_mounts()
+    session = NIF.new_session(mounts)
+    base_cwd = capture_base_cwd(session, opts[:cwd])
+    {:ok, %State{session: session, base_cwd: base_cwd}}
+  rescue
+    e in [ArgumentError, ErlangError] -> {:error, Exception.message(e)}
+  end
+
+  @impl Sandbox
+  def shutdown(%State{session: session}) do
+    _ = NIF.shutdown(session)
+    :ok
+  end
+
+  @impl Sandbox
+  def read_file(%State{session: session}, path) do
+    NIF.read_file(session, path)
+  end
+
+  @impl Sandbox
+  def write_file(%State{session: session}, path, content) do
+    case NIF.write_file(session, path, content) do
+      {:ok, :ok} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @impl Sandbox
+  def edit_file(%State{session: session}, path, old_text, new_text) do
+    NIF.edit_file(session, path, old_text, new_text)
+  end
+
+  @impl Sandbox
+  def exec(%State{session: session, base_cwd: base_cwd}, command, opts) do
+    timeout = Keyword.get(opts, :timeout)
+
+    # Stateless exec: each call resets cwd to the sandbox's base, then
+    # optionally `cd`s into the per-call :cwd. This matches Sandbox.Local
+    # where each call starts fresh.
+    target_cwd = Keyword.get(opts, :cwd) || base_cwd
+
+    script =
+      case target_cwd do
+        nil -> command
+        cwd -> "cd #{shell_quote(cwd)} && #{command}"
+      end
+
+    NIF.exec(session, script, timeout)
+  end
+
+  @impl Sandbox
+  def glob(%State{session: session}, pattern, opts) do
+    NIF.glob(session, pattern, opts[:cwd])
+  end
+
+  @impl Sandbox
+  def grep(%State{session: session}, pattern, opts) do
+    NIF.grep(
+      session,
+      pattern,
+      opts[:path],
+      Keyword.get(opts, :case_sensitive, true),
+      opts[:glob]
+    )
+  end
+
+  @impl Sandbox
+  def mount(%State{session: session}, host_path, vfs_path) do
+    case NIF.mount(session, host_path, vfs_path, :readwrite) do
+      {:ok, :ok} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # ============================================================================
+  # Helpers
+  # ============================================================================
+
+  defp normalize_mounts(mounts) when is_list(mounts) do
+    Enum.map(mounts, fn
+      {host, vfs} -> {to_string(host), to_string(vfs), :readwrite}
+      {host, vfs, mode} when mode in [:readonly, :readwrite] -> {to_string(host), to_string(vfs), mode}
+      other -> raise ArgumentError, "invalid mount spec: #{inspect(other)}"
+    end)
+  end
+
+  defp normalize_mounts(_), do: raise(ArgumentError, ":mounts must be a list of {host, vfs[, mode]}")
+
+  defp shell_quote(s) do
+    "'" <> String.replace(s, "'", "'\\''") <> "'"
+  end
+
+  defp capture_base_cwd(_session, cwd) when is_binary(cwd), do: cwd
+
+  defp capture_base_cwd(session, _) do
+    case NIF.exec(session, "pwd", nil) do
+      {:ok, %{output: out}} -> String.trim_trailing(out)
+      _ -> "/"
+    end
+  end
+end

@@ -12,11 +12,26 @@
   `Condukt.Sandbox.*` facade, not `File.*` / `MuonTrap.cmd/3` directly. The
   sandbox is in `context.sandbox` when the tool's `call/2` is invoked.
 - `Condukt.Sandbox.Local` is the default and operates against the host
-  filesystem. `Condukt.Sandbox.Virtual` (separate package) routes through a
+  filesystem. `Condukt.Sandbox.Virtual` is in-tree and routes through a
   Rust NIF wrapping bashkit for in-memory virtual filesystem isolation.
 - `Condukt.Tools.Command` is the explicit exception: it runs a host-allowlisted
   executable directly, by design, and is not sandbox-routed.
 - See `guides/sandbox.md` for behaviour shape and how to add custom sandboxes.
+
+## Native NIF (`native/condukt_bashkit/`)
+
+- The `condukt_bashkit` Rust crate wraps the bashkit virtual sandbox into
+  a NIF. Build it with `cd native/condukt_bashkit && cargo build --release`
+  or via `mix compile` (Mix invokes Rustler when developing this repo).
+- Toolchain: Rust 1.94.x, pinned in `native/condukt_bashkit/rust-toolchain.toml`
+  (also in `mise.toml`).
+- `mix compile` source-builds the NIF when `Mix.Project.get() == Condukt.MixProject`
+  (i.e. you're working in this repo) or when `CONDUKT_BASHKIT_BUILD=1`.
+  Consumers download a precompiled binary from the GitHub release.
+- Releases must publish precompiled artifacts for every target listed in
+  `lib/condukt/bashkit/nif.ex`'s `:targets` option, plus a checksum file
+  named `checksum-Elixir.Condukt.Bashkit.NIF.exs` in the package source.
+  See `.github/workflows/release.yml` for the build matrix.
 
 ## Workflow
 

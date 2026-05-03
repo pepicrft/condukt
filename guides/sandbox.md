@@ -13,13 +13,69 @@ at session start.
 
 * `Condukt.Sandbox.Local` is the default. It operates against the host
   filesystem and spawns real bash subprocesses via `MuonTrap`.
-* `Condukt.Sandbox.Virtual` (shipped separately as a Rust NIF) runs against
-  an in-memory virtual filesystem and a Rust-implemented bash interpreter
-  with no host process spawning by default. It supports mounting host
-  directories into the VFS, snapshotting, and resource limits.
+* `Condukt.Sandbox.Virtual` runs against an in-memory virtual filesystem and
+  a Rust-implemented bash interpreter (bashkit), with no host process
+  spawning by default. It is shipped via a precompiled NIF, so consumers
+  do not need a Rust toolchain to use it.
 
 Custom sandboxes implement the `Condukt.Sandbox` behaviour and plug in the
 same way.
+
+## Virtual sandbox
+
+`Condukt.Sandbox.Virtual` is backed by [bashkit](https://github.com/everruns/bashkit),
+a virtual bash interpreter with an in-memory filesystem written in Rust. It
+is loaded into the BEAM via a Rustler NIF.
+
+```elixir
+# Empty in-memory filesystem.
+{:ok, sb} = Condukt.Sandbox.new(Condukt.Sandbox.Virtual)
+{:ok, %{output: "hi\n", exit_code: 0}} = Condukt.Sandbox.exec(sb, "echo hi")
+
+# Mount the host project at /workspace, read-only:
+{:ok, sb} =
+  Condukt.Sandbox.new(Condukt.Sandbox.Virtual,
+    mounts: [{File.cwd!(), "/workspace", :readonly}]
+  )
+
+{:ok, contents} = Condukt.Sandbox.read(sb, "/workspace/mix.exs")
+
+# Or mount at runtime:
+:ok = Condukt.Sandbox.mount(sb, "/path/on/host", "/extra")
+```
+
+Each `exec/3` call is stateless: `cd`, `export`, and shell variables do
+not persist across calls. This matches `Sandbox.Local`'s contract and
+lets the `Condukt.Tools.Bash` tool behave identically in both sandboxes.
+
+The precompiled NIF is built and attached to GitHub releases for the
+following targets:
+
+```
+aarch64-apple-darwin
+aarch64-unknown-linux-gnu
+aarch64-unknown-linux-musl
+x86_64-apple-darwin
+x86_64-pc-windows-msvc
+x86_64-unknown-linux-gnu
+x86_64-unknown-linux-musl
+```
+
+Set `CONDUKT_BASHKIT_BUILD=1` (and have a Rust toolchain installed) to
+force a source build.
+
+### Sandbox-specific tools
+
+`Condukt.Sandbox.Virtual.Tools.Mount` lets the agent mount a host
+directory into the virtual filesystem at runtime. It only makes sense
+with the Virtual sandbox; against `Sandbox.Local` it returns a clear
+"not supported" error.
+
+```elixir
+def tools do
+  Condukt.Tools.coding_tools() ++ [Condukt.Sandbox.Virtual.Tools.Mount]
+end
+```
 
 ## Picking a sandbox
 
