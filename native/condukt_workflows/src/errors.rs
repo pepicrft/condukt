@@ -7,6 +7,12 @@ use crate::atoms;
 pub(crate) enum WorkflowsError {
     #[error("not implemented")]
     NotImplemented,
+    #[error("parse error: {0}")]
+    Parse(String),
+    #[error("eval error: {0}")]
+    Eval(String),
+    #[error("missing load: {0}")]
+    MissingLoad(String),
     #[error("not found: {0}")]
     NotFound(String),
     #[error("I/O error: {0}")]
@@ -21,6 +27,9 @@ impl WorkflowsError {
     fn kind(&self) -> rustler::Atom {
         match self {
             WorkflowsError::NotImplemented => atoms::error(),
+            WorkflowsError::Parse(_) => atoms::parse_error(),
+            WorkflowsError::Eval(_) => atoms::eval_error(),
+            WorkflowsError::MissingLoad(_) => atoms::missing_load(),
             WorkflowsError::NotFound(_) => atoms::not_found(),
             WorkflowsError::Io(_) | WorkflowsError::WalkDir(_) => atoms::io_error(),
         }

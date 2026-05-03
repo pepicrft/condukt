@@ -15,6 +15,7 @@ mod errors;
 mod eval;
 mod hash;
 mod resolve;
+mod terms;
 
 pub(crate) mod atoms {
     rustler::atoms! {

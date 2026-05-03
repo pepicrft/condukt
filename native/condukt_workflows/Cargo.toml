@@ -12,7 +12,9 @@ crate-type = ["cdylib"]
 
 [dependencies]
 rustler = { version = "0.36", default-features = false, features = ["derive"] }
+anyhow = "1"
 starlark = "0.13"
+starlark_map = "0.13"
 starlark_syntax = "0.13"
 pubgrub = "0.3"
 serde = { version = "1", features = ["derive"] }
