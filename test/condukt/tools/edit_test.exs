@@ -1,15 +1,19 @@
 defmodule Condukt.Tools.EditTest do
   use ExUnit.Case, async: true
 
+  alias Condukt.Sandbox
   alias Condukt.Tools.Edit
 
   @moduletag :tmp_dir
 
-  test "replaces exact text", %{tmp_dir: tmp_dir} do
+  setup %{tmp_dir: tmp_dir} do
+    {:ok, sandbox} = Sandbox.new(Sandbox.Local, cwd: tmp_dir)
+    %{context: %{sandbox: sandbox, opts: []}}
+  end
+
+  test "replaces exact text", %{tmp_dir: tmp_dir, context: context} do
     path = Path.join(tmp_dir, "edit.txt")
     File.write!(path, "Hello, World!")
-
-    context = %{cwd: tmp_dir, opts: []}
 
     {:ok, result} =
       Edit.call(
@@ -25,11 +29,8 @@ defmodule Condukt.Tools.EditTest do
     assert File.read!(path) == "Hello, Elixir!"
   end
 
-  test "returns error when text not found", %{tmp_dir: tmp_dir} do
-    path = Path.join(tmp_dir, "edit.txt")
-    File.write!(path, "Hello, World!")
-
-    context = %{cwd: tmp_dir, opts: []}
+  test "returns error when text not found", %{tmp_dir: tmp_dir, context: context} do
+    File.write!(Path.join(tmp_dir, "edit.txt"), "Hello, World!")
 
     {:error, error} =
       Edit.call(
@@ -44,11 +45,9 @@ defmodule Condukt.Tools.EditTest do
     assert String.contains?(error, "not found")
   end
 
-  test "returns error when text appears multiple times", %{tmp_dir: tmp_dir} do
+  test "returns error when text appears multiple times", %{tmp_dir: tmp_dir, context: context} do
     path = Path.join(tmp_dir, "multi.txt")
     File.write!(path, "foo bar foo bar")
-
-    context = %{cwd: tmp_dir, opts: []}
 
     {:error, error} =
       Edit.call(
@@ -64,11 +63,9 @@ defmodule Condukt.Tools.EditTest do
     assert File.read!(path) == "foo bar foo bar"
   end
 
-  test "returns error when replacement produces identical content", %{tmp_dir: tmp_dir} do
+  test "returns error when replacement produces identical content", %{tmp_dir: tmp_dir, context: context} do
     path = Path.join(tmp_dir, "same.txt")
     File.write!(path, "Hello, World!")
-
-    context = %{cwd: tmp_dir, opts: []}
 
     {:error, error} =
       Edit.call(

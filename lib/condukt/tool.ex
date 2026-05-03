@@ -46,8 +46,21 @@ defmodule Condukt.Tool do
   The `call/2` function receives a context map with:
 
   - `:agent` - The agent PID
-  - `:cwd` - Current working directory
+  - `:sandbox` - The active `Condukt.Sandbox` struct (use this for any
+    filesystem or process-execution work)
+  - `:cwd` - Project working directory (kept for tools that need to refer to
+    the host project root for non-sandbox concerns; tools that read/write
+    files or run commands should go through `:sandbox`)
   - `:opts` - Options passed when adding the tool to the agent
+
+  ## Sandbox-aware tools
+
+  If your tool reads or writes files, or runs subprocesses, route through
+  `Condukt.Sandbox.read/2`, `Condukt.Sandbox.write/3`, `Condukt.Sandbox.exec/3`,
+  etc. Direct `File.*` or `MuonTrap.cmd/3` calls bypass the sandbox and break
+  the consumer's ability to swap one in (e.g. an in-memory virtual sandbox).
+  Tools that touch unrelated systems (HTTP APIs, databases, in-process state)
+  have nothing to sandbox and are unaffected.
 
   ## Parameterized Tools
 

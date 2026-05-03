@@ -23,7 +23,7 @@ defmodule Condukt.Session do
 
   use GenServer
 
-  alias Condukt.{Compactor, Context, Message, Redactor, SessionStore, Telemetry, Tool}
+  alias Condukt.{Compactor, Context, Message, Redactor, Sandbox, SessionStore, Telemetry, Tool}
   alias Condukt.SessionStore.Snapshot
   alias ReqLLM.ToolCall
 
@@ -40,6 +40,7 @@ defmodule Condukt.Session do
     :system_prompt,
     :tools,
     :cwd,
+    :sandbox,
     :api_key,
     :base_url,
     :session_store,
@@ -78,6 +79,7 @@ defmodule Condukt.Session do
       |> put_configured_opt(config, :load_project_instructions, fn -> true end)
       |> Keyword.put_new(:tools, agent_module.tools())
       |> put_configured_opt(config, :cwd, &File.cwd!/0)
+      |> put_configured_opt(config, :sandbox, fn -> agent_sandbox(agent_module) end)
       |> put_configured_opt(config, :session_store)
       |> put_configured_opt(config, :compactor)
       |> put_configured_opt(config, :redactor)
@@ -91,6 +93,12 @@ defmodule Condukt.Session do
         Application.get_env(:condukt, key, default_fun.())
       end)
     end)
+  end
+
+  defp agent_sandbox(agent_module) do
+    if function_exported?(agent_module, :sandbox, 0) do
+      agent_module.sandbox()
+    end
   end
 
   @doc """
@@ -189,32 +197,43 @@ defmodule Condukt.Session do
       {:ok, user_state} ->
         configured_system_prompt = restore_value(opts, :system_prompt, snapshot && snapshot.system_prompt)
         project_context = load_project_context(opts)
+        cwd = Keyword.fetch!(opts, :cwd)
 
-        state =
-          %__MODULE__{
-            agent_module: agent_module,
-            model: restore_value(opts, :model, snapshot && snapshot.model),
-            thinking_level: restore_value(opts, :thinking_level, snapshot && snapshot.thinking_level),
-            configured_system_prompt: configured_system_prompt,
-            system_prompt: Context.compose_system_prompt(configured_system_prompt, project_context.prompt),
-            tools: Keyword.fetch!(opts, :tools),
-            cwd: Keyword.fetch!(opts, :cwd),
-            api_key: opts[:api_key],
-            base_url: opts[:base_url],
-            session_store: session_store,
-            compactor: opts[:compactor],
-            redactor: opts[:redactor],
-            project_context: project_context,
-            user_state: user_state
-          }
-          |> restore_messages(snapshot)
+        case resolve_sandbox(opts[:sandbox], cwd) do
+          {:ok, sandbox} ->
+            state =
+              %__MODULE__{
+                agent_module: agent_module,
+                model: restore_value(opts, :model, snapshot && snapshot.model),
+                thinking_level: restore_value(opts, :thinking_level, snapshot && snapshot.thinking_level),
+                configured_system_prompt: configured_system_prompt,
+                system_prompt: Context.compose_system_prompt(configured_system_prompt, project_context.prompt),
+                tools: Keyword.fetch!(opts, :tools),
+                cwd: cwd,
+                sandbox: sandbox,
+                api_key: opts[:api_key],
+                base_url: opts[:base_url],
+                session_store: session_store,
+                compactor: opts[:compactor],
+                redactor: opts[:redactor],
+                project_context: project_context,
+                user_state: user_state
+              }
+              |> restore_messages(snapshot)
 
-        {:ok, state}
+            {:ok, state}
+
+          {:error, reason} ->
+            {:stop, {:sandbox_init_failed, reason}}
+        end
 
       {:stop, reason} ->
         {:stop, reason}
     end
   end
+
+  defp resolve_sandbox(nil, cwd), do: Sandbox.new(Sandbox.Local, cwd: cwd)
+  defp resolve_sandbox(spec, _cwd), do: Sandbox.resolve(spec)
 
   @impl true
   def handle_call({:run, prompt, opts}, from, state) do
@@ -531,7 +550,7 @@ defmodule Condukt.Session do
         description: spec.description,
         parameter_schema: convert_json_schema_to_nimble(spec.parameters),
         callback: fn args ->
-          context = %{agent: self(), cwd: state.cwd, opts: []}
+          context = %{agent: self(), sandbox: state.sandbox, cwd: state.cwd, opts: []}
 
           case Tool.execute(tool_spec, args, context) do
             {:ok, result} when is_binary(result) -> result
@@ -668,7 +687,7 @@ defmodule Condukt.Session do
         Message.tool_result(id, {:error, "Unknown tool: #{name}"})
 
       {module, opts} ->
-        context = %{agent: self(), cwd: state.cwd, opts: opts}
+        context = %{agent: self(), sandbox: state.sandbox, cwd: state.cwd, opts: opts}
 
         case Tool.execute({module, opts}, args, context) do
           {:ok, result} -> Message.tool_result(id, result)
@@ -676,7 +695,7 @@ defmodule Condukt.Session do
         end
 
       module ->
-        context = %{agent: self(), cwd: state.cwd, opts: []}
+        context = %{agent: self(), sandbox: state.sandbox, cwd: state.cwd, opts: []}
 
         case Tool.execute(module, args, context) do
           {:ok, result} -> Message.tool_result(id, result)

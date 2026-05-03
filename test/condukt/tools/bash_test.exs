@@ -2,6 +2,7 @@ defmodule Condukt.Tools.BashTest do
   use ExUnit.Case, async: true
   use Mimic
 
+  alias Condukt.Sandbox
   alias Condukt.Tools.Bash
 
   @moduletag :tmp_dir
@@ -9,7 +10,12 @@ defmodule Condukt.Tools.BashTest do
   setup :set_mimic_from_context
   setup :verify_on_exit!
 
-  test "executes simple command", %{tmp_dir: tmp_dir} do
+  setup %{tmp_dir: tmp_dir} do
+    {:ok, sandbox} = Sandbox.new(Sandbox.Local, cwd: tmp_dir)
+    %{context: %{sandbox: sandbox, opts: []}}
+  end
+
+  test "executes simple command", %{tmp_dir: tmp_dir, context: context} do
     MuonTrap
     |> expect(:cmd, fn "bash", ["-c", "echo hello"], opts ->
       assert opts[:cd] == tmp_dir
@@ -19,52 +25,48 @@ defmodule Condukt.Tools.BashTest do
       {"hello\n", 0}
     end)
 
-    context = %{cwd: tmp_dir, opts: []}
     {:ok, result} = Bash.call(%{"command" => "echo hello"}, context)
 
     assert String.contains?(result, "hello")
   end
 
-  test "captures stderr", %{tmp_dir: tmp_dir} do
+  test "captures stderr", %{tmp_dir: tmp_dir, context: context} do
     MuonTrap
     |> expect(:cmd, fn "bash", ["-c", "echo error >&2"], opts ->
       assert opts[:cd] == tmp_dir
       {"error\n", 0}
     end)
 
-    context = %{cwd: tmp_dir, opts: []}
     {:ok, result} = Bash.call(%{"command" => "echo error >&2"}, context)
 
     assert String.contains?(result, "error")
   end
 
-  test "returns exit code for failures", %{tmp_dir: tmp_dir} do
+  test "returns exit code for failures", %{tmp_dir: tmp_dir, context: context} do
     MuonTrap
     |> expect(:cmd, fn "bash", ["-c", "exit 42"], opts ->
       assert opts[:cd] == tmp_dir
       {"", 42}
     end)
 
-    context = %{cwd: tmp_dir, opts: []}
     {:ok, result} = Bash.call(%{"command" => "exit 42"}, context)
 
     assert String.contains?(result, "exit code: 42")
   end
 
-  test "respects cwd", %{tmp_dir: tmp_dir} do
+  test "respects cwd", %{tmp_dir: tmp_dir, context: context} do
     MuonTrap
     |> expect(:cmd, fn "bash", ["-c", "pwd"], opts ->
       assert opts[:cd] == tmp_dir
       {"#{tmp_dir}\n", 0}
     end)
 
-    context = %{cwd: tmp_dir, opts: []}
     {:ok, result} = Bash.call(%{"command" => "pwd"}, context)
 
     assert String.contains?(result, tmp_dir)
   end
 
-  test "accepts cwd argument relative to context cwd", %{tmp_dir: tmp_dir} do
+  test "accepts cwd argument relative to context cwd", %{tmp_dir: tmp_dir, context: context} do
     nested_dir = Path.join(tmp_dir, "nested")
     File.mkdir_p!(nested_dir)
 
@@ -74,21 +76,18 @@ defmodule Condukt.Tools.BashTest do
       {"#{nested_dir}\n", 0}
     end)
 
-    context = %{cwd: tmp_dir, opts: []}
     {:ok, result} = Bash.call(%{"command" => "pwd", "cwd" => "nested"}, context)
 
     assert String.contains?(result, nested_dir)
   end
 
-  test "returns runner errors as command failures", %{tmp_dir: tmp_dir} do
+  test "returns runner errors as command failures", %{context: context} do
     MuonTrap
     |> expect(:cmd, fn "bash", ["-c", "pwd"], _opts ->
       raise ErlangError, original: :enoent
     end)
 
-    context = %{cwd: tmp_dir, opts: []}
-
-    assert {:error, "Command failed: Erlang error: :enoent"} =
+    assert {:error, "Command failed: \"Erlang error: :enoent\""} =
              Bash.call(%{"command" => "pwd"}, context)
   end
 end

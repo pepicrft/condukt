@@ -28,3 +28,10 @@ node_modules/
 # macOS Finder metadata.
 .DS_Store
 
+# Cargo build artifacts for the native NIF crate.
+native/*/target/
+
+# Compiled NIF binaries placed by Rustler. Built from source on dev,
+# downloaded from GitHub releases by consumers; never source-controlled.
+priv/native/
+

@@ -13,6 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       MIX_ENV: test
+      # Compile the NIF module as plain stubs on Linux CI. A loaded
+      # bashkit NIF segfaults BEAM at process exit on these runners
+      # regardless of test execution; stubbing avoids loading the .so
+      # entirely. Default mix test excludes :virtual_sandbox tests, so
+      # the stubs are never invoked in CI.
+      CONDUKT_BASHKIT_DISABLE: "1"
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
@@ -51,6 +57,7 @@ jobs:
     needs: compile
     env:
       MIX_ENV: test
+      CONDUKT_BASHKIT_DISABLE: "1"
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
@@ -83,6 +90,7 @@ jobs:
     needs: compile
     env:
       MIX_ENV: test
+      CONDUKT_BASHKIT_DISABLE: "1"
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
@@ -115,6 +123,7 @@ jobs:
     needs: compile
     env:
       MIX_ENV: test
+      CONDUKT_BASHKIT_DISABLE: "1"
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4

@@ -5,6 +5,8 @@ defmodule Condukt.Tools.Edit do
   Finds exact text in a file and replaces it with new text.
   The old_text must match exactly, including whitespace.
 
+  All filesystem access goes through the active `Condukt.Sandbox`.
+
   ## Parameters
 
   - `path` - Path to the file to edit
@@ -20,6 +22,8 @@ defmodule Condukt.Tools.Edit do
   """
 
   use Condukt.Tool
+
+  alias Condukt.Sandbox
 
   @impl true
   def name, do: "Edit"
@@ -56,67 +60,40 @@ defmodule Condukt.Tools.Edit do
   end
 
   @impl true
+  def call(%{"path" => path, "old_text" => old_text, "new_text" => new_text}, _context) when old_text == new_text do
+    {:error, "No changes made to #{path}. The replacement produced identical content."}
+  end
+
   def call(%{"path" => path, "old_text" => old_text, "new_text" => new_text}, context) do
-    cwd = context[:cwd] || File.cwd!()
-    absolute_path = expand_path(path, cwd)
+    sandbox = fetch_sandbox!(context)
 
-    case File.read(absolute_path) do
-      {:ok, content} ->
-        case count_occurrences(content, old_text) do
-          0 ->
-            {:error, find_similar_text(content, old_text, path)}
+    case Sandbox.edit(sandbox, path, old_text, new_text) do
+      {:ok, %{occurrences: 0, content: content}} ->
+        {:error, find_similar_text(content, old_text, path)}
 
-          1 ->
-            apply_edit(content, old_text, new_text, absolute_path, path)
+      {:ok, %{occurrences: count}} when count > 1 ->
+        {:error,
+         "Found #{count} occurrences of old_text in #{path}. Make the match unique by including more surrounding context."}
 
-          count ->
-            {:error,
-             "Found #{count} occurrences of old_text in #{path}. Make the match unique by including more surrounding context."}
-        end
+      {:ok, %{occurrences: 1}} ->
+        diff = generate_diff(old_text, new_text)
+        {:ok, Enum.join(["Successfully edited #{path}", diff], "\n\n")}
 
       {:error, :enoent} ->
         {:error, "File not found: #{path}"}
 
       {:error, reason} ->
-        {:error, "Cannot read #{path}: #{inspect(reason)}"}
+        {:error, "Cannot edit #{path}: #{inspect(reason)}"}
     end
   end
 
-  defp expand_path(path, cwd) do
-    if Path.type(path) == :absolute do
-      path
-    else
-      Path.join(cwd, path)
-    end
-  end
+  defp fetch_sandbox!(%{sandbox: %Sandbox{} = sandbox}), do: sandbox
 
-  defp count_occurrences(content, old_text) do
-    content
-    |> String.split(old_text)
-    |> length()
-    |> Kernel.-(1)
-  end
-
-  defp apply_edit(content, old_text, new_text, absolute_path, path) do
-    {index, old_text_length} = :binary.match(content, old_text)
-
-    new_content =
-      binary_part(content, 0, index) <>
-        new_text <>
-        binary_part(content, index + old_text_length, byte_size(content) - index - old_text_length)
-
-    if new_content == content do
-      {:error, "No changes made to #{path}. The replacement produced identical content."}
-    else
-      case File.write(absolute_path, new_content) do
-        :ok ->
-          diff = generate_diff(old_text, new_text)
-          {:ok, Enum.join(["Successfully edited #{path}", diff], "\n\n")}
-
-        {:error, reason} ->
-          {:error, "Cannot write to #{path}: #{inspect(reason)}"}
-      end
-    end
+  defp fetch_sandbox!(_) do
+    raise ArgumentError,
+          "Condukt.Tools.Edit requires context.sandbox. " <>
+            "When invoking the tool outside a Session, build one with " <>
+            "Condukt.Sandbox.new(Condukt.Sandbox.Local, cwd: \"...\")."
   end
 
   defp generate_diff(old_text, new_text) do
@@ -135,9 +112,8 @@ defmodule Condukt.Tools.Edit do
   end
 
   defp find_similar_text(content, old_text, path) do
-    # Try to find why the match failed
     old_lines = String.split(old_text, "\n")
-    first_line = List.first(old_lines) |> String.trim()
+    first_line = old_lines |> List.first() |> String.trim()
 
     cond do
       String.length(first_line) < 5 ->

@@ -14,11 +14,21 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Release to Hex.pm
+  # ============================================================================
+  # plan
+  # Decides whether a release should happen, computes the next version, and
+  # emits release notes / changelog for the downstream jobs to consume.
+  # ============================================================================
+  plan:
+    name: Plan release
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     if: github.event_name != 'push' || !startsWith(github.event.head_commit.message, '[Release]')
+    outputs:
+      should_release: ${{ steps.plan.outputs.should_release }}
+      current_version: ${{ steps.plan.outputs.current_version }}
+      next_version: ${{ steps.plan.outputs.next_version }}
+      bump_type: ${{ steps.plan.outputs.bump_type }}
 
     steps:
       - name: Check out the repository
@@ -30,14 +40,6 @@ jobs:
         uses: jdx/mise-action@v3
         with:
           cache: true
-
-      - name: Install Hex and Rebar
-        run: |
-          mix local.hex --force
-          mix local.rebar --force
-
-      - name: Fetch dependencies
-        run: mix deps.get
 
       - name: Plan release
         id: plan
@@ -86,21 +88,120 @@ jobs:
           echo "next_version=$next_version" >> "$GITHUB_OUTPUT"
           echo "bump_type=$bump_type" >> "$GITHUB_OUTPUT"
 
-      - name: Update version and changelog
+      - name: Upload release artifacts
         if: steps.plan.outputs.should_release == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-context
+          path: |
+            CHANGELOG.next.md
+            RELEASE_NOTES.md
+          retention-days: 1
+
+  # ============================================================================
+  # build_nif
+  # Builds the bashkit NIF for every supported target/NIF-version pair.
+  # Each artifact is uploaded so the publish job can attach it to the
+  # GitHub release and feed it into the rustler_precompiled checksum file.
+  # ============================================================================
+  build_nif:
+    name: Build NIF (${{ matrix.job.target }} | nif ${{ matrix.nif }})
+    needs: plan
+    if: needs.plan.outputs.should_release == 'true'
+    runs-on: ${{ matrix.job.os }}
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        nif: ["2.16", "2.17"]
+        job:
+          - { target: aarch64-apple-darwin,        os: macos-14 }
+          - { target: x86_64-apple-darwin,         os: macos-13 }
+          - { target: x86_64-unknown-linux-gnu,    os: ubuntu-22.04 }
+          - { target: aarch64-unknown-linux-gnu,   os: ubuntu-22.04, use-cross: true }
+          - { target: x86_64-unknown-linux-musl,   os: ubuntu-22.04, use-cross: true }
+          - { target: aarch64-unknown-linux-musl,  os: ubuntu-22.04, use-cross: true }
+          - { target: x86_64-pc-windows-msvc,      os: windows-2022 }
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Build NIF
+        uses: philss/rustler-precompiled-action@v1.1.4
+        with:
+          project-name: condukt_bashkit
+          project-version: ${{ needs.plan.outputs.next_version }}
+          target: ${{ matrix.job.target }}
+          nif-version: ${{ matrix.nif }}
+          use-cross: ${{ matrix.job.use-cross == true }}
+          project-dir: native/condukt_bashkit
+
+  # ============================================================================
+  # publish
+  # Bundles the NIF artifacts, computes the checksum file, publishes the
+  # source-only hex package (which now includes the checksum file), tags
+  # the release commit, and creates the GitHub release with all NIF
+  # artifacts attached so consumers can download them via their version URL.
+  # ============================================================================
+  publish:
+    name: Publish to Hex.pm and create GitHub release
+    needs: [plan, build_nif]
+    if: needs.plan.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install tooling with mise
+        uses: jdx/mise-action@v3
+        with:
+          cache: true
+
+      - name: Install Hex and Rebar
         run: |
-          elixir scripts/version.exs set "${{ steps.plan.outputs.next_version }}"
+          mix local.hex --force
+          mix local.rebar --force
+
+      - name: Fetch dependencies
+        run: mix deps.get
+
+      - name: Download release context
+        uses: actions/download-artifact@v4
+        with:
+          name: release-context
+          path: .
+
+      - name: Download NIF artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: nif-artifacts
+          pattern: condukt_bashkit-*
+          merge-multiple: true
+
+      - name: Generate checksum file
+        run: |
+          set -euo pipefail
+          ls -la nif-artifacts/
+          elixir scripts/generate_nif_checksum.exs nif-artifacts
+
+      - name: Update version and changelog
+        run: |
+          elixir scripts/version.exs set "${{ needs.plan.outputs.next_version }}"
           mv CHANGELOG.next.md CHANGELOG.md
 
       - name: Validate Hex package
-        if: steps.plan.outputs.should_release == 'true'
         run: |
           build_dir="$(mktemp -d /tmp/condukt-hex-build-XXXXXX)"
           mix hex.build --unpack -o "$build_dir"
 
       - name: Publish release
         id: publish
-        if: steps.plan.outputs.should_release == 'true'
         env:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
         shell: bash
@@ -111,24 +212,24 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add mix.exs CHANGELOG.md
-          git commit -m "[Release] Condukt ${{ steps.plan.outputs.next_version }}"
-          git tag -a "${{ steps.plan.outputs.next_version }}" -m "${{ steps.plan.outputs.next_version }}"
+          git add mix.exs CHANGELOG.md "checksum-Elixir.Condukt.Bashkit.NIF.exs"
+          git commit -m "[Release] Condukt ${{ needs.plan.outputs.next_version }}"
+          git tag -a "${{ needs.plan.outputs.next_version }}" -m "${{ needs.plan.outputs.next_version }}"
 
           mix hex.publish package --yes
 
           git push origin HEAD:main
-          git push origin "${{ steps.plan.outputs.next_version }}"
+          git push origin "${{ needs.plan.outputs.next_version }}"
 
           echo "release_commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Create GitHub release
-        if: steps.plan.outputs.should_release == 'true'
+      - name: Create GitHub release with NIF artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ steps.plan.outputs.next_version }}" \
+          gh release create "${{ needs.plan.outputs.next_version }}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "${{ steps.publish.outputs.release_commit }}" \
-            --title "${{ steps.plan.outputs.next_version }}" \
-            --notes-file RELEASE_NOTES.md
+            --title "${{ needs.plan.outputs.next_version }}" \
+            --notes-file RELEASE_NOTES.md \
+            nif-artifacts/*.tar.gz

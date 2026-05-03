@@ -45,6 +45,15 @@ defmodule Condukt.MixProject do
       # Telemetry
       {:telemetry, "~> 1.0"},
 
+      # Native interop with the bashkit virtual sandbox.
+      # `rustler_precompiled` downloads prebuilt artifacts at compile time so
+      # consumers don't need a Rust toolchain. `rustler` is only required for
+      # building the NIF from source (Condukt's own CI release builds, plus
+      # any downstream user who opts into a source build via the
+      # `CONDUKT_BASHKIT_BUILD` environment variable).
+      {:rustler_precompiled, "~> 0.8"},
+      {:rustler, ">= 0.0.0", optional: true},
+
       # Development & Testing
       {:quokka, "~> 2.12", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.35", only: :dev, runtime: false},
@@ -62,6 +71,7 @@ defmodule Condukt.MixProject do
         "guides/getting_started.md": [title: "Getting Started"],
         "guides/agents.md": [title: "Agents"],
         "guides/tools.md": [title: "Tools"],
+        "guides/sandbox.md": [title: "Sandbox"],
         "guides/streaming_and_events.md": [title: "Streaming and Events"],
         "guides/sessions_and_persistence.md": [title: "Sessions and Persistence"],
         "guides/compaction.md": [title: "Compaction"],
@@ -79,6 +89,7 @@ defmodule Condukt.MixProject do
         Guides: [
           "guides/agents.md",
           "guides/tools.md",
+          "guides/sandbox.md",
           "guides/streaming_and_events.md",
           "guides/sessions_and_persistence.md",
           "guides/compaction.md",
@@ -112,7 +123,15 @@ defmodule Condukt.MixProject do
           Condukt.Tools.Bash,
           Condukt.Tools.Command,
           Condukt.Tools.Edit,
-          Condukt.Tools.Write
+          Condukt.Tools.Write,
+          Condukt.Tools.Glob,
+          Condukt.Tools.Grep
+        ],
+        Sandbox: [
+          Condukt.Sandbox,
+          Condukt.Sandbox.Local,
+          Condukt.Sandbox.Virtual,
+          Condukt.Sandbox.Virtual.Tools.Mount
         ],
         "Session Stores": [
           Condukt.SessionStore,
@@ -142,7 +161,8 @@ defmodule Condukt.MixProject do
       links: %{
         "GitHub" => @source_url
       },
-      files: ~w(lib guides .formatter.exs mix.exs README.md CHANGELOG.md LICENSE MIT.md)
+      files:
+        ~w(lib guides native/condukt_bashkit/Cargo.toml native/condukt_bashkit/Cargo.lock native/condukt_bashkit/src native/condukt_bashkit/.cargo native/condukt_bashkit/rust-toolchain.toml native/condukt_bashkit/README.md checksum-Elixir.Condukt.Bashkit.NIF.exs .formatter.exs mix.exs README.md CHANGELOG.md LICENSE MIT.md)
     ]
   end
 

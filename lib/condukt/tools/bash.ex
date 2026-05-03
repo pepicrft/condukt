@@ -2,22 +2,22 @@ defmodule Condukt.Tools.Bash do
   @moduledoc """
   Tool for executing bash commands.
 
-  Runs commands in the current working directory and returns stdout/stderr.
+  Routes through the active `Condukt.Sandbox`. With `Sandbox.Local` this
+  spawns a real bash subprocess on the host; with `Sandbox.Virtual` it runs
+  inside the in-memory bashkit interpreter with no host process spawning.
+
   Output is truncated to reasonable limits.
 
   ## Parameters
 
   - `command` - The bash command to execute
-  - `cwd` - Directory to run the command in (optional)
+  - `cwd` - Directory to run the command in (optional, relative to the sandbox's cwd)
   - `timeout` - Timeout in seconds (optional, default: 120)
-
-  ## Safety
-
-  This tool executes arbitrary shell commands. Use with caution and
-  consider implementing allowlists or sandboxing for production use.
   """
 
   use Condukt.Tool
+
+  alias Condukt.Sandbox
 
   @max_lines 2000
   @max_bytes 50 * 1024
@@ -29,7 +29,7 @@ defmodule Condukt.Tools.Bash do
   @impl true
   def description do
     """
-    Execute a bash command in the current working directory. Returns stdout and stderr.
+    Execute a bash command in the current working directory. Returns combined stdout/stderr.
     Output is truncated to #{@max_lines} lines or #{div(@max_bytes, 1024)}KB.
     Optionally provide a cwd and timeout in seconds.
     """
@@ -60,77 +60,46 @@ defmodule Condukt.Tools.Bash do
 
   @impl true
   def call(%{"command" => command} = args, context) do
-    base_cwd = context[:cwd] || File.cwd!()
-    cwd = resolve_cwd(args["cwd"], base_cwd)
+    sandbox = fetch_sandbox!(context)
     timeout = trunc((args["timeout"] || div(@default_timeout, 1000)) * 1000)
 
-    case execute_command(command, cwd, timeout) do
-      {:ok, output, exit_code} ->
-        {truncated_output, truncated?} = truncate_output(output)
+    exec_opts =
+      []
+      |> put_if_present(:cwd, args["cwd"])
+      |> Keyword.put(:timeout, timeout)
 
-        result =
-          [
-            truncated_output,
-            truncated? && "(output truncated)",
-            exit_code != 0 && "(exit code: #{exit_code})"
-          ]
-          |> Enum.reject(&(&1 in [false, nil, ""]))
-          |> Enum.join("\n\n")
+    case Sandbox.exec(sandbox, command, exec_opts) do
+      {:ok, %{output: output, exit_code: exit_code}} ->
+        {truncated, truncated?} = truncate_output(output)
 
-        {:ok, result}
+        {:ok,
+         [
+           truncated,
+           truncated? && "(output truncated)",
+           exit_code != 0 && "(exit code: #{exit_code})"
+         ]
+         |> Enum.reject(&(&1 in [false, nil, ""]))
+         |> Enum.join("\n\n")}
 
       {:error, :timeout} ->
         {:error, "Command timed out after #{div(timeout, 1000)} seconds"}
 
       {:error, reason} ->
-        {:error, "Command failed: #{reason}"}
+        {:error, "Command failed: #{inspect(reason)}"}
     end
   end
 
-  defp resolve_cwd(nil, cwd), do: cwd
+  defp fetch_sandbox!(%{sandbox: %Sandbox{} = sandbox}), do: sandbox
 
-  defp resolve_cwd(path, cwd) do
-    if Path.type(path) == :absolute do
-      path
-    else
-      Path.expand(path, cwd)
-    end
+  defp fetch_sandbox!(_) do
+    raise ArgumentError,
+          "Condukt.Tools.Bash requires context.sandbox. " <>
+            "When invoking the tool outside a Session, build one with " <>
+            "Condukt.Sandbox.new(Condukt.Sandbox.Local, cwd: \"...\")."
   end
 
-  defp execute_command(command, cwd, timeout) do
-    case run_muontrap("bash", ["-c", command],
-           cd: cwd,
-           stderr_to_stdout: true,
-           env: build_env(),
-           timeout: timeout
-         ) do
-      {:ok, {_output, :timeout}} -> {:error, :timeout}
-      {:ok, {output, exit_code}} -> {:ok, output, exit_code}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp run_muontrap(command, args, opts) do
-    {:ok, MuonTrap.cmd(command, args, opts)}
-  catch
-    :error, error -> {:error, format_error(error)}
-  end
-
-  defp format_error(error) do
-    if is_exception(error) do
-      Exception.message(error)
-    else
-      inspect(error)
-    end
-  end
-
-  defp build_env do
-    [
-      {"TERM", "dumb"},
-      {"PAGER", "cat"},
-      {"GIT_PAGER", "cat"}
-    ]
-  end
+  defp put_if_present(opts, _key, nil), do: opts
+  defp put_if_present(opts, key, value), do: Keyword.put(opts, key, value)
 
   defp truncate_output(output) do
     lines = String.split(output, "\n")
