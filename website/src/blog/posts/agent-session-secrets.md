@@ -30,7 +30,7 @@ When resolution fails, the session does not start. When it succeeds, command too
   def tools do
     [
       Condukt.Tools.Read,
-      {Condukt.Tools.Command, command: "gh"}
+      {Condukt.Tools.Command, command: "gh", name: "github"}
     ]
   end
 
@@ -49,5 +49,20 @@ I do not like treating redaction as the security model. If a tool subprocess rec
 There are limits worth being explicit about. Very short values are not redacted because they create false positives everywhere. If a tool transforms a secret before printing it, exact-match redaction will not catch that transformed form. If you give a powerful long-lived token to a broad command tool, Condukt cannot pretend the agent does not have that power. This is the same lesson that keeps appearing around agents: once a capability exists, design the boundary around it instead of hoping downstream filters make it harmless. Redaction is still important, but it is a backstop for accidental leakage, not permissioning.
 
 The other thing we added is telemetry, because access without a trail is hard to operate. When a session resolves secrets, Condukt emits a value-free event with the names that were resolved. When a tool receives secrets, it emits another value-free event with the tool name, tool call id when available, and the names exposed to that invocation. Not the values. The access. That gives teams something concrete to audit and measure without creating a new place where plaintext can leak. I think this becomes more important as sessions stop being little local experiments and start becoming infrastructure that runs continuously. At that point you want to know which agents are receiving which credentials, how often, and through which tools.
+
+Concretely, the two events look like this for the `github` tool above:
+
+<div class="code-block">{% highlight "elixir" %}{[:condukt, :secrets, :resolve], %{count: 1},
+ %{agent: MyApp.ReviewAgent, names: ["GH_TOKEN"]}}
+
+{[:condukt, :secrets, :access], %{count: 1},
+ %{
+   agent: MyApp.ReviewAgent,
+   tool: "github",
+   tool_call_id: "call_01HZX...",
+   names: ["GH_TOKEN"]
+ }}{% endhighlight %}</div>
+
+That shape is intentionally boring. It is enough to build counters, traces, or audit logs around secret access, but it does not create a second secret store in your observability backend.
 
 What I like about this feature is that it makes a capability explicit. We talk a lot about context in agent systems: give the agent more files, better instructions, better memory, better tools. Capabilities deserve the same care. A tool is a capability. A sandbox is a capability boundary. A secret is a capability. If secrets are random strings floating around prompts, files, and environments, we lose the ability to reason about what the agent can actually do. Putting them in the session is a small abstraction, but it gives us a place to declare intent, resolve access, redact accidental output, observe usage, and keep plaintext out of the model's world. That is the direction I want Condukt to move in: not hiding capabilities from agents, but making them explicit enough that we can build systems around them with less anxiety.
