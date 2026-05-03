@@ -33,6 +33,7 @@ Rather than wrapping JavaScript agent frameworks, we built Condukt from scratch 
 - **Scoped Commands**: Expose trusted executables like `git`, `gh`, or `mix` without shell parsing
 - **Tool System**: Extensible tools for file operations, shell commands, and more
 - **Operations**: Compile-time typed entrypoints with JSON Schema input/output validation
+- **Anonymous Workflows**: One-off `Condukt.run/2` calls with inline tools and optional structured output
 - **Multi-Provider**: 18+ LLM providers via [ReqLLM](https://github.com/agentjido/req_llm) (Anthropic, OpenAI, Google, etc.)
 - **Redaction**: Pluggable secret redaction on outbound messages with a regex-based default
 - **Telemetry**: Built-in observability with `:telemetry` events
@@ -181,6 +182,45 @@ model submits its result. Operations also emit
 alongside the inner agent-loop events.
 
 See `Condukt.Operation` for the full reference.
+
+## Anonymous Workflows
+
+For scripts, notebooks, jobs, and one-off automations that do not need a named
+agent module, call `Condukt.run/2` with the prompt first. Condukt creates a
+transient session, runs the prompt, and shuts it down when the response is
+ready.
+
+```elixir
+{:ok, text} =
+  Condukt.run("Summarize the project README in three bullets.",
+    model: "anthropic:claude-sonnet-4-20250514",
+    tools: [Condukt.Tools.Read]
+  )
+```
+
+Anonymous workflows can also take typed input and return structured output:
+
+```elixir
+{:ok, %{summary: summary}} =
+  Condukt.run("Read the supplied file and return a short summary.",
+    input: %{path: "README.md"},
+    input_schema: %{
+      type: "object",
+      properties: %{path: %{type: "string"}},
+      required: ["path"]
+    },
+    output: %{
+      type: "object",
+      properties: %{summary: %{type: "string"}},
+      required: ["summary"]
+    },
+    tools: [Condukt.Tools.Read]
+  )
+```
+
+Use anonymous workflows when the whole task is contained in one call. Use a
+supervised agent when you need conversation history, long-lived state, or
+OTP supervision.
 
 ## LiveBook 📓
 

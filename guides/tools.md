@@ -163,6 +163,36 @@ end
 Tools that touch unrelated systems (HTTP APIs, databases, in-process state)
 have nothing to sandbox and can do their I/O directly.
 
+## Inline tools
+
+Use `Condukt.tool/1` for one-off workflows where defining a module would add
+more ceremony than value. Inline tools work anywhere a module tool works,
+including an agent's `tools/0` callback and anonymous `Condukt.run/2` calls.
+
+```elixir
+weather =
+  Condukt.tool(
+    name: "weather",
+    description: "Returns the weather for a city",
+    parameters: %{
+      type: "object",
+      properties: %{city: %{type: "string"}},
+      required: ["city"]
+    },
+    call: fn %{"city" => city}, _context ->
+      {:ok, "72F in #{city}"}
+    end
+  )
+
+{:ok, response} =
+  Condukt.run("What is the weather in Berlin?",
+    tools: [weather]
+  )
+```
+
+The callback receives the same context map as module tools. If it touches the
+filesystem or runs commands, use `context.sandbox` through `Condukt.Sandbox`.
+
 ## Parameterized tools
 
 Tools can be added more than once with different options. The `name/1`,

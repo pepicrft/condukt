@@ -141,12 +141,21 @@ defmodule Condukt.Tool do
   @doc """
   Gets the tool name for a tool spec.
   """
+  def name(%Condukt.Tool.Inline{name: name}), do: name
   def name({module, opts}), do: module.name(opts)
   def name(module) when is_atom(module), do: module.name()
 
   @doc """
   Builds a tool specification for the LLM provider.
   """
+  def to_spec(%Condukt.Tool.Inline{} = inline) do
+    %{
+      name: inline.name,
+      description: inline.description,
+      parameters: inline.parameters
+    }
+  end
+
   def to_spec({module, opts}) do
     %{
       name: module.name(opts),
@@ -166,6 +175,11 @@ defmodule Condukt.Tool do
   @doc """
   Executes a tool by name with arguments.
   """
+  def execute(%Condukt.Tool.Inline{call: call}, args, context) do
+    context = Map.put(context, :opts, [])
+    invoke_callable(call, args, context)
+  end
+
   def execute({module, opts}, args, context) do
     context
     |> Map.put(:opts, opts)
@@ -180,6 +194,12 @@ defmodule Condukt.Tool do
 
   defp execute_call(context, module, args) do
     module.call(args, context)
+  catch
+    :error, error -> {:error, format_error(error)}
+  end
+
+  defp invoke_callable(call, args, context) do
+    call.(args, context)
   catch
     :error, error -> {:error, format_error(error)}
   end
