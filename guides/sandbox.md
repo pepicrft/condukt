@@ -61,6 +61,8 @@ x86_64-unknown-linux-gnu
 
 Compile in `MIX_ENV=dev` (and have a Rust toolchain installed) to build the
 NIF from source. Other Mix environments download the precompiled artifact.
+The release workflow publishes from `MIX_ENV=prod`, so package validation uses
+the same precompiled path as Hex consumers.
 
 ### Sandbox-specific tools
 
