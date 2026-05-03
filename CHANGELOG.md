@@ -1,6 +1,16 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.14.2] - 2026-05-03
+
+### Bug Fixes
+
+- publish Hex packages from prod env
+
+
+- make release env assertion valid YAML
+
+
 ## [0.14.1] - 2026-05-03
 
 ### Bug Fixes
