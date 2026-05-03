@@ -223,7 +223,13 @@ pre, code {
 }
 
 .blog-index .lede {
-  margin-bottom: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.blog-feeds {
+  margin: 0 0 2.5rem;
+  font-size: 0.9rem;
+  color: var(--fg-muted);
 }
 
 .post-list {

@@ -19,4 +19,4 @@ Condukt's design choices are not always obvious from the API surface. Why are ag
 * Release notes for meaningful versions, with migration tips when relevant.
 * Field reports from teams running Condukt in production.
 
-If you want to follow along, the [GitHub repo](https://github.com/tuist/condukt) is the best place to start, and an Atom feed for this blog is available at [/blog/feed.xml](/blog/feed.xml).
+If you want to follow along, the [GitHub repo](https://github.com/tuist/condukt) is the best place to start, and you can subscribe via [RSS](/blog/rss.xml) or [Atom](/blog/feed.xml).
