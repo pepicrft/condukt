@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install BEAM tooling with mise
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
           cache: true
 
@@ -65,7 +65,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install BEAM tooling with mise
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
           cache: true
 
@@ -99,7 +99,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install BEAM tooling with mise
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
           cache: true
 
@@ -133,7 +133,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install BEAM tooling with mise
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
           cache: true
 
@@ -165,7 +165,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install BEAM tooling with mise
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
           cache: true
 

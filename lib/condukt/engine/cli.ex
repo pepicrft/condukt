@@ -16,14 +16,6 @@ defmodule Condukt.Engine.CLI do
     args
     |> dispatch()
     |> print_result()
-  rescue
-    exception ->
-      IO.puts(:stderr, "error: #{Exception.message(exception)}")
-      1
-  catch
-    :exit, reason ->
-      IO.puts(:stderr, "error: #{inspect(reason)}")
-      1
   end
 
   defp dispatch([]), do: {:ok, usage()}

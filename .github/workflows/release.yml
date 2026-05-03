@@ -37,7 +37,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install tooling with mise
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
           cache: true
 
@@ -187,7 +187,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install tooling with mise
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
           cache: true
 
@@ -336,7 +336,7 @@ jobs:
           ref: ${{ needs.publish.outputs.release_commit }}
 
       - name: Install tooling with mise
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
           cache: true
 
