@@ -58,10 +58,25 @@ defmodule Mix.Tasks.Condukt.Workflows.Lock do
   end
 
   defp collect_requirements!(root) do
-    root
-    |> workflow_sources()
-    |> Enum.flat_map(&loads_for!/1)
-    |> Resolver.collect_requirements()
+    loads =
+      root
+      |> workflow_sources()
+      |> Enum.flat_map(&loads_for!/1)
+
+    Enum.each(loads, &validate_load_requirement!/1)
+
+    Resolver.collect_requirements(loads)
+  end
+
+  defp validate_load_requirement!("./" <> _load), do: :ok
+  defp validate_load_requirement!("../" <> _load), do: :ok
+  defp validate_load_requirement!("@condukt/" <> _load), do: :ok
+
+  defp validate_load_requirement!(load) do
+    case Resolver.parse_requirement(load) do
+      {:ok, _requirement} -> :ok
+      {:error, reason} -> Mix.raise("Invalid workflow load #{inspect(load)}: #{inspect(reason)}")
+    end
   end
 
   defp workflow_sources(root) do

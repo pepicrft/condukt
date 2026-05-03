@@ -75,6 +75,10 @@ condukt workflows serve --root . --port 4000
 
 The release assets include Linux x64, macOS x64, macOS arm64, and Windows x64 builds.
 
+See the [Workflows](guides/workflows.md) guide for creating, running, and
+sharing workflows. See the [Workflow Starlark API](guides/workflow_starlark_api.md)
+reference for every Starlark builtin available to workflow files.
+
 ## Quick Start 🚀
 
 ### 1. Define an Agent

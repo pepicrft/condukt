@@ -24,4 +24,23 @@ defmodule Mix.Tasks.ConduktWorkflowsLockTest do
     assert output =~ "Wrote #{Path.join(root, "condukt.lock")}"
     assert File.read!(Path.join(root, "condukt.lock")) =~ "version = 1"
   end
+
+  @tag :tmp_dir
+  test "rejects external loads without a starlark file path", %{tmp_dir: root} do
+    workflow_dir = Path.join(root, "workflows")
+    File.mkdir_p!(workflow_dir)
+
+    File.write!(Path.join(workflow_dir, "triage.star"), """
+    load("github.com/acme/tools@v1.2.3", "toolkit")
+
+    condukt.workflow(
+        name = "triage",
+        agent = condukt.agent(model = "openai:gpt-4.1-mini"),
+    )
+    """)
+
+    assert_raise Mix.Error, ~r/Invalid workflow load/, fn ->
+      Mix.Task.rerun("condukt.workflows.lock", ["--root", root])
+    end
+  end
 end

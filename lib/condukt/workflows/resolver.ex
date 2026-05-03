@@ -66,11 +66,10 @@ defmodule Condukt.Workflows.Resolver do
 
   def parse_requirement(load) when is_binary(load) do
     case String.split(load, "@", parts: 2) do
-      [url, version] when url != "" and version != "" ->
-        if valid_requirement_url?(url) and valid_version?(version) do
-          {:ok, %Requirement{url: url, version_spec: String.trim_leading(version, "v")}}
-        else
-          {:error, {:invalid_requirement, load}}
+      [url_path, version] when url_path != "" and version != "" ->
+        with {:ok, version} <- normalize_version(version, load),
+             {:ok, package_url} <- package_url_from_load_path(url_path) do
+          {:ok, %Requirement{url: package_url, version_spec: version}}
         end
 
       _ ->
@@ -190,17 +189,70 @@ defmodule Condukt.Workflows.Resolver do
     %{url: url, version_spec: version_spec}
   end
 
-  defp valid_requirement_url?(url) do
-    String.contains?(url, "/") and not String.starts_with?(url, ["./", "../", "http://", "https://"])
+  defp package_url_from_load_path(url_path) do
+    with :ok <- validate_external_load_path(url_path),
+         {:ok, package_url, relative_path} <- split_package_url(url_path),
+         :ok <- validate_load_relative_path(relative_path, url_path) do
+      {:ok, package_url}
+    end
   end
 
-  defp valid_version?(version) do
-    version
-    |> String.trim_leading("v")
-    |> Version.parse()
-    |> case do
-      {:ok, _version} -> true
-      :error -> false
+  defp validate_external_load_path(url_path) do
+    cond do
+      String.starts_with?(url_path, ["./", "../", "/", "http://", "https://"]) ->
+        {:error, {:invalid_requirement, url_path}}
+
+      String.contains?(url_path, [" ", "\n", "\t"]) ->
+        {:error, {:invalid_requirement, url_path}}
+
+      String.contains?(url_path, "//") ->
+        {:error, {:invalid_requirement, url_path}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp split_package_url(url_path) do
+    case String.split(url_path, ".git/", parts: 2) do
+      [package_url, relative_path] when package_url != "" and relative_path != "" ->
+        {:ok, package_url <> ".git", relative_path}
+
+      [_] ->
+        infer_package_url(url_path)
+
+      _ ->
+        {:error, {:invalid_requirement, url_path}}
+    end
+  end
+
+  defp infer_package_url(url_path) do
+    case String.split(url_path, "/", trim: true) do
+      [host, owner, repo, first_path | rest] ->
+        {:ok, Enum.join([host, owner, repo], "/"), Enum.join([first_path | rest], "/")}
+
+      _ ->
+        {:error, {:missing_load_path, url_path}}
+    end
+  end
+
+  defp validate_load_relative_path(relative_path, url_path) do
+    path_parts = Path.split(relative_path)
+
+    if Path.type(relative_path) == :relative and Path.extname(relative_path) == ".star" and
+         not Enum.any?(path_parts, &(&1 in [".", ".."])) do
+      :ok
+    else
+      {:error, {:invalid_requirement, url_path}}
+    end
+  end
+
+  defp normalize_version(version, load) do
+    version = String.trim_leading(version, "v")
+
+    case Version.parse(version) do
+      {:ok, _version} -> {:ok, version}
+      :error -> {:error, {:invalid_version, load}}
     end
   end
 

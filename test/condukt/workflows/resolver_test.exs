@@ -71,9 +71,20 @@ defmodule Condukt.Workflows.ResolverTest do
 
   test "parses strict external load requirements" do
     assert {:ok, %Resolver.Requirement{url: "github.com/acme/tools", version_spec: "1.2.3"}} =
-             Resolver.parse_requirement("github.com/acme/tools@v1.2.3")
+             Resolver.parse_requirement("github.com/acme/tools/lib/export.star@v1.2.3")
+
+    assert {:ok,
+            %Resolver.Requirement{
+              url: "gitlab.com/acme/platform/support-workflows.git",
+              version_spec: "1.2.3"
+            }} =
+             Resolver.parse_requirement("gitlab.com/acme/platform/support-workflows.git/lib/export.star@v1.2.3")
 
     assert :relative = Resolver.parse_requirement("./helpers.star")
     assert {:error, {:missing_version, _}} = Resolver.parse_requirement("github.com/acme/tools")
+    assert {:error, {:missing_load_path, _}} = Resolver.parse_requirement("github.com/acme/tools@v1.2.3")
+
+    assert {:error, {:invalid_requirement, _}} =
+             Resolver.parse_requirement("github.com/acme/tools/lib/export.txt@v1.2.3")
   end
 end
