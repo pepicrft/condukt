@@ -22,12 +22,11 @@
 
 - The `condukt_bashkit` Rust crate wraps the bashkit virtual sandbox into
   a NIF. Build it with `cd native/condukt_bashkit && cargo build --release`
-  or via `mix compile` (Mix invokes Rustler when developing this repo).
+  or via `MIX_ENV=dev mix compile`.
 - Toolchain: Rust 1.94.x, pinned in `native/condukt_bashkit/rust-toolchain.toml`
   (also in `mise.toml`).
-- `mix compile` source-builds the NIF when `Mix.Project.get() == Condukt.MixProject`
-  (i.e. you're working in this repo) or when `CONDUKT_BASHKIT_BUILD=1`.
-  Consumers download a precompiled binary from the GitHub release.
+- `mix compile` source-builds the NIF in `MIX_ENV=dev`. Other Mix
+  environments download the precompiled NIF from the GitHub release.
 - Releases must publish precompiled artifacts for every target listed in
   `lib/condukt/bashkit/nif.ex`'s `:targets` option, plus a checksum file
   named `checksum-Elixir.Condukt.Bashkit.NIF.exs` in the package source.

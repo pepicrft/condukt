@@ -59,8 +59,8 @@ x86_64-pc-windows-msvc
 x86_64-unknown-linux-gnu
 ```
 
-Set `CONDUKT_BASHKIT_BUILD=1` (and have a Rust toolchain installed) to
-force a source build.
+Compile in `MIX_ENV=dev` (and have a Rust toolchain installed) to build the
+NIF from source. Other Mix environments download the precompiled artifact.
 
 ### Sandbox-specific tools
 
