@@ -221,7 +221,6 @@ defmodule Condukt.Session do
               }
               |> restore_messages(snapshot)
 
-            Process.flag(:trap_exit, true)
             {:ok, state}
 
           {:error, reason} ->
@@ -235,14 +234,6 @@ defmodule Condukt.Session do
 
   defp resolve_sandbox(nil, cwd), do: Sandbox.new(Sandbox.Local, cwd: cwd)
   defp resolve_sandbox(spec, _cwd), do: Sandbox.resolve(spec)
-
-  @impl true
-  def terminate(_reason, %__MODULE__{sandbox: %Sandbox{} = sandbox}) do
-    Sandbox.shutdown(sandbox)
-    :ok
-  end
-
-  def terminate(_reason, _state), do: :ok
 
   @impl true
   def handle_call({:run, prompt, opts}, from, state) do
