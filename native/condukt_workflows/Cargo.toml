@@ -1,0 +1,25 @@
+[package]
+name = "condukt_workflows"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Rustler NIF for Condukt workflows"
+publish = false
+
+[lib]
+name = "condukt_workflows"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = { version = "0.36", default-features = false, features = ["derive"] }
+
+[features]
+default = ["nif_version_2_16"]
+nif_version_2_15 = ["rustler/nif_version_2_15"]
+nif_version_2_16 = ["rustler/nif_version_2_16"]
+nif_version_2_17 = ["rustler/nif_version_2_17"]
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"

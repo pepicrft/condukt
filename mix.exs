@@ -43,6 +43,12 @@ defmodule Condukt.MixProject do
       # Command execution with child process shutdown propagation
       {:muontrap, "~> 1.7"},
 
+      # Workflows manifests, lockfiles, triggers, and optional HTTP serving
+      {:toml, "~> 0.7.0"},
+      {:crontab, "~> 1.1"},
+      {:plug, "~> 1.16", optional: true},
+      {:bandit, "~> 1.5", optional: true},
+
       # Telemetry
       {:telemetry, "~> 1.0"},
 
@@ -70,6 +76,7 @@ defmodule Condukt.MixProject do
         "guides/agents.md": [title: "Agents"],
         "guides/anonymous_workflows.md": [title: "Anonymous Workflows"],
         "guides/tools.md": [title: "Tools"],
+        "guides/workflows.md": [title: "Workflows"],
         "guides/sandbox.md": [title: "Sandbox"],
         "guides/streaming_and_events.md": [title: "Streaming and Events"],
         "guides/sessions_and_persistence.md": [title: "Sessions and Persistence"],
@@ -90,6 +97,7 @@ defmodule Condukt.MixProject do
           "guides/agents.md",
           "guides/anonymous_workflows.md",
           "guides/tools.md",
+          "guides/workflows.md",
           "guides/sandbox.md",
           "guides/streaming_and_events.md",
           "guides/sessions_and_persistence.md",
@@ -129,6 +137,21 @@ defmodule Condukt.MixProject do
           Condukt.Tools.Write,
           Condukt.Tools.Glob,
           Condukt.Tools.Grep
+        ],
+        Workflows: [
+          Condukt.Workflows,
+          Condukt.Workflows.Project,
+          Condukt.Workflows.Workflow,
+          Condukt.Workflows.Manifest,
+          Condukt.Workflows.Lockfile,
+          Condukt.Workflows.Store,
+          Condukt.Workflows.Resolver,
+          Condukt.Workflows.Fetcher,
+          Condukt.Workflows.Fetcher.Git,
+          Condukt.Workflows.Eval,
+          Condukt.Workflows.Error,
+          Condukt.Workflows.Runtime,
+          Condukt.Workflows.Runtime.Worker
         ],
         Sandbox: [
           Condukt.Sandbox,
@@ -173,7 +196,7 @@ defmodule Condukt.MixProject do
         "GitHub" => @source_url
       },
       files:
-        ~w(lib guides native/condukt_bashkit/Cargo.toml native/condukt_bashkit/Cargo.lock native/condukt_bashkit/src native/condukt_bashkit/.cargo native/condukt_bashkit/rust-toolchain.toml native/condukt_bashkit/README.md checksum-Elixir.Condukt.Bashkit.NIF.exs .formatter.exs mix.exs README.md CHANGELOG.md LICENSE MIT.md)
+        ~w(lib guides native/condukt_bashkit/Cargo.toml native/condukt_bashkit/Cargo.lock native/condukt_bashkit/src native/condukt_bashkit/.cargo native/condukt_bashkit/rust-toolchain.toml native/condukt_bashkit/README.md checksum-Elixir.Condukt.Bashkit.NIF.exs native/condukt_workflows/Cargo.toml native/condukt_workflows/Cargo.lock native/condukt_workflows/src native/condukt_workflows/rust-toolchain.toml native/condukt_workflows/README.md checksum-Elixir.Condukt.Workflows.NIF.exs .formatter.exs mix.exs README.md CHANGELOG.md LICENSE MIT.md)
     ]
   end
 

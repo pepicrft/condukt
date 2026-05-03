@@ -15,4 +15,9 @@ Code.require_file("support/llm_provider.ex", __DIR__)
 #
 #   mix test --only virtual_sandbox
 
-ExUnit.start(exclude: [virtual_sandbox: true])
+# Workflow NIF tests are similarly opt-in while the Rust Starlark/PubGrub
+# surface is developed:
+#
+#   mix test --include workflows_nif
+
+ExUnit.start(exclude: [virtual_sandbox: true, workflows_nif: true])
