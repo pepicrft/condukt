@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.13.0] - 2026-05-03
+
+### Features
+
+- Add a blog to the marketing site
+
+
 ## [0.12.0] - 2026-05-02
 
 ### Features
