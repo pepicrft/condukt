@@ -1,0 +1,103 @@
+---
+title: Where an agent's tools should run
+date: 2026-05-03
+description: "We just landed sandboxes in Condukt. Same agent, swap where the tool calls actually execute. Here is the thinking behind it."
+author: The Condukt team
+---
+
+A pattern keeps coming up when people build agents on top of a real application. The agent picks up a tool call. The tool runs inside the same process that serves the rest of the app. It uses the same memory, the same scheduler, the same blast radius.
+
+Most of the time that is fine. The moment your tools do anything heavier than reading a file, "most of the time" turns into "almost never." Compiling a project. Spawning a subprocess that fans out. Running a script the model just generated. Touching the host filesystem in ways you would rather not allow in production.
+
+We have been chewing on this in [Condukt](https://github.com/tuist/condukt), and the latest release ships an abstraction that opens the door to fixing it: the sandbox.
+
+## What landed
+
+A sandbox is the layer underneath every tool that touches the filesystem or runs subprocesses. Read, write, edit, bash, glob, grep. The tool itself does not know what is on the other side. It calls into a small contract that the sandbox implements. When the agent session starts, you pick which sandbox is on the other end.
+
+Two ship today.
+
+`Sandbox.Local` is the default. It reads and writes against the host filesystem and spawns real bash subprocesses through MuonTrap. It is what every Condukt agent did before this release, and it is still the right answer in many cases.
+
+`Sandbox.Virtual` is the new one. It is backed by [bashkit](https://github.com/everruns/bashkit), a virtual bash interpreter with an in-memory filesystem written in Rust. We ship it as a precompiled NIF so consumers do not need a Rust toolchain. The interpreter implements about 160 bash builtins natively, including `grep`, `curl`, and `awk`. None of them spawn host processes. The filesystem is a separate VFS that lives in memory. You can mount host directories into it explicitly when the agent does need to touch real files.
+
+We took the inspiration from [Flue Framework](https://flueframework.com/), which has been pushing this shape on the JavaScript side. It translates well to Elixir.
+
+## How it looks
+
+Picking a sandbox is a single option at session start.
+
+```elixir
+defmodule MyApp.CodingAgent do
+  use Condukt
+
+  @impl true
+  def tools, do: Condukt.Tools.coding_tools()
+end
+
+# Default: Local sandbox, host filesystem.
+{:ok, agent} = MyApp.CodingAgent.start_link(api_key: "...")
+
+# Virtual sandbox, no host access.
+{:ok, agent} =
+  MyApp.CodingAgent.start_link(
+    api_key: "...",
+    sandbox: Condukt.Sandbox.Virtual
+  )
+
+# Virtual sandbox with the project mounted read-only at /workspace.
+{:ok, agent} =
+  MyApp.CodingAgent.start_link(
+    api_key: "...",
+    sandbox:
+      {Condukt.Sandbox.Virtual,
+       mounts: [{File.cwd!(), "/workspace", :readonly}]}
+  )
+```
+
+The same agent definition. The same tools. What changes is where the calls actually land.
+
+The same is true for typed operations, which spin up a transient session per call.
+
+```elixir
+defmodule MyApp.LintAgent do
+  use Condukt
+
+  @impl true
+  def tools, do: [Condukt.Tools.Read]
+
+  operation :lint_file,
+    input: %{type: "object", properties: %{path: %{type: "string"}}, required: ["path"]},
+    output: %{type: "object", properties: %{ok: %{type: "boolean"}}, required: ["ok"]},
+    instructions: "Read the file and return whether it parses."
+end
+
+# Run the operation against an in-memory virtual sandbox.
+{:ok, %{ok: true}} =
+  MyApp.LintAgent.lint_file(%{path: "/workspace/lib/foo.ex"},
+    sandbox: Condukt.Sandbox.Virtual
+  )
+```
+
+A coding agent that drove on `Local` while you developed locally now runs on `Virtual` in production, with the same code paths exercised.
+
+## Why this matters
+
+The reason we built it is not only isolation, although that matters. It is resource scoping.
+
+A Phoenix server hosting an agent that compiles a model-generated script ends up doing two jobs at once. One of them is "be a fast, evented HTTP server with predictable tail latency." The other is "be a build farm." Those jobs do not share an SLO. Putting them in the same OS process puts the predictable one at the mercy of the unpredictable one.
+
+A virtual sandbox shifts the heavy work off that critical path. The interpreter runs inside the BEAM, but every operation it performs is bounded by the abstraction we control. No host fork. No `make` chewing through your CPU budget. No subprocess to forget about. And because the sandbox is a contract, not a fixed implementation, the next adapters we add can move the work somewhere else entirely.
+
+That is where we are headed next.
+
+## What is next
+
+The two sandboxes shipping today are the foundation. The contract is small enough that adapters for sandbox-provider services are a thin layer on top. A few we have in mind:
+
+- [Daytona](https://daytona.io) and [E2B](https://e2b.dev), running tool calls inside a remote sandboxed VM. Useful when you want stronger isolation than a virtual interpreter and you are happy to pay for it.
+- [Kubernetes](https://kubernetes.io), where the sandbox spawns or attaches to a pod in a cluster you already operate. This is the one we are most excited about. It lets teams reuse the cluster they already trust, with the resource limits, network policies, and observability they already wired up.
+
+All of these implement the same six primitives: read, write, edit, exec, glob, grep. Everything above that is the agent definition you already wrote.
+
+The new abstraction is in the latest release. If you are not using Condukt yet, the [getting started guide](https://hexdocs.pm/condukt) is a good place to start. If you have an opinion about what an adapter for Daytona, E2B, or Kubernetes should look like before we ship it, we would love to hear it.
