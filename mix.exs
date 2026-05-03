@@ -17,6 +17,7 @@ defmodule Condukt.MixProject do
       description: "A framework for building AI agents in Elixir",
       source_url: @source_url,
       elixirc_paths: elixirc_paths(Mix.env()),
+      test_ignore_filters: [~r/test\/support\//],
       aliases: aliases()
     ]
   end

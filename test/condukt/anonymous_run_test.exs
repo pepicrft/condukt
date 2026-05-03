@@ -1,108 +1,17 @@
 defmodule Condukt.AnonymousRunTest do
-  use ExUnit.Case, async: false
-  use Mimic
+  use ExUnit.Case, async: true
 
+  alias Condukt.Test.LLMProvider
   alias ReqLLM.Message
-  alias ReqLLM.Message.ContentPart
-  alias ReqLLM.Response
   alias ReqLLM.ToolCall
 
-  setup :set_mimic_from_context
-  setup :verify_on_exit!
-
-  describe "Condukt.tool/1" do
-    test "builds an inline tool struct with the required fields" do
-      tool =
-        Condukt.tool(
-          name: "echo",
-          description: "Echoes the input text.",
-          parameters: %{type: "object", properties: %{text: %{type: "string"}}, required: ["text"]},
-          call: fn %{"text" => text}, _ctx -> {:ok, text} end
-        )
-
-      assert %Condukt.Tool.Inline{name: "echo"} = tool
-      assert tool.description =~ "Echoes"
-      assert tool.parameters.required == ["text"]
-      assert is_function(tool.call, 2)
-    end
-
-    test "raises a clear error when a required field is missing" do
-      assert_raise KeyError, fn ->
-        Condukt.tool(name: "no-call")
-      end
-    end
-  end
-
-  describe "Condukt.Tool dispatch on inline tools" do
-    test "Tool.to_spec/1 returns the inline fields" do
-      tool =
-        Condukt.tool(
-          name: "n",
-          description: "d",
-          parameters: %{type: "object", properties: %{}},
-          call: fn _, _ -> {:ok, "ok"} end
-        )
-
-      assert Condukt.Tool.to_spec(tool) == %{
-               name: "n",
-               description: "d",
-               parameters: %{type: "object", properties: %{}}
-             }
-    end
-
-    test "Tool.execute/3 invokes the inline callback" do
-      tool =
-        Condukt.tool(
-          name: "double",
-          description: "doubles the value",
-          parameters: %{type: "object", properties: %{x: %{type: "integer"}}, required: ["x"]},
-          call: fn %{"x" => x}, _ctx -> {:ok, x * 2} end
-        )
-
-      assert {:ok, 6} = Condukt.Tool.execute(tool, %{"x" => 3}, %{agent: self(), sandbox: nil, cwd: "."})
-    end
-
-    test "Tool.execute/3 wraps inline callback exceptions" do
-      tool =
-        Condukt.tool(
-          name: "boom",
-          description: "raises",
-          parameters: %{type: "object", properties: %{}},
-          call: fn _, _ -> raise "kaboom" end
-        )
-
-      assert {:error, "kaboom"} = Condukt.Tool.execute(tool, %{}, %{agent: self(), sandbox: nil, cwd: "."})
-    end
-
-    test "Tool.name/1 returns the inline name" do
-      tool =
-        Condukt.tool(
-          name: "named",
-          description: "d",
-          parameters: %{type: "object", properties: %{}},
-          call: fn _, _ -> {:ok, ""} end
-        )
-
-      assert Condukt.Tool.name(tool) == "named"
-    end
-  end
-
-  describe "Condukt.run/2 free-form (no input, no output)" do
+  describe "run/2 free-form (no input, no output)" do
     test "runs an anonymous session and returns the assistant text" do
-      ReqLLM
-      |> expect(:generate_text, fn _model, _context, _opts ->
-        message = %Message{
-          role: :assistant,
-          content: [ContentPart.text("hello back")],
-          tool_calls: nil
-        }
-
-        {:ok, response(message, :stop)}
-      end)
+      {model, _model_id} = LLMProvider.model(LLMProvider.text_response("hello back"))
 
       assert {:ok, "hello back"} =
-               Condukt.run("hello",
-                 model: "anthropic:claude-sonnet-4-20250514",
+               Condukt.AnonymousRun.run("hello",
+                 model: model,
                  system_prompt: "be terse"
                )
     end
@@ -121,39 +30,29 @@ defmodule Condukt.AnonymousRunTest do
           end
         )
 
-      ReqLLM
-      |> expect(:generate_text, fn _model, _context, opts ->
-        # Verify the inline tool was registered with ReqLLM under its inline name.
-        assert Enum.any?(opts[:tools], &(&1.name == "ping"))
+      tool_call = ToolCall.new("call_1", "ping", JSON.encode!(%{"msg" => "hi"}))
 
-        tool_call = ToolCall.new("call_1", "ping", JSON.encode!(%{"msg" => "hi"}))
+      {model, model_id} =
+        LLMProvider.model([
+          LLMProvider.response(%Message{role: :assistant, content: [], tool_calls: [tool_call]}, :tool_calls),
+          LLMProvider.text_response("done")
+        ])
 
-        {:ok, response(%Message{role: :assistant, content: [], tool_calls: [tool_call]}, :tool_calls)}
-      end)
-      |> expect(:generate_text, fn _model, _context, _opts ->
-        {:ok, response(%Message{role: :assistant, content: [ContentPart.text("done")], tool_calls: nil}, :stop)}
-      end)
+      assert {:ok, "done"} = Condukt.AnonymousRun.run("ping me", model: model, tools: [tool])
 
-      assert {:ok, "done"} = Condukt.run("ping me", tools: [tool])
+      assert_receive {LLMProvider, :request, ^model_id, _context, opts}
+      assert Enum.any?(opts[:tools], &(&1.name == "ping"))
       assert_receive {:tool_called, "hi"}
     end
   end
 
-  describe "Condukt.run/2 with :input (no output)" do
+  describe "run/2 with :input (no output)" do
     test "returns text and validates input when :input_schema is given" do
-      ReqLLM
-      |> expect(:generate_text, fn _model, context, _opts ->
-        # The encoded args should appear as the user message.
-        user_message = Enum.find(context.messages, &(&1.role == :user))
-        assert user_message
-        text = Enum.map_join(user_message.content, "", & &1.text)
-        assert text =~ "tuist/condukt"
-
-        {:ok, response(%Message{role: :assistant, content: [ContentPart.text("ack")], tool_calls: nil}, :stop)}
-      end)
+      {model, model_id} = LLMProvider.model(LLMProvider.text_response("ack"))
 
       assert {:ok, "ack"} =
-               Condukt.run("Run the task with these args.",
+               Condukt.AnonymousRun.run("Run the task with these args.",
+                 model: model,
                  input: %{repo: "tuist/condukt", pr_number: 42},
                  input_schema: %{
                    type: "object",
@@ -161,11 +60,17 @@ defmodule Condukt.AnonymousRunTest do
                    required: ["repo", "pr_number"]
                  }
                )
+
+      assert_receive {LLMProvider, :request, ^model_id, context, _opts}
+      user_message = Enum.find(context.messages, &(&1.role == :user))
+      assert user_message
+      text = Enum.map_join(user_message.content, "", & &1.text)
+      assert text =~ "tuist/condukt"
     end
 
     test "rejects input that does not match :input_schema" do
       assert {:error, {:invalid_input, %JSV.ValidationError{}}} =
-               Condukt.run("task",
+               Condukt.AnonymousRun.run("task",
                  input: %{repo: "tuist/condukt"},
                  input_schema: %{
                    type: "object",
@@ -176,11 +81,11 @@ defmodule Condukt.AnonymousRunTest do
     end
 
     test "rejects non-map input" do
-      assert {:error, {:invalid_input, _}} = Condukt.run("task", input: "not a map")
+      assert {:error, {:invalid_input, _}} = Condukt.AnonymousRun.run("task", input: "not a map")
     end
   end
 
-  describe "Condukt.run/2 structured (with :output)" do
+  describe "run/2 structured (with :output)" do
     @output_schema %{
       type: "object",
       properties: %{
@@ -193,27 +98,27 @@ defmodule Condukt.AnonymousRunTest do
     test "captures submit_result, validates output, returns atomized map" do
       submitted = %{"verdict" => "approve", "summary" => "Looks good."}
 
-      ReqLLM
-      |> expect(:generate_text, fn _model, _context, opts ->
-        assert Enum.any?(opts[:tools], &(&1.name == "submit_result"))
+      tool_call = ToolCall.new("call_1", "submit_result", JSON.encode!(submitted))
 
-        tool_call = ToolCall.new("call_1", "submit_result", JSON.encode!(submitted))
-        {:ok, response(%Message{role: :assistant, content: [], tool_calls: [tool_call]}, :tool_calls)}
-      end)
-      |> expect(:generate_text, fn _model, _context, _opts ->
-        {:ok, response(%Message{role: :assistant, content: [ContentPart.text("done")], tool_calls: nil}, :stop)}
-      end)
+      {model, model_id} =
+        LLMProvider.model([
+          LLMProvider.response(%Message{role: :assistant, content: [], tool_calls: [tool_call]}, :tool_calls),
+          LLMProvider.text_response("done")
+        ])
 
       assert {:ok, %{verdict: "approve", summary: "Looks good."}} =
-               Condukt.run("Decide a verdict.",
+               Condukt.AnonymousRun.run("Decide a verdict.",
+                 model: model,
                  input: %{repo: "x", pr_number: 1},
                  output: @output_schema
                )
+
+      assert_receive {LLMProvider, :request, ^model_id, _context, opts}
+      assert Enum.any?(opts[:tools], &(&1.name == "submit_result"))
     end
 
     test "appends submit_result alongside user-provided tools" do
       submitted = %{"verdict" => "approve", "summary" => "ok"}
-      caller = self()
 
       passthrough =
         Condukt.tool(
@@ -223,49 +128,47 @@ defmodule Condukt.AnonymousRunTest do
           call: fn _, _ -> {:ok, "noop"} end
         )
 
-      ReqLLM
-      |> expect(:generate_text, fn _model, _context, opts ->
-        send(caller, {:tools_seen, Enum.map(opts[:tools], & &1.name)})
+      tool_call = ToolCall.new("call_1", "submit_result", JSON.encode!(submitted))
 
-        tool_call = ToolCall.new("call_1", "submit_result", JSON.encode!(submitted))
-        {:ok, response(%Message{role: :assistant, content: [], tool_calls: [tool_call]}, :tool_calls)}
-      end)
-      |> expect(:generate_text, fn _model, _context, _opts ->
-        {:ok, response(%Message{role: :assistant, content: [ContentPart.text("done")], tool_calls: nil}, :stop)}
-      end)
+      {model, model_id} =
+        LLMProvider.model([
+          LLMProvider.response(%Message{role: :assistant, content: [], tool_calls: [tool_call]}, :tool_calls),
+          LLMProvider.text_response("done")
+        ])
 
       assert {:ok, %{verdict: "approve"}} =
-               Condukt.run("Decide.", input: %{}, output: @output_schema, tools: [passthrough])
+               Condukt.AnonymousRun.run("Decide.",
+                 model: model,
+                 input: %{},
+                 output: @output_schema,
+                 tools: [passthrough]
+               )
 
-      assert_receive {:tools_seen, names}
+      assert_receive {LLMProvider, :request, ^model_id, _context, opts}
+      names = Enum.map(opts[:tools], & &1.name)
       assert "passthrough" in names
       assert "submit_result" in names
     end
 
     test "returns :no_result_submitted when the model never calls submit_result" do
-      ReqLLM
-      |> expect(:generate_text, fn _model, _context, _opts ->
-        {:ok, response(%Message{role: :assistant, content: [ContentPart.text("nope")], tool_calls: nil}, :stop)}
-      end)
+      {model, _model_id} = LLMProvider.model(LLMProvider.text_response("nope"))
 
       assert {:error, :no_result_submitted} =
-               Condukt.run("Decide.", input: %{}, output: @output_schema)
+               Condukt.AnonymousRun.run("Decide.", model: model, input: %{}, output: @output_schema)
     end
 
     test "returns :invalid_output when the submitted value fails validation" do
       submitted = %{"verdict" => "maybe", "summary" => "Looks good."}
+      tool_call = ToolCall.new("call_1", "submit_result", JSON.encode!(submitted))
 
-      ReqLLM
-      |> expect(:generate_text, fn _model, _context, _opts ->
-        tool_call = ToolCall.new("call_1", "submit_result", JSON.encode!(submitted))
-        {:ok, response(%Message{role: :assistant, content: [], tool_calls: [tool_call]}, :tool_calls)}
-      end)
-      |> expect(:generate_text, fn _model, _context, _opts ->
-        {:ok, response(%Message{role: :assistant, content: [ContentPart.text("done")], tool_calls: nil}, :stop)}
-      end)
+      {model, _model_id} =
+        LLMProvider.model([
+          LLMProvider.response(%Message{role: :assistant, content: [], tool_calls: [tool_call]}, :tool_calls),
+          LLMProvider.text_response("done")
+        ])
 
       assert {:error, {:invalid_output, %JSV.ValidationError{}}} =
-               Condukt.run("Decide.", input: %{}, output: @output_schema)
+               Condukt.AnonymousRun.run("Decide.", model: model, input: %{}, output: @output_schema)
     end
   end
 
@@ -288,7 +191,7 @@ defmodule Condukt.AnonymousRunTest do
 
       # Use the input-validation failure path so we don't need ReqLLM mocks.
       assert {:error, {:invalid_input, _}} =
-               Condukt.run("task",
+               Condukt.AnonymousRun.run("task",
                  input: %{},
                  input_schema: %{type: "object", required: ["x"], properties: %{x: %{type: "string"}}}
                )
@@ -299,40 +202,5 @@ defmodule Condukt.AnonymousRunTest do
 
       :telemetry.detach(handler_id)
     end
-  end
-
-  describe "Condukt.run/2 dispatch" do
-    test "delegates to Condukt.Session when first argument is an agent pid" do
-      defmodule DummyAgent do
-        use Condukt
-      end
-
-      ReqLLM
-      |> expect(:generate_text, fn _model, _context, _opts ->
-        {:ok, response(%Message{role: :assistant, content: [ContentPart.text("from session")], tool_calls: nil}, :stop)}
-      end)
-
-      {:ok, pid} = DummyAgent.start_link(load_project_instructions: false)
-
-      assert {:ok, "from session"} = Condukt.run(pid, "hi")
-
-      GenServer.stop(pid)
-    end
-  end
-
-  defp response(message, finish_reason) do
-    %Response{
-      id: "resp_#{System.unique_integer([:positive])}",
-      model: "test:model",
-      context: nil,
-      message: message,
-      object: nil,
-      stream?: false,
-      stream: nil,
-      usage: nil,
-      finish_reason: finish_reason,
-      provider_meta: %{},
-      error: nil
-    }
   end
 end
