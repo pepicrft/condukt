@@ -37,7 +37,7 @@ defmodule Condukt.Bashkit.NIF do
       base_url: "https://github.com/tuist/condukt/releases/download/#{Mix.Project.config()[:version]}",
       force_build:
         System.get_env("CONDUKT_BASHKIT_PRECOMPILED") not in ["1", "true"] and
-          (Mix.Project.get() == Condukt.MixProject or
+          (Mix.env() == :dev or
              System.get_env("CONDUKT_BASHKIT_BUILD") in ["1", "true"]),
       version: Mix.Project.config()[:version],
       targets: ~w(

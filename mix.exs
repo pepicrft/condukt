@@ -58,10 +58,11 @@ defmodule Condukt.MixProject do
       {:telemetry, "~> 1.0"},
 
       # Native interop with the bashkit virtual sandbox.
-      # Dev builds compile the NIF from source via `rustler`; non-dev builds
-      # download prebuilt artifacts via `rustler_precompiled`.
+      # Dev builds compile NIFs from source by default. Tests can opt into
+      # source builds with the *_BUILD flags, while non-dev consumers download
+      # prebuilt artifacts via `rustler_precompiled`.
       {:rustler_precompiled, "~> 0.8"},
-      {:rustler, ">= 0.0.0", only: :dev, runtime: false},
+      {:rustler, ">= 0.0.0", only: [:dev, :test], runtime: false},
 
       # Development & Testing
       {:quokka, "~> 2.12", only: [:dev, :test], runtime: false},
