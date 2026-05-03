@@ -6,6 +6,18 @@
 - Prefer `MuonTrap` because it propagates process shutdowns to child processes.
 - Reference: https://hexdocs.pm/muontrap/readme.html
 
+## Sandboxes
+
+- Tools that read/write files or run subprocesses must route through the
+  `Condukt.Sandbox.*` facade, not `File.*` / `MuonTrap.cmd/3` directly. The
+  sandbox is in `context.sandbox` when the tool's `call/2` is invoked.
+- `Condukt.Sandbox.Local` is the default and operates against the host
+  filesystem. `Condukt.Sandbox.Virtual` (separate package) routes through a
+  Rust NIF wrapping bashkit for in-memory virtual filesystem isolation.
+- `Condukt.Tools.Command` is the explicit exception: it runs a host-allowlisted
+  executable directly, by design, and is not sandbox-routed.
+- See `guides/sandbox.md` for behaviour shape and how to add custom sandboxes.
+
 ## Workflow
 
 - After every change, create a git commit and push it to the current branch.

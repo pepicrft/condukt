@@ -81,6 +81,15 @@ defmodule Condukt do
   @callback thinking_level() :: :off | :minimal | :low | :medium | :high
 
   @doc """
+  Returns the default sandbox spec for this agent.
+
+  Accepts a module, `{module, opts}`, an already-built `Condukt.Sandbox` struct,
+  or `nil` (the session will default to `Condukt.Sandbox.Local`). Can be
+  overridden at `start_link/1` via the `:sandbox` option.
+  """
+  @callback sandbox() :: nil | module() | {module(), keyword()} | Condukt.Sandbox.t()
+
+  @doc """
   Initializes agent state from options.
   """
   @callback init(keyword()) :: {:ok, term()} | {:stop, term()}
@@ -90,7 +99,15 @@ defmodule Condukt do
   """
   @callback handle_event(term(), term()) :: {:noreply, term()} | {:stop, term(), term()}
 
-  @optional_callbacks [system_prompt: 0, tools: 0, model: 0, thinking_level: 0, init: 1, handle_event: 2]
+  @optional_callbacks [
+    system_prompt: 0,
+    tools: 0,
+    model: 0,
+    thinking_level: 0,
+    sandbox: 0,
+    init: 1,
+    handle_event: 2
+  ]
 
   # ============================================================================
   # __using__ Macro
@@ -119,12 +136,21 @@ defmodule Condukt do
       def thinking_level, do: :medium
 
       @impl Condukt
+      def sandbox, do: nil
+
+      @impl Condukt
       def init(opts), do: {:ok, opts}
 
       @impl Condukt
       def handle_event(_event, state), do: {:noreply, state}
 
-      defoverridable system_prompt: 0, tools: 0, model: 0, thinking_level: 0, init: 1, handle_event: 2
+      defoverridable system_prompt: 0,
+                     tools: 0,
+                     model: 0,
+                     thinking_level: 0,
+                     sandbox: 0,
+                     init: 1,
+                     handle_event: 2
 
       @doc """
       Starts the agent process.
@@ -137,7 +163,12 @@ defmodule Condukt do
       - `:system_prompt` - System prompt for the agent
       - `:load_project_instructions` - Auto-load `AGENTS.md`, `CLAUDE.md`, and local skills from the project root (default: `true`)
       - `:thinking_level` - Override the thinking level
-      - `:cwd` - Working directory for tools (default: File.cwd!())
+      - `:cwd` - Project working directory used for AGENTS.md/CLAUDE.md
+        discovery and disk session storage (default: File.cwd!()). Note: tools
+        no longer key off this value directly — they use the active sandbox.
+      - `:sandbox` - Sandbox spec for tool I/O (module, `{module, opts}`, or
+        `Condukt.Sandbox` struct). Defaults to
+        `{Condukt.Sandbox.Local, cwd: <:cwd>}`.
       - `:session_store` - Session store module or `{module, opts}` tuple
       - `:compactor` - Compactor module or `{module, opts}` tuple
         (see `Condukt.Compactor`)

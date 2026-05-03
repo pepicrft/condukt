@@ -5,6 +5,8 @@ defmodule Condukt.Tools.Write do
   Creates the file if it doesn't exist, overwrites if it does.
   Automatically creates parent directories as needed.
 
+  All filesystem access goes through the active `Condukt.Sandbox`.
+
   ## Parameters
 
   - `path` - Path to the file to write
@@ -12,6 +14,8 @@ defmodule Condukt.Tools.Write do
   """
 
   use Condukt.Tool
+
+  alias Condukt.Sandbox
 
   @impl true
   def name, do: "Write"
@@ -45,43 +49,25 @@ defmodule Condukt.Tools.Write do
 
   @impl true
   def call(%{"path" => path, "content" => content}, context) do
-    cwd = context[:cwd] || File.cwd!()
-    absolute_path = expand_path(path, cwd)
+    sandbox = fetch_sandbox!(context)
 
-    # Ensure parent directory exists
-    dir = Path.dirname(absolute_path)
-
-    case File.mkdir_p(dir) do
-      :ok ->
-        write_file(absolute_path, content, path)
-
-      {:error, reason} ->
-        {:error, "Cannot create directory #{dir}: #{inspect(reason)}"}
-    end
-  end
-
-  defp expand_path(path, cwd) do
-    if Path.type(path) == :absolute do
-      path
-    else
-      Path.join(cwd, path)
-    end
-  end
-
-  defp write_file(absolute_path, content, display_path) do
-    existed? = File.exists?(absolute_path)
-
-    case File.write(absolute_path, content) do
+    case Sandbox.write(sandbox, path, content) do
       :ok ->
         bytes = byte_size(content)
         lines = content |> String.split("\n") |> length()
-
-        action = if existed?, do: "Updated", else: "Created"
-
-        {:ok, "#{action} #{display_path} (#{lines} lines, #{bytes} bytes)"}
+        {:ok, "Wrote #{path} (#{lines} lines, #{bytes} bytes)"}
 
       {:error, reason} ->
-        {:error, "Cannot write to #{display_path}: #{inspect(reason)}"}
+        {:error, "Cannot write to #{path}: #{inspect(reason)}"}
     end
+  end
+
+  defp fetch_sandbox!(%{sandbox: %Sandbox{} = sandbox}), do: sandbox
+
+  defp fetch_sandbox!(_) do
+    raise ArgumentError,
+          "Condukt.Tools.Write requires context.sandbox. " <>
+            "When invoking the tool outside a Session, build one with " <>
+            "Condukt.Sandbox.new(Condukt.Sandbox.Local, cwd: \"...\")."
   end
 end

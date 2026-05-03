@@ -62,6 +62,7 @@ defmodule Condukt.MixProject do
         "guides/getting_started.md": [title: "Getting Started"],
         "guides/agents.md": [title: "Agents"],
         "guides/tools.md": [title: "Tools"],
+        "guides/sandbox.md": [title: "Sandbox"],
         "guides/streaming_and_events.md": [title: "Streaming and Events"],
         "guides/sessions_and_persistence.md": [title: "Sessions and Persistence"],
         "guides/compaction.md": [title: "Compaction"],
@@ -79,6 +80,7 @@ defmodule Condukt.MixProject do
         Guides: [
           "guides/agents.md",
           "guides/tools.md",
+          "guides/sandbox.md",
           "guides/streaming_and_events.md",
           "guides/sessions_and_persistence.md",
           "guides/compaction.md",
@@ -112,7 +114,13 @@ defmodule Condukt.MixProject do
           Condukt.Tools.Bash,
           Condukt.Tools.Command,
           Condukt.Tools.Edit,
-          Condukt.Tools.Write
+          Condukt.Tools.Write,
+          Condukt.Tools.Glob,
+          Condukt.Tools.Grep
+        ],
+        Sandbox: [
+          Condukt.Sandbox,
+          Condukt.Sandbox.Local
         ],
         "Session Stores": [
           Condukt.SessionStore,

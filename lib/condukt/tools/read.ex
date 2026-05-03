@@ -5,6 +5,10 @@ defmodule Condukt.Tools.Read do
   Supports text files and images (jpg, png, gif, webp). Images are returned
   as base64-encoded attachments. Text files are truncated to reasonable limits.
 
+  All filesystem access goes through the active `Condukt.Sandbox`, so the
+  same agent definition behaves identically against the host filesystem
+  (`Sandbox.Local`) or an in-memory virtual filesystem (`Sandbox.Virtual`).
+
   ## Parameters
 
   - `path` - Path to the file (relative or absolute)
@@ -18,6 +22,8 @@ defmodule Condukt.Tools.Read do
   """
 
   use Condukt.Tool
+
+  alias Condukt.Sandbox
 
   @max_lines 2000
   @max_bytes 50 * 1024
@@ -60,58 +66,46 @@ defmodule Condukt.Tools.Read do
 
   @impl true
   def call(%{"path" => path} = args, context) do
-    cwd = context[:cwd] || File.cwd!()
-    absolute_path = expand_path(path, cwd)
+    sandbox = fetch_sandbox!(context)
     offset = args["offset"]
     limit = args["limit"]
 
-    case File.stat(absolute_path) do
-      {:ok, %File.Stat{type: :regular}} ->
-        if image?(absolute_path) do
-          read_image(absolute_path)
+    case Sandbox.read(sandbox, path) do
+      {:ok, content} ->
+        if image?(path) do
+          {:ok,
+           %{
+             type: :image,
+             media_type: media_type_for(path),
+             data: Base.encode64(content)
+           }}
         else
-          read_text(absolute_path, offset, limit)
+          {:ok, format_text(content, offset, limit)}
         end
-
-      {:ok, %File.Stat{type: :directory}} ->
-        {:error, "#{path} is a directory, not a file"}
 
       {:error, :enoent} ->
         {:error, "File not found: #{path}"}
+
+      {:error, :eisdir} ->
+        {:error, "#{path} is a directory, not a file"}
 
       {:error, reason} ->
         {:error, "Cannot read #{path}: #{inspect(reason)}"}
     end
   end
 
-  defp expand_path(path, cwd) do
-    if Path.type(path) == :absolute do
-      path
-    else
-      Path.join(cwd, path)
-    end
+  defp fetch_sandbox!(%{sandbox: %Sandbox{} = sandbox}), do: sandbox
+
+  defp fetch_sandbox!(_) do
+    raise ArgumentError,
+          "Condukt.Tools.Read requires context.sandbox. " <>
+            "When invoking the tool outside a Session, build one with " <>
+            "Condukt.Sandbox.new(Condukt.Sandbox.Local, cwd: \"...\")."
   end
 
   defp image?(path) do
     ext = path |> Path.extname() |> String.downcase()
     ext in @image_extensions
-  end
-
-  defp read_image(path) do
-    case File.read(path) do
-      {:ok, data} ->
-        media_type = media_type_for(path)
-
-        {:ok,
-         %{
-           type: :image,
-           media_type: media_type,
-           data: Base.encode64(data)
-         }}
-
-      {:error, reason} ->
-        {:error, "Cannot read image: #{inspect(reason)}"}
-    end
   end
 
   defp media_type_for(path) do
@@ -128,22 +122,13 @@ defmodule Condukt.Tools.Read do
     end
   end
 
-  defp read_text(path, offset, limit) do
-    case File.read(path) do
-      {:ok, content} ->
-        lines = String.split(content, "\n")
-        total_lines = length(lines)
+  defp format_text(content, offset, limit) do
+    lines = String.split(content, "\n")
+    total_lines = length(lines)
 
-        {selected_lines, from_line, to_line} = select_lines(lines, offset, limit)
-
-        {output, truncated?} = truncate_output(selected_lines)
-
-        result = build_result(output, total_lines, from_line, to_line, truncated?)
-        {:ok, result}
-
-      {:error, reason} ->
-        {:error, "Cannot read file: #{inspect(reason)}"}
-    end
+    {selected_lines, from_line, to_line} = select_lines(lines, offset, limit)
+    {output, truncated?} = truncate_output(selected_lines)
+    build_result(output, total_lines, from_line, to_line, truncated?)
   end
 
   defp select_lines(lines, nil, nil) do
@@ -170,7 +155,6 @@ defmodule Condukt.Tools.Read do
   end
 
   defp truncate_output(lines) do
-    # First, limit by line count
     {lines, line_truncated?} =
       if length(lines) > @max_lines do
         {Enum.take(lines, @max_lines), true}
@@ -178,9 +162,7 @@ defmodule Condukt.Tools.Read do
         {lines, false}
       end
 
-    # Then, limit by byte size
     {content, byte_truncated?} = truncate_by_bytes(lines)
-
     {content, line_truncated? or byte_truncated?}
   end
 

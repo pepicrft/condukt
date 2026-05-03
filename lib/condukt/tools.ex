@@ -4,8 +4,8 @@ defmodule Condukt.Tools do
 
   ## Default Tool Sets
 
-  - `coding_tools/0` - Read, Bash, Edit, Write (default for coding agents)
-  - `read_only_tools/0` - Read, Bash (read-only access)
+  - `coding_tools/0` - Read, Bash, Edit, Write, Glob, Grep (default for coding agents)
+  - `read_only_tools/0` - Read, Bash, Glob, Grep (read-only access)
 
   ## Individual Tools
 
@@ -14,6 +14,13 @@ defmodule Condukt.Tools do
   - `Condukt.Tools.Command` - Execute one trusted command without shell parsing
   - `Condukt.Tools.Edit` - Surgical file edits
   - `Condukt.Tools.Write` - Write files
+  - `Condukt.Tools.Glob` - Find files by glob pattern
+  - `Condukt.Tools.Grep` - Search file contents by regex
+
+  Every built-in tool routes its filesystem and process work through the
+  active `Condukt.Sandbox`, so the same tool list works against the host
+  filesystem (`Sandbox.Local`) or an isolated virtual filesystem
+  (`Sandbox.Virtual`).
 
   ## Usage
 
@@ -36,19 +43,20 @@ defmodule Condukt.Tools do
       end
   """
 
-  alias Condukt.Tools.{Bash, Edit, Read, Write}
+  alias Condukt.Tools.{Bash, Edit, Glob, Grep, Read, Write}
 
   @doc """
-  Returns the default coding tools: Read, Bash, Edit, Write.
+  Returns the default coding tools: Read, Bash, Edit, Write, Glob, Grep.
 
-  These tools provide full filesystem access for coding agents.
+  These tools provide full filesystem access for coding agents through the
+  active sandbox.
   """
   def coding_tools do
-    [Read, Bash, Edit, Write]
+    [Read, Bash, Edit, Write, Glob, Grep]
   end
 
   @doc """
-  Returns read-only tools: Read, Bash.
+  Returns read-only tools: Read, Bash, Glob, Grep.
 
   Use these when you want the agent to explore but not modify files.
   Note that Bash can still execute arbitrary commands. Prefer a parameterized
@@ -56,13 +64,13 @@ defmodule Condukt.Tools do
   `git`, `gh`, or `mix`.
   """
   def read_only_tools do
-    [Read, Bash]
+    [Read, Bash, Glob, Grep]
   end
 
   @doc """
   Returns all available built-in tools.
   """
   def all do
-    [Read, Bash, Edit, Write]
+    [Read, Bash, Edit, Write, Glob, Grep]
   end
 end

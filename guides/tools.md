@@ -7,8 +7,8 @@ own.
 ## Built-in tool sets
 
 ```elixir
-def tools, do: Condukt.Tools.coding_tools()    # Read, Bash, Edit, Write
-def tools, do: Condukt.Tools.read_only_tools() # Read, Bash
+def tools, do: Condukt.Tools.coding_tools()    # Read, Bash, Edit, Write, Glob, Grep
+def tools, do: Condukt.Tools.read_only_tools() # Read, Bash, Glob, Grep
 ```
 
 You can mix the helpers with extras:
@@ -28,12 +28,32 @@ end
 | `Condukt.Tools.Command` | Run one trusted executable without shell parsing. |
 | `Condukt.Tools.Edit` | Surgical file edits using find and replace. |
 | `Condukt.Tools.Write` | Create or overwrite files. |
+| `Condukt.Tools.Glob` | Find files by glob pattern. |
+| `Condukt.Tools.Grep` | Search file contents by regex. |
+
+## Sandboxes
+
+Built-in tools that touch the filesystem or spawn processes route every call
+through the active `Condukt.Sandbox`. The default sandbox,
+`Condukt.Sandbox.Local`, talks to the host filesystem. The
+`Condukt.Sandbox.Virtual` sandbox runs against an in-memory virtual
+filesystem and a Rust-implemented bash interpreter, with no host process
+spawning by default. The same agent definition works with either.
+
+See the [Sandbox guide](sandbox.md) for details, including how to pick a
+sandbox at `start_link/1` time and how custom sandboxes plug in.
 
 ## Scoped command grants
 
 `Condukt.Tools.Command` is a safer alternative to `Bash` when you want to
 expose a single executable without giving the model a full shell. It also
 lets you attach trusted environment variables that the model never sees.
+
+`Command` does not currently route through the sandbox: it runs the
+configured executable directly on the host with the trusted env you provide.
+That is intentional. The point of `Command` is the explicit allowlist on the
+host side, and it is meant for cases where the host operator wants to grant a
+specific tool independently of the agent's general filesystem isolation.
 
 ```elixir
 defmodule MyApp.ReviewAgent do
@@ -96,8 +116,52 @@ end
 The second argument to `call/2` is a context map that includes:
 
 * `:agent` is the agent PID
-* `:cwd` is the working directory
+* `:sandbox` is the active `Condukt.Sandbox` struct
+* `:cwd` is the project working directory (use `:sandbox` for any file or
+  command work; `:cwd` is for resolving project-relative paths that aren't
+  themselves I/O operations)
 * `:opts` is the keyword list from `{Module, opts}`
+
+## Sandbox-aware tools
+
+If your tool reads or writes files, or runs subprocesses, route through the
+`Condukt.Sandbox.*` facade rather than calling `File.*`, `System.cmd/3`, or
+`MuonTrap.cmd/3` directly. Direct calls bypass the sandbox and break the
+ability to swap one in.
+
+```elixir
+defmodule MyApp.Tools.LineCount do
+  use Condukt.Tool
+
+  alias Condukt.Sandbox
+
+  @impl true
+  def name, do: "line_count"
+
+  @impl true
+  def description, do: "Counts lines in a file"
+
+  @impl true
+  def parameters do
+    %{
+      type: "object",
+      properties: %{path: %{type: "string"}},
+      required: ["path"]
+    }
+  end
+
+  @impl true
+  def call(%{"path" => path}, %{sandbox: sandbox}) do
+    case Sandbox.read(sandbox, path) do
+      {:ok, content} -> {:ok, content |> String.split("\n") |> length()}
+      {:error, reason} -> {:error, "cannot read #{path}: #{inspect(reason)}"}
+    end
+  end
+end
+```
+
+Tools that touch unrelated systems (HTTP APIs, databases, in-process state)
+have nothing to sandbox and can do their I/O directly.
 
 ## Parameterized tools
 
