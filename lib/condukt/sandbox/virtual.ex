@@ -35,11 +35,16 @@ defmodule Condukt.Sandbox.Virtual do
   # Sandbox callbacks
   # ============================================================================
 
+  # Bashkit's interpreter starts with this cwd. Used to reset between
+  # exec/3 calls so the sandbox stays stateless. Override with the
+  # `:cwd` init option if you mounted a workspace elsewhere.
+  @default_base_cwd "/home/user"
+
   @impl Sandbox
   def init(opts) do
     with {:ok, mounts} <- normalize_mounts(Keyword.get(opts, :mounts, [])),
          {:ok, session} <- start_nif_session(mounts) do
-      base_cwd = capture_base_cwd(session, opts[:cwd])
+      base_cwd = Keyword.get(opts, :cwd, @default_base_cwd)
       {:ok, %State{session: session, base_cwd: base_cwd}}
     end
   end
@@ -67,10 +72,7 @@ defmodule Condukt.Sandbox.Virtual do
 
   @impl Sandbox
   def write_file(%State{session: session}, path, content) do
-    case NIF.write_file(session, path, content) do
-      {:ok, :ok} -> :ok
-      {:error, reason} -> {:error, reason}
-    end
+    with {:ok, :ok} <- NIF.write_file(session, path, content), do: :ok
   end
 
   @impl Sandbox
@@ -114,10 +116,7 @@ defmodule Condukt.Sandbox.Virtual do
 
   @impl Sandbox
   def mount(%State{session: session}, host_path, vfs_path) do
-    case NIF.mount(session, host_path, vfs_path, :readwrite) do
-      {:ok, :ok} -> :ok
-      {:error, reason} -> {:error, reason}
-    end
+    with {:ok, :ok} <- NIF.mount(session, host_path, vfs_path, :readwrite), do: :ok
   end
 
   # ============================================================================
@@ -148,14 +147,5 @@ defmodule Condukt.Sandbox.Virtual do
 
   defp shell_quote(s) do
     "'" <> String.replace(s, "'", "'\\''") <> "'"
-  end
-
-  defp capture_base_cwd(_session, cwd) when is_binary(cwd), do: cwd
-
-  defp capture_base_cwd(session, _) do
-    case NIF.exec(session, "pwd", nil) do
-      {:ok, %{output: out}} -> String.trim_trailing(out)
-      _ -> "/"
-    end
   end
 end

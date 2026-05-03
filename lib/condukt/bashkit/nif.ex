@@ -12,18 +12,23 @@ defmodule Condukt.Bashkit.NIF do
   # loaded NIF triggers a teardown segfault under investigation).
 
   if System.get_env("CONDUKT_BASHKIT_DISABLE") in ["1", "true"] do
-    @disabled_reason "Condukt.Bashkit.NIF was compiled with CONDUKT_BASHKIT_DISABLE=1"
+    # Disabled stubs return an :error tuple instead of raising so they
+    # don't get inferred as `none()` by the Elixir 1.19 typer (which
+    # would mark every `case`/`with` clause that matched success as
+    # unreachable, breaking --warnings-as-errors). The default test
+    # suite excludes :virtual_sandbox so these are never invoked anyway.
+    @disabled_error {:error, :nif_disabled}
 
-    def new_session(_mounts), do: raise(@disabled_reason)
+    def new_session(_mounts), do: @disabled_error
     def shutdown(_session), do: :ok
-    def exec(_session, _command, _timeout_ms), do: raise(@disabled_reason)
-    def read_file(_session, _path), do: raise(@disabled_reason)
-    def write_file(_session, _path, _content), do: raise(@disabled_reason)
-    def edit_file(_session, _path, _old_text, _new_text), do: raise(@disabled_reason)
-    def glob(_session, _pattern, _cwd), do: raise(@disabled_reason)
-    def grep(_session, _pattern, _path, _case_sensitive, _file_glob), do: raise(@disabled_reason)
-    def mount(_session, _host_path, _vfs_path, _mode), do: raise(@disabled_reason)
-    def unmount(_session, _vfs_path), do: raise(@disabled_reason)
+    def exec(_session, _command, _timeout_ms), do: @disabled_error
+    def read_file(_session, _path), do: @disabled_error
+    def write_file(_session, _path, _content), do: @disabled_error
+    def edit_file(_session, _path, _old_text, _new_text), do: @disabled_error
+    def glob(_session, _pattern, _cwd), do: @disabled_error
+    def grep(_session, _pattern, _path, _case_sensitive, _file_glob), do: @disabled_error
+    def mount(_session, _host_path, _vfs_path, _mode), do: @disabled_error
+    def unmount(_session, _vfs_path), do: @disabled_error
   else
     use RustlerPrecompiled,
       otp_app: :condukt,
