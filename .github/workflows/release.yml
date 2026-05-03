@@ -99,13 +99,13 @@ jobs:
           retention-days: 1
 
   # ============================================================================
-  # build_nif
-  # Builds the bashkit NIF for every supported target/NIF-version pair.
+  # build_nifs
+  # Builds each NIF for every supported target/NIF-version pair.
   # Each artifact is uploaded so the publish job can attach it to the
-  # GitHub release and feed it into the rustler_precompiled checksum file.
+  # GitHub release and feed it into the rustler_precompiled checksum files.
   # ============================================================================
-  build_nif:
-    name: Build NIF (${{ matrix.job.target }} | nif ${{ matrix.nif }})
+  build_nifs:
+    name: Build NIF (${{ matrix.crate }} | ${{ matrix.job.target }} | nif ${{ matrix.nif }})
     needs: plan
     if: needs.plan.outputs.should_release == 'true'
     runs-on: ${{ matrix.job.os }}
@@ -114,6 +114,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        crate: [condukt_bashkit, condukt_workflows]
         nif: ["2.16", "2.17"]
         job:
           - { target: aarch64-apple-darwin,        os: macos-14 }
@@ -140,7 +141,7 @@ jobs:
         # were trying to install cross at all.
         uses: philss/rustler-precompiled-action@v1.1.5
         with:
-          project-name: condukt_bashkit
+          project-name: ${{ matrix.crate }}
           project-version: ${{ needs.plan.outputs.next_version }}
           target: ${{ matrix.job.target }}
           nif-version: ${{ matrix.nif }}
@@ -150,7 +151,7 @@ jobs:
           # passed as strings, and any non-empty string is truthy in GH
           # expressions, so "false" would still trigger the install.
           use-cross: ${{ matrix.job.use-cross == true && 'true' || '' }}
-          project-dir: native/condukt_bashkit
+          project-dir: native/${{ matrix.crate }}
 
       - name: Upload NIF artifact
         uses: actions/upload-artifact@v4
@@ -168,7 +169,7 @@ jobs:
   # ============================================================================
   publish:
     name: Publish to Hex.pm and create GitHub release
-    needs: [plan, build_nif]
+    needs: [plan, build_nifs]
     if: needs.plan.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -206,18 +207,26 @@ jobs:
           name: release-context
           path: .
 
-      - name: Download NIF artifacts
+      - name: Download bashkit NIF artifacts
         uses: actions/download-artifact@v4
         with:
-          path: nif-artifacts
+          path: nif-artifacts/condukt_bashkit
           pattern: "*condukt_bashkit-*.tar.gz"
           merge-multiple: true
 
-      - name: Generate checksum file
+      - name: Download workflows NIF artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: nif-artifacts/condukt_workflows
+          pattern: "*condukt_workflows-*.tar.gz"
+          merge-multiple: true
+
+      - name: Generate checksum files
         run: |
           set -euo pipefail
-          ls -la nif-artifacts/
-          elixir scripts/generate_nif_checksum.exs nif-artifacts
+          find nif-artifacts -maxdepth 2 -type f -name '*.tar.gz' -print | sort
+          elixir scripts/generate_nif_checksum.exs nif-artifacts/condukt_bashkit Elixir.Condukt.Bashkit.NIF
+          elixir scripts/generate_nif_checksum.exs nif-artifacts/condukt_workflows Elixir.Condukt.Workflows.NIF
 
       - name: Update version and changelog
         run: |
@@ -241,7 +250,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add mix.exs CHANGELOG.md "checksum-Elixir.Condukt.Bashkit.NIF.exs"
+          git add mix.exs CHANGELOG.md \
+            "checksum-Elixir.Condukt.Bashkit.NIF.exs" \
+            "checksum-Elixir.Condukt.Workflows.NIF.exs"
           git commit -m "[Release] Condukt ${{ needs.plan.outputs.next_version }}"
           git tag -a "${{ needs.plan.outputs.next_version }}" -m "${{ needs.plan.outputs.next_version }}"
 
@@ -256,9 +267,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          mapfile -t nif_files < <(find nif-artifacts -type f -name '*.tar.gz' | sort)
+
           gh release create "${{ needs.plan.outputs.next_version }}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "${{ steps.publish.outputs.release_commit }}" \
             --title "${{ needs.plan.outputs.next_version }}" \
             --notes-file RELEASE_NOTES.md \
-            nif-artifacts/*.tar.gz
+            "${nif_files[@]}"
