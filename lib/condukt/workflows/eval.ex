@@ -53,7 +53,7 @@ defmodule Condukt.Workflows.Eval do
     end
   end
 
-  defp resolve_load(load, from_path, _opts) do
+  defp resolve_load(load, from_path, opts) do
     cond do
       Map.has_key?(@builtin_loads, load) ->
         {:ok, :builtin, Map.fetch!(@builtin_loads, load)}
@@ -62,7 +62,7 @@ defmodule Condukt.Workflows.Eval do
         resolve_relative_load(load, from_path)
 
       true ->
-        {:error, {:invalid_url, "external workflow load is not resolved yet: #{load}"}}
+        resolve_external_load(load, from_path, opts)
     end
   end
 
@@ -76,6 +76,16 @@ defmodule Condukt.Workflows.Eval do
     case File.read(path) do
       {:ok, source} -> {:ok, path, source}
       {:error, reason} -> {:error, {:missing_load, load, reason}}
+    end
+  end
+
+  defp resolve_external_load(load, from_path, opts) do
+    case Keyword.get(opts, :external_loader) do
+      loader when is_function(loader, 2) ->
+        loader.(load, from_path)
+
+      _ ->
+        {:error, {:invalid_url, "external workflow load is not resolved yet: #{load}"}}
     end
   end
 end

@@ -140,6 +140,7 @@ defmodule Condukt.MixProject do
         ],
         Workflows: [
           Condukt.Workflows,
+          Condukt.Workflows.AgentShim,
           Condukt.Workflows.Project,
           Condukt.Workflows.Workflow,
           Condukt.Workflows.Manifest,
@@ -150,8 +151,12 @@ defmodule Condukt.MixProject do
           Condukt.Workflows.Fetcher.Git,
           Condukt.Workflows.Eval,
           Condukt.Workflows.Error,
+          Condukt.Workflows.ToolRegistry,
           Condukt.Workflows.Runtime,
-          Condukt.Workflows.Runtime.Worker
+          Condukt.Workflows.Runtime.Worker,
+          Condukt.Workflows.Runtime.Cron,
+          Condukt.Workflows.Runtime.WebhookListener,
+          Condukt.Workflows.Runtime.WebhookRouter
         ],
         Sandbox: [
           Condukt.Sandbox,
