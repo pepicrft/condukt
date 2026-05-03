@@ -15,8 +15,10 @@ Code.require_file("support/llm_provider.ex", __DIR__)
 #
 #   mix test --only virtual_sandbox
 
-# Workflow NIF tests are similarly opt-in while the Rust Starlark/PubGrub
-# surface is developed:
+# Workflow NIF tests are similarly opt-in. The broad CI suite compiles
+# this module as stubs and leaves native coverage to dedicated checks,
+# because loading the workflows NIF on Linux runners can currently segfault
+# BEAM during process teardown after tests have already passed:
 #
 #   mix test --include workflows_nif
 
