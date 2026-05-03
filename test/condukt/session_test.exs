@@ -3,6 +3,8 @@ defmodule Condukt.SessionTest do
 
   alias Condukt.Message
   alias Condukt.SessionStore.Snapshot
+  alias Condukt.Test.LLMProvider
+  alias ReqLLM.ToolCall
 
   defmodule ConfigAgent do
     use Condukt
@@ -56,6 +58,128 @@ defmodule Condukt.SessionTest do
   test "redactor defaults to nil when no option is given" do
     {:ok, pid} = ConfigAgent.start_link(load_project_instructions: false)
     assert :sys.get_state(pid).redactor == nil
+    GenServer.stop(pid)
+  end
+
+  test "stores resolved secrets on the session state" do
+    {:ok, pid} =
+      ConfigAgent.start_link(
+        secrets: [GH_TOKEN: {:static, "secret-token"}],
+        load_project_instructions: false
+      )
+
+    assert :sys.get_state(pid).secrets == %Condukt.Secrets{env: [{"GH_TOKEN", "secret-token"}]}
+
+    GenServer.stop(pid)
+  end
+
+  test "emits telemetry when session secrets resolve" do
+    handler_id = "secrets-resolve-test-#{inspect(make_ref())}"
+    test_pid = self()
+
+    :telemetry.attach(
+      handler_id,
+      [:condukt, :secrets, :resolve],
+      fn event, measurements, metadata, _ ->
+        send(test_pid, {:secret_telemetry, event, measurements, metadata})
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+
+    {:ok, pid} =
+      ConfigAgent.start_link(
+        secrets: [GH_TOKEN: {:static, "secret-token"}, DATABASE_URL: {:static, "postgres://secret"}],
+        load_project_instructions: false
+      )
+
+    assert_receive {:secret_telemetry, [:condukt, :secrets, :resolve], %{count: 2}, metadata}
+    assert metadata.agent == ConfigAgent
+    assert Enum.sort(metadata.names) == ["DATABASE_URL", "GH_TOKEN"]
+    refute inspect(metadata) =~ "secret-token"
+    refute inspect(metadata) =~ "postgres://secret"
+
+    GenServer.stop(pid)
+  end
+
+  test "returns a secrets init failure when configured secrets cannot resolve" do
+    previous = Process.flag(:trap_exit, true)
+
+    on_exit(fn ->
+      Process.flag(:trap_exit, previous)
+    end)
+
+    assert {:error, {:secrets_init_failed, :static_secret_requires_value}} =
+             ConfigAgent.start_link(
+               secrets: [API_TOKEN: {Condukt.Secrets.Providers.Static, []}],
+               load_project_instructions: false
+             )
+  end
+
+  test "redacts session secrets from tool results before the next model turn" do
+    handler_id = "secrets-access-test-#{inspect(make_ref())}"
+    test_pid = self()
+
+    :telemetry.attach(
+      handler_id,
+      [:condukt, :secrets, :access],
+      fn event, measurements, metadata, _ ->
+        send(test_pid, {:secret_telemetry, event, measurements, metadata})
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+
+    tool =
+      Condukt.tool(
+        name: "show_secret",
+        description: "Returns a configured secret",
+        parameters: %{type: "object", properties: %{}},
+        call: fn _args, _context -> {:ok, "secret-token"} end
+      )
+
+    tool_call = ToolCall.new("call_1", "show_secret", JSON.encode!(%{}))
+
+    {model, model_id} =
+      LLMProvider.model([
+        LLMProvider.response(
+          %ReqLLM.Message{role: :assistant, content: [], tool_calls: [tool_call]},
+          :tool_calls
+        ),
+        LLMProvider.text_response("done")
+      ])
+
+    {:ok, pid} =
+      ConfigAgent.start_link(
+        model: model,
+        tools: [tool],
+        secrets: [GH_TOKEN: {:static, "secret-token"}],
+        load_project_instructions: false
+      )
+
+    assert {:ok, "done"} = Condukt.run(pid, "call the tool")
+
+    assert_receive {:secret_telemetry, [:condukt, :secrets, :access], %{count: 1}, metadata}
+    assert metadata.agent == ConfigAgent
+    assert metadata.tool == "show_secret"
+    assert metadata.tool_call_id == "call_1"
+    assert metadata.names == ["GH_TOKEN"]
+    refute inspect(metadata) =~ "secret-token"
+
+    assert_receive {LLMProvider, :request, ^model_id, _first_context, _first_opts}
+    assert_receive {LLMProvider, :request, ^model_id, second_context, _second_opts}
+
+    context_dump = inspect(second_context)
+    assert context_dump =~ "[REDACTED:GH_TOKEN]"
+    refute context_dump =~ "secret-token"
+
+    assert Enum.any?(Condukt.history(pid), fn
+             %Message{role: :tool_result, content: "[REDACTED:GH_TOKEN]"} -> true
+             _ -> false
+           end)
+
     GenServer.stop(pid)
   end
 
@@ -203,14 +327,18 @@ defmodule Condukt.SessionTest do
       user_state: :ok
     }
 
+    handler_id = "compact-test-#{inspect(ref)}"
+
     :telemetry.attach(
-      "compact-test-#{inspect(ref)}",
+      handler_id,
       [:condukt, :compact, :stop],
       fn _event, measurements, metadata, _ ->
         send(self(), {:compact_telemetry, measurements, metadata})
       end,
       nil
     )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
 
     assert {:noreply, updated_state} =
              Condukt.Session.handle_cast(
@@ -225,8 +353,6 @@ defmodule Condukt.SessionTest do
     assert length(persisted) == 1
 
     assert_receive {:compact_telemetry, %{before: 4, after: 1, duration: _}, %{agent: ConfigAgent}}
-
-    :telemetry.detach("compact-test-#{inspect(ref)}")
   end
 
   test "compact/1 is a no-op when no compactor is configured" do

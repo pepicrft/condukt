@@ -11,6 +11,10 @@
 - Tools that read/write files or run subprocesses must route through the
   `Condukt.Sandbox.*` facade, not `File.*` / `MuonTrap.cmd/3` directly. The
   sandbox is in `context.sandbox` when the tool's `call/2` is invoked.
+- Session secrets are resolved through `Condukt.Secrets` and exposed to tools
+  through `context.secrets`; command tools should use `Condukt.Secrets.env/1`
+  or `Condukt.Secrets.merge_env/2` instead of reading provider-specific secret
+  stores directly.
 - `Condukt.Sandbox.Local` is the default and operates against the host
   filesystem. `Condukt.Sandbox.Virtual` is in-tree and routes through a
   Rust NIF wrapping bashkit for in-memory virtual filesystem isolation.
@@ -41,6 +45,15 @@
 ## Elixir
 
 - Do not type Elixir code by hand when avoidable. Prefer structural edits and tool-assisted changes.
+- Do not introduce `try`/`catch` or `rescue` patterns in production Elixir
+  code. Prefer tuple-returning APIs and explicit pattern matching. If a
+  boundary genuinely needs non-local failure handling, use an existing project
+  abstraction or add one deliberately instead of catching locally.
+- Tests must not mutate global process state such as `System.put_env/2`,
+  `System.delete_env/1`, `Application.put_env/3`, or
+  `Application.delete_env/2`. Prefer explicit dependency injection, per-test
+  processes, unique temporary paths, and local options so affected tests can run
+  with `async: true`.
 
 ## Marketing site (`website/`)
 

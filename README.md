@@ -36,6 +36,7 @@ Rather than wrapping JavaScript agent frameworks, we built Condukt from scratch 
 - **Anonymous Workflows**: One-off `Condukt.run/2` calls with inline tools and optional structured output
 - **Multi-Provider**: 18+ LLM providers via [ReqLLM](https://github.com/agentjido/req_llm) (Anthropic, OpenAI, Google, etc.)
 - **Redaction**: Pluggable secret redaction on outbound messages with a regex-based default
+- **Session Secrets**: Resolve credentials from providers such as 1Password and expose them only to tool execution environments
 - **Telemetry**: Built-in observability with `:telemetry` events
 
 ## Installation 📦
@@ -559,7 +560,9 @@ Condukt emits telemetry events for observability:
     [:condukt, :tool_call, :start],
     [:condukt, :tool_call, :stop],
     [:condukt, :operation, :start],
-    [:condukt, :operation, :stop]
+    [:condukt, :operation, :stop],
+    [:condukt, :secrets, :resolve],
+    [:condukt, :secrets, :access]
   ],
   fn event, measurements, metadata, _config ->
     Logger.info("#{inspect(event)}: #{inspect(measurements)}")
@@ -567,6 +570,9 @@ Condukt emits telemetry events for observability:
   nil
 )
 ```
+
+Secret telemetry includes environment variable names and counts for auditing,
+but never includes resolved secret values.
 
 ## Streaming API
 

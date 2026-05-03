@@ -17,9 +17,15 @@ Attach handlers to feed your existing observability stack: Logger,
 | `[:condukt, :run, :start]` | `system_time` | `:structured?`, `:input?` |
 | `[:condukt, :run, :stop]` | `duration` | `:structured?`, `:input?` |
 | `[:condukt, :compact, :stop]` | `duration`, `before`, `after` | `:agent` |
+| `[:condukt, :secrets, :resolve]` | `count` | `:agent`, `:names` |
+| `[:condukt, :secrets, :access]` | `count` | `:agent`, `:tool`, `:tool_call_id`, `:names` |
 
 The exact set may grow over time. Attach broadly with `attach_many/4` so
 new events surface in your handlers without code changes.
+
+Secret events are value-free. `:names` contains environment variable names
+such as `["GH_TOKEN"]`, never the resolved secret values. `:tool_call_id` is
+present when the access comes from a provider-returned tool call.
 
 ## Attaching a handler
 
@@ -35,7 +41,9 @@ new events surface in your handlers without code changes.
     [:condukt, :operation, :stop],
     [:condukt, :run, :start],
     [:condukt, :run, :stop],
-    [:condukt, :compact, :stop]
+    [:condukt, :compact, :stop],
+    [:condukt, :secrets, :resolve],
+    [:condukt, :secrets, :access]
   ],
   fn event, measurements, metadata, _config ->
     Logger.info("#{inspect(event)} #{inspect(measurements)} #{inspect(metadata)}")
@@ -58,7 +66,8 @@ def metrics do
       tags: [:tool],
       unit: {:native, :millisecond}
     ),
-    counter("condukt.tool_call.stop.count", tags: [:tool])
+    counter("condukt.tool_call.stop.count", tags: [:tool]),
+    counter("condukt.secrets.access.count", tags: [:agent, :tool])
   ]
 end
 ```

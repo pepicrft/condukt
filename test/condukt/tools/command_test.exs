@@ -40,6 +40,26 @@ defmodule Condukt.Tools.CommandTest do
     assert String.contains?(result, "#9")
   end
 
+  test "injects session secrets alongside trusted tool environment", %{tmp_dir: tmp_dir} do
+    MuonTrap
+    |> expect(:cmd, fn "gh", ["api", "user"], opts ->
+      assert opts[:cd] == tmp_dir
+      assert {"GH_TOKEN", "session-token"} in opts[:env]
+      assert {"EXTRA", "1"} in opts[:env]
+      {"{}\n", 0}
+    end)
+
+    context = %{
+      cwd: tmp_dir,
+      opts: [command: "gh", env: [EXTRA: "1"]],
+      secrets: %Condukt.Secrets{env: [{"GH_TOKEN", "session-token"}]}
+    }
+
+    {:ok, result} = Command.call(%{"args" => ["api", "user"]}, context)
+
+    assert String.contains?(result, "{}")
+  end
+
   test "accepts cwd relative to the agent cwd", %{tmp_dir: tmp_dir} do
     nested_dir = Path.join(tmp_dir, "nested")
     File.mkdir_p!(nested_dir)

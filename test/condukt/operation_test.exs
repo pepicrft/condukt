@@ -1,15 +1,10 @@
 defmodule Condukt.OperationTest do
-  use ExUnit.Case, async: false
-  use Mimic
+  use ExUnit.Case, async: true
 
   alias Condukt.Operation
+  alias Condukt.Test.LLMProvider
   alias ReqLLM.Message
-  alias ReqLLM.Message.ContentPart
-  alias ReqLLM.Response
   alias ReqLLM.ToolCall
-
-  setup :set_mimic_from_context
-  setup :verify_on_exit!
 
   defmodule ReviewAgent do
     use Condukt
@@ -100,6 +95,8 @@ defmodule Condukt.OperationTest do
         nil
       )
 
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
       # Use the input-validation failure path so we don't need ReqLLM mocks here.
       assert {:error, {:invalid_input, _}} = ReviewAgent.review_pr(%{repo: "x"})
 
@@ -108,8 +105,6 @@ defmodule Condukt.OperationTest do
 
       assert_receive {:telemetry, [:condukt, :operation, :stop], %{duration: _},
                       %{agent: ReviewAgent, operation: :review_pr}}
-
-      :telemetry.detach(handler_id)
     end
   end
 
@@ -117,95 +112,30 @@ defmodule Condukt.OperationTest do
     test "runs the agent loop, captures submit_result, validates, and returns atomized output" do
       submitted_args = %{"verdict" => "approve", "summary" => "Looks good."}
 
-      ReqLLM
-      |> expect(:generate_text, fn _model, _context, opts ->
-        # First turn: agent decides to call submit_result with the verdict.
-        tool = Enum.find(opts[:tools], &(&1.name == "submit_result"))
-        assert tool, "submit_result tool should be registered with ReqLLM"
+      tool_call = ToolCall.new("call_1", "submit_result", JSON.encode!(submitted_args))
 
-        tool_call =
-          ToolCall.new(
-            "call_1",
-            "submit_result",
-            JSON.encode!(submitted_args)
-          )
-
-        message = %Message{
-          role: :assistant,
-          content: [],
-          tool_calls: [tool_call]
-        }
-
-        {:ok,
-         %Response{
-           id: "resp_1",
-           model: "test:model",
-           context: nil,
-           message: message,
-           object: nil,
-           stream?: false,
-           stream: nil,
-           usage: nil,
-           finish_reason: :tool_calls,
-           provider_meta: %{},
-           error: nil
-         }}
-      end)
-      |> expect(:generate_text, fn _model, _context, _opts ->
-        # Second turn: after the submit tool runs, model emits final text and stops.
-        message = %Message{
-          role: :assistant,
-          content: [ContentPart.text("Done.")],
-          tool_calls: nil
-        }
-
-        {:ok,
-         %Response{
-           id: "resp_2",
-           model: "test:model",
-           context: nil,
-           message: message,
-           object: nil,
-           stream?: false,
-           stream: nil,
-           usage: nil,
-           finish_reason: :stop,
-           provider_meta: %{},
-           error: nil
-         }}
-      end)
+      {model, model_id} =
+        LLMProvider.model([
+          LLMProvider.response(%Message{role: :assistant, content: [], tool_calls: [tool_call]}, :tool_calls),
+          LLMProvider.text_response("Done.")
+        ])
 
       assert {:ok, %{verdict: "approve", summary: "Looks good."}} =
-               ReviewAgent.review_pr(%{repo: "tuist/condukt", pr_number: 1})
+               ReviewAgent.review_pr(%{repo: "tuist/condukt", pr_number: 1}, model: model)
+
+      assert_receive {LLMProvider, :request, ^model_id, _context, first_opts}
+      assert Enum.find(first_opts[:tools], &(&1.name == "submit_result"))
+
+      assert_receive {LLMProvider, :request, ^model_id, _context, _second_opts}
     end
 
     test "returns :no_result_submitted when the model never calls submit_result" do
-      ReqLLM
-      |> expect(:generate_text, fn _model, _context, _opts ->
-        message = %Message{
-          role: :assistant,
-          content: [ContentPart.text("I refuse to submit.")],
-          tool_calls: nil
-        }
-
-        {:ok,
-         %Response{
-           id: "resp_x",
-           model: "test:model",
-           context: nil,
-           message: message,
-           object: nil,
-           stream?: false,
-           stream: nil,
-           usage: nil,
-           finish_reason: :stop,
-           provider_meta: %{},
-           error: nil
-         }}
-      end)
+      {model, model_id} = LLMProvider.model([LLMProvider.text_response("I refuse to submit.")])
 
       assert {:error, :no_result_submitted} =
-               ReviewAgent.review_pr(%{repo: "tuist/condukt", pr_number: 1})
+               ReviewAgent.review_pr(%{repo: "tuist/condukt", pr_number: 1}, model: model)
+
+      assert_receive {LLMProvider, :request, ^model_id, _context, _opts}
     end
   end
 end

@@ -20,7 +20,8 @@ defmodule Condukt.Tools do
   Every built-in tool routes its filesystem and process work through the
   active `Condukt.Sandbox`, so the same tool list works against the host
   filesystem (`Sandbox.Local`) or an isolated virtual filesystem
-  (`Sandbox.Virtual`).
+  (`Sandbox.Virtual`). Command tools also receive session secrets as
+  environment variables when configured at `start_link/1`.
 
   ## Usage
 
