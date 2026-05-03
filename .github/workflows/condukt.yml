@@ -160,7 +160,6 @@ jobs:
     env:
       MIX_ENV: test
       CONDUKT_BASHKIT_DISABLE: "1"
-      CONDUKT_WORKFLOWS_BUILD: "1"
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
