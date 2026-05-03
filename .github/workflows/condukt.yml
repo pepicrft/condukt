@@ -74,6 +74,15 @@ jobs:
       - name: Fetch dependencies
         run: mix deps.get
 
+      - name: Remove bashkit NIF library before tests
+        # Default `mix test` excludes :virtual_sandbox tests, so the NIF
+        # library is unused. Loading it into the BEAM on Linux runners
+        # has triggered segfaults in BEAM teardown; deleting the .so
+        # ensures the module's on_load fails gracefully and nothing is
+        # mapped into the process. The stub function bodies still resolve
+        # at module load time but are never invoked.
+        run: rm -f priv/native/condukt_bashkit.so
+
       - name: Run test suite
         run: mix test
 

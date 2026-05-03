@@ -13,18 +13,4 @@ Mimic.copy(ReqLLM)
 #
 #   mix test --only virtual_sandbox
 
-IO.puts(
-  :stderr,
-  "[test_helper] NIF module loaded at start? " <>
-    inspect(:code.is_loaded(Condukt.Bashkit.NIF))
-)
-
-System.at_exit(fn _ ->
-  IO.puts(
-    :stderr,
-    "[test_helper] NIF module loaded at exit? " <>
-      inspect(:code.is_loaded(Condukt.Bashkit.NIF))
-  )
-end)
-
 ExUnit.start(exclude: [virtual_sandbox: true])
