@@ -21,6 +21,21 @@ export default function (eleventyConfig) {
 
   eleventyConfig.addWatchTarget("src/assets/");
 
+  eleventyConfig.addFilter("readableDate", (value) => {
+    const date = value instanceof Date ? value : new Date(value);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "UTC",
+    });
+  });
+
+  eleventyConfig.addFilter("htmlDateString", (value) => {
+    const date = value instanceof Date ? value : new Date(value);
+    return date.toISOString().slice(0, 10);
+  });
+
   eleventyConfig.addPairedAsyncShortcode("highlight", async function (
     content,
     lang = "elixir"
