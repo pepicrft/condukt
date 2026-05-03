@@ -8,6 +8,7 @@ defmodule Mix.Tasks.Condukt.Workflows.Check do
   use Mix.Task
 
   alias Condukt.Workflows
+  alias Condukt.Workflows.Workflow
   alias Mix.Tasks.Condukt.Workflows.Helpers
 
   @requirements ["app.start"]
@@ -49,16 +50,19 @@ defmodule Mix.Tasks.Condukt.Workflows.Check do
   defp validate_model(%{model: model} = workflow), do: [{workflow, :invalid_model, inspect(model)}]
 
   defp validate_session_opts(workflow) do
-    case Condukt.Workflows.Workflow.to_session_opts(workflow) do
+    case Workflow.to_session_opts(workflow) do
       {:ok, _opts} -> []
       {:error, reason} -> [{workflow, :invalid_workflow, inspect(reason)}]
     end
   end
 
   defp parse_model(model) do
+    req_llm_model = Module.concat(ReqLLM, Model)
+
     cond do
-      Code.ensure_loaded?(ReqLLM.Model) and function_exported?(ReqLLM.Model, :parse, 1) ->
-        apply(ReqLLM.Model, :parse, [model]) |> normalize_parse_result()
+      Code.ensure_loaded?(req_llm_model) and function_exported?(req_llm_model, :parse, 1) ->
+        # credo:disable-for-next-line Credo.Check.Refactor.Apply
+        apply(req_llm_model, :parse, [model]) |> normalize_parse_result()
 
       Code.ensure_loaded?(LLMDB) and function_exported?(LLMDB, :parse, 1) ->
         LLMDB.parse(model) |> normalize_parse_result()

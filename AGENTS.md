@@ -38,6 +38,28 @@
   named `checksum-Elixir.Condukt.Bashkit.NIF.exs` in the package source.
   See `.github/workflows/release.yml` for the build matrix.
 
+## Workflows
+
+- `Condukt.Workflows` loads Starlark workflow declarations from a project root,
+  resolves package loads through a TOML lockfile, materializes Elixir structs,
+  and starts caller-owned runtimes for manual, cron, and webhook-triggered
+  runs.
+- The workflows NIF lives in `native/condukt_workflows/`. It evaluates
+  Starlark, runs PubGrub resolution, and computes deterministic SHA-256 tree
+  hashes. It must return materialized Elixir maps and lists, not pointers into
+  Starlark heap state.
+- Workflow package identity uses versioned load strings:
+  `<host>/<path>@<version>`. Non-relative loads require a version. Relative
+  loads stay inside the workspace.
+- Shared packages are stored under `~/.condukt/store/<sha256>/`. Store writes
+  must verify `Condukt.Workflows.NIF.sha256_tree/1` before the atomic rename.
+- `condukt.lock` is TOML, committed, deterministic, and offline-first. Use
+  `mix condukt.workflows.lock` to update it.
+- Workflow runtimes are not auto-started by `Condukt.Application`. Callers use
+  `Condukt.Workflows.serve/2` or `mix condukt.workflows.serve`.
+- `mix condukt.workflows.check` is the validation gate for workflow graphs,
+  tool refs, sandbox kinds, and model identifiers.
+
 ## Workflow
 
 - After every change, create a git commit and push it to the current branch.

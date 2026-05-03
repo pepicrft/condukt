@@ -6,6 +6,8 @@ defmodule Condukt.Workflows.Runtime.Cron do
   use GenServer
 
   alias Condukt.Workflows.Runtime.Worker
+  alias Crontab.CronExpression.Parser
+  alias Crontab.Scheduler
 
   @doc false
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts)
@@ -13,7 +15,7 @@ defmodule Condukt.Workflows.Runtime.Cron do
   @impl true
   def init(opts) do
     expr = Keyword.fetch!(opts, :expr)
-    cron = Crontab.CronExpression.Parser.parse!(expr, extended?(expr))
+    cron = Parser.parse!(expr, extended?(expr))
 
     state = %{
       workflow: Keyword.fetch!(opts, :workflow),
@@ -36,7 +38,7 @@ defmodule Condukt.Workflows.Runtime.Cron do
 
   defp schedule_next(%{cron: cron, clock: clock} = state) do
     now = clock.()
-    next_run = Crontab.Scheduler.get_next_run_date!(cron, now)
+    next_run = Scheduler.get_next_run_date!(cron, now)
     delay = max(0, NaiveDateTime.diff(next_run, now, :millisecond))
     %{state | timer_ref: Process.send_after(self(), :fire, delay)}
   end
