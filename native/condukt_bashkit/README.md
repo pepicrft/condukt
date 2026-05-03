@@ -12,6 +12,8 @@ Condukt via Hex without needing a Rust toolchain.
 
 If you are working on Condukt itself, `MIX_ENV=dev mix compile` builds the
 crate from source. Other Mix environments download the precompiled artifacts.
+The release publish job runs with `MIX_ENV=prod` so package validation and
+publishing use the same precompiled path as Hex consumers.
 Rust toolchain is pinned in the repo's `mise.toml`.
 
 ## Cargo features enabled

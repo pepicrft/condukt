@@ -172,6 +172,10 @@ jobs:
     if: needs.plan.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Publish under the non-dev Mix environment so Hex package validation and
+    # publishing exercise the precompiled NIF path, not the dev source build.
+    env:
+      MIX_ENV: prod
 
     steps:
       - name: Check out the repository

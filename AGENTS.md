@@ -27,6 +27,8 @@
   (also in `mise.toml`).
 - `mix compile` source-builds the NIF in `MIX_ENV=dev`. Other Mix
   environments download the precompiled NIF from the GitHub release.
+- The release publish job runs with `MIX_ENV=prod` so Hex package validation
+  and publishing exercise the precompiled NIF path.
 - Releases must publish precompiled artifacts for every target listed in
   `lib/condukt/bashkit/nif.ex`'s `:targets` option, plus a checksum file
   named `checksum-Elixir.Condukt.Bashkit.NIF.exs` in the package source.
