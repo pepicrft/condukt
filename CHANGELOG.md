@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [Unreleased]
+
+### Features
+
+- Add Starlark-backed workflow projects with lockfiles, triggers, runtime supervision, and Mix tasks
+
+
 ## [0.15.0] - 2026-05-03
 
 ### Features
