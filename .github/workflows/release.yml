@@ -131,6 +131,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build NIF
+        id: build-nif
         # v1.1.5 upgrades the bundled `giantswarm/install-binary-action` from
         # v2 to v4, which fixes a tar incompatibility on macOS. v1.1.4's
         # `if: ${{ inputs.use-cross && ... }}` check on the cross install
@@ -150,6 +151,13 @@ jobs:
           # expressions, so "false" would still trigger the install.
           use-cross: ${{ matrix.job.use-cross == true && 'true' || '' }}
           project-dir: native/condukt_bashkit
+
+      - name: Upload NIF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.build-nif.outputs.file-name }}
+          path: ${{ steps.build-nif.outputs.file-path }}
+          if-no-files-found: error
 
   # ============================================================================
   # publish
@@ -194,7 +202,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: nif-artifacts
-          pattern: condukt_bashkit-*
+          pattern: "*condukt_bashkit-*.tar.gz"
           merge-multiple: true
 
       - name: Generate checksum file
