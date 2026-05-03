@@ -14,10 +14,11 @@ defmodule Condukt.Workflows.NIF do
     use RustlerPrecompiled,
       otp_app: :condukt,
       crate: "condukt_workflows",
-      base_url: "https://github.com/tuist/condukt/releases/download/v#{Mix.Project.config()[:version]}",
+      base_url: "https://github.com/tuist/condukt/releases/download/#{Mix.Project.config()[:version]}",
       force_build:
-        Mix.Project.get() == Condukt.MixProject or
-          System.get_env("CONDUKT_WORKFLOWS_BUILD") in ["1", "true"],
+        System.get_env("CONDUKT_WORKFLOWS_PRECOMPILED") not in ["1", "true"] and
+          (Mix.Project.get() == Condukt.MixProject or
+             System.get_env("CONDUKT_WORKFLOWS_BUILD") in ["1", "true"]),
       version: Mix.Project.config()[:version],
       targets: ~w(
         aarch64-apple-darwin

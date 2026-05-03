@@ -18,7 +18,8 @@ defmodule Condukt.MixProject do
       source_url: @source_url,
       elixirc_paths: elixirc_paths(Mix.env()),
       test_ignore_filters: [~r/test\/support\//],
-      aliases: aliases()
+      aliases: aliases(),
+      releases: releases()
     ]
   end
 
@@ -48,6 +49,10 @@ defmodule Condukt.MixProject do
       {:crontab, "~> 1.1"},
       {:plug, "~> 1.16", optional: true},
       {:bandit, "~> 1.5", optional: true},
+
+      # Standalone engine releases for users who want the workflow runner
+      # without installing Erlang, Elixir, or Mix.
+      {:burrito, "~> 1.5", optional: true},
 
       # Telemetry
       {:telemetry, "~> 1.0"},
@@ -125,6 +130,9 @@ defmodule Condukt.MixProject do
         "Project Context": [
           Condukt.Context,
           Condukt.Context.Skill
+        ],
+        Engine: [
+          Condukt.Engine.CLI
         ],
         Tools: [
           Condukt.Tool,
@@ -208,6 +216,23 @@ defmodule Condukt.MixProject do
   defp aliases do
     [
       lint: ["format --check-formatted", "credo --strict", "dialyzer"]
+    ]
+  end
+
+  defp releases do
+    [
+      condukt: [
+        steps: [:assemble, &Burrito.wrap/1],
+        applications: [condukt: :permanent],
+        burrito: [
+          targets: [
+            linux_x64: [os: :linux, cpu: :x86_64],
+            macos_x64: [os: :darwin, cpu: :x86_64],
+            macos_arm64: [os: :darwin, cpu: :aarch64],
+            windows_x64: [os: :windows, cpu: :x86_64]
+          ]
+        ]
+      ]
     ]
   end
 end

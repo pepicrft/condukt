@@ -60,6 +60,28 @@
 - `mix condukt.workflows.check` is the validation gate for workflow graphs,
   tool refs, sandbox kinds, and model identifiers.
 
+## Engine releases
+
+- Condukt has two distribution modes. Library mode is the Hex package consumed
+  by Elixir applications. Engine mode is the standalone `condukt` executable
+  built with Burrito for running workflow projects without a local Elixir or
+  Erlang install.
+- Burrito targets are configured in `mix.exs` under `releases/0`. Release CI
+  builds Linux x64, macOS x64, macOS arm64, and Windows x64 archives and
+  attaches them to the GitHub release after the Hex package and NIF artifacts
+  are published.
+- Engine assets are named for mise's GitHub backend autodetection:
+  `condukt-<version>-linux-x64-gnu.tar.gz`,
+  `condukt-<version>-macos-x64.tar.gz`,
+  `condukt-<version>-macos-arm64.tar.gz`, and
+  `condukt-<version>-windows-x64-msvc.zip`.
+- Burrito requires Zig, XZ, and 7z at build time. Zig is pinned in `mise.toml`.
+  Erlang is pinned to an exact OTP 28 patch version so Burrito can fetch the
+  matching precompiled ERTS from the Beam Machine cache.
+- Engine builds set `CONDUKT_BASHKIT_PRECOMPILED=1` and
+  `CONDUKT_WORKFLOWS_PRECOMPILED=1` so the release bytecode points at the
+  target-specific NIF artifacts already attached to the GitHub release.
+
 ## Workflow
 
 - After every change, create a git commit and push it to the current branch.

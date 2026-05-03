@@ -134,22 +134,29 @@ Use `--upgrade` when you want resolution to consider newer matching versions.
 
 ## Running workflows
 
+When Condukt is installed as a library, use the Mix tasks. When Condukt is
+installed as the standalone engine with mise, use the matching `condukt`
+commands.
+
 Check a project:
 
 ```sh
 mix condukt.workflows.check --root .
+condukt workflows check --root .
 ```
 
 Run one workflow manually:
 
 ```sh
 mix condukt.workflows.run triage --input '{"issue":"broken"}'
+condukt workflows run triage --input '{"issue":"broken"}'
 ```
 
 Start the runtime:
 
 ```sh
 mix condukt.workflows.serve --port 4000
+condukt workflows serve --port 4000
 ```
 
 The runtime is caller-owned. The Condukt application supervisor does not start
@@ -157,7 +164,8 @@ it automatically.
 
 ## Triggers
 
-Manual runs use `Condukt.Workflows.run/3` or `mix condukt.workflows.run`.
+Manual runs use `Condukt.Workflows.run/3`, `mix condukt.workflows.run`, or
+`condukt workflows run`.
 
 Cron triggers use `condukt.schedule.cron(expr)` and are supervised by
 `Condukt.Workflows.Runtime.Cron`.
@@ -168,9 +176,9 @@ and routes `POST` requests to the matching workflow worker.
 
 ## Validation
 
-`mix condukt.workflows.check` loads the project, validates tool references,
-validates sandbox declarations, and checks model identifiers. Errors are
-reported with source file context:
+`mix condukt.workflows.check` and `condukt workflows check` load the project,
+validate tool references, validate sandbox declarations, and check model
+identifiers. Errors are reported with source file context:
 
 ```text
 workflows/triage.star:1:1: invalid_model: bad
