@@ -210,6 +210,148 @@ defmodule Condukt.Tools.SubagentTest do
     GenServer.stop(parent)
   end
 
+  test "emits telemetry around structured delegation" do
+    handler_id = "subagent-telemetry-#{inspect(make_ref())}"
+    test_pid = self()
+
+    :telemetry.attach_many(
+      handler_id,
+      [
+        [:condukt, :subagent, :start],
+        [:condukt, :subagent, :stop]
+      ],
+      fn event, measurements, metadata, _config ->
+        send(test_pid, {:subagent_telemetry, event, measurements, metadata})
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+
+    input_schema = %{
+      type: "object",
+      properties: %{path: %{type: "string"}},
+      required: ["path"]
+    }
+
+    output_schema = %{
+      type: "object",
+      properties: %{summary: %{type: "string"}},
+      required: ["summary"]
+    }
+
+    child_submit = ToolCall.new("child_call_1", "submit_result", JSON.encode!(%{"summary" => "field notes"}))
+
+    parent_call =
+      ToolCall.new(
+        "parent_call_1",
+        "subagent",
+        JSON.encode!(%{
+          "role" => "researcher",
+          "task" => "summarize",
+          "input" => %{"path" => "README.md"}
+        })
+      )
+
+    {parent_model, _parent_model_id} =
+      LLMProvider.model([
+        LLMProvider.response(%Message{role: :assistant, content: [], tool_calls: [parent_call]}, :tool_calls),
+        LLMProvider.text_response("parent done")
+      ])
+
+    {child_model, _child_model_id} =
+      LLMProvider.model([
+        LLMProvider.response(%Message{role: :assistant, content: [], tool_calls: [child_submit]}, :tool_calls),
+        LLMProvider.text_response("submitted")
+      ])
+
+    {:ok, parent} =
+      ParentAgent.start_link(
+        model: parent_model,
+        subagents: [
+          researcher:
+            {ChildAgent,
+             model: child_model, input: input_schema, output: output_schema, load_project_instructions: false}
+        ],
+        load_project_instructions: false
+      )
+
+    assert {:ok, "parent done"} = Condukt.run(parent, "delegate")
+
+    assert_receive {:subagent_telemetry, [:condukt, :subagent, :start], %{system_time: _},
+                    %{
+                      agent: ParentAgent,
+                      role: :researcher,
+                      child_agent: ChildAgent,
+                      input?: true,
+                      output?: true
+                    }}
+
+    assert_receive {:subagent_telemetry, [:condukt, :subagent, :stop], %{duration: _},
+                    %{
+                      agent: ParentAgent,
+                      role: :researcher,
+                      child_agent: ChildAgent,
+                      input?: true,
+                      output?: true,
+                      status: :ok
+                    }}
+
+    GenServer.stop(parent)
+  end
+
+  test "emits telemetry when structured input validation fails" do
+    handler_id = "subagent-invalid-input-telemetry-#{inspect(make_ref())}"
+    test_pid = self()
+
+    :telemetry.attach_many(
+      handler_id,
+      [
+        [:condukt, :subagent, :start],
+        [:condukt, :subagent, :stop]
+      ],
+      fn event, measurements, metadata, _config ->
+        send(test_pid, {:subagent_telemetry, event, measurements, metadata})
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+
+    input_schema = %{
+      type: "object",
+      properties: %{path: %{type: "string"}},
+      required: ["path"]
+    }
+
+    assert {:error, {:invalid_input, %JSV.ValidationError{}}} =
+             Tool.execute(
+               {Subagent, subagents: [researcher: {ChildAgent, input: input_schema}]},
+               %{"role" => "researcher", "task" => "inspect", "input" => %{}},
+               %{agent: ParentAgent, sandbox: nil, cwd: ".", subagent_supervisor: self()}
+             )
+
+    assert_receive {:subagent_telemetry, [:condukt, :subagent, :start], %{system_time: _},
+                    %{
+                      agent: ParentAgent,
+                      role: :researcher,
+                      child_agent: ChildAgent,
+                      input?: true,
+                      output?: false
+                    }}
+
+    assert_receive {:subagent_telemetry, [:condukt, :subagent, :stop], %{duration: _},
+                    %{
+                      agent: ParentAgent,
+                      role: :researcher,
+                      child_agent: ChildAgent,
+                      input?: true,
+                      output?: false,
+                      status: :error,
+                      error: :invalid_input
+                    }}
+  end
+
   test "returns an error for an unknown role" do
     assert {:error, "no sub-agent registered as writer"} =
              Tool.execute(

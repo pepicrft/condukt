@@ -634,6 +634,8 @@ Condukt emits telemetry events for observability:
     [:condukt, :agent, :stop],
     [:condukt, :tool_call, :start],
     [:condukt, :tool_call, :stop],
+    [:condukt, :subagent, :start],
+    [:condukt, :subagent, :stop],
     [:condukt, :operation, :start],
     [:condukt, :operation, :stop],
     [:condukt, :secrets, :resolve],
@@ -648,6 +650,11 @@ Condukt emits telemetry events for observability:
 
 Secret telemetry includes environment variable names and counts for auditing,
 but never includes resolved secret values.
+
+Sub-agent telemetry identifies the parent agent, delegated role, child agent,
+whether structured input and output contracts are configured, and whether the
+delegation ended with `:ok` or `:error`. It never includes task text, structured
+input values, or structured output values.
 
 ## Streaming API
 

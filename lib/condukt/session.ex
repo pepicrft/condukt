@@ -802,6 +802,7 @@ defmodule Condukt.Session do
   defp tool_context(state, opts) do
     %{
       agent: state.pid,
+      agent_module: state.agent_module,
       sandbox: state.sandbox,
       cwd: state.cwd,
       opts: opts,

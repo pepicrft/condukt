@@ -193,10 +193,18 @@ Properties:
 
 ## Events
 
-For now, child events are not forwarded to the parent stream. The parent
-observes the `subagent` tool call and the matching tool result. Forwarding
-child events as tagged parent events can be added later without changing the
-declaration API.
+Condukt emits `[:condukt, :subagent, :start]` and
+`[:condukt, :subagent, :stop]` telemetry events around each delegation. The
+metadata identifies the parent agent, role, child agent, whether structured
+input and output contracts are configured, and the final `:status`.
+
+The telemetry never includes task text, structured input values, or structured
+output values.
+
+For now, child stream events are not forwarded to the parent stream. The parent
+stream observes the `subagent` tool call and the matching tool result.
+Forwarding child events as tagged parent events can be added later without
+changing the declaration API.
 
 ## Errors
 

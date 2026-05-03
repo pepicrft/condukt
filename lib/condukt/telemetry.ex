@@ -35,6 +35,20 @@ defmodule Condukt.Telemetry do
     - Measurements: `%{duration: integer}`
     - Metadata: `%{tool: string, kind: atom, reason: term, stacktrace: list}`
 
+  ### Sub-agent Events
+
+  These events wrap the explicit sub-agent delegation lifecycle. They do not
+  include task text, structured input values, or structured output values.
+
+  - `[:condukt, :subagent, :start]` - Sub-agent delegation started
+    - Measurements: `%{system_time: integer}`
+    - Metadata: `%{agent: module | pid, role: atom, child_agent: module, input?: boolean, output?: boolean}`
+
+  - `[:condukt, :subagent, :stop]` - Sub-agent delegation finished
+    - Measurements: `%{duration: integer}`
+    - Metadata: `%{agent: module | pid, role: atom, child_agent: module, input?: boolean, output?: boolean, status: :ok | :error}`
+    - Error metadata: `%{error: atom}`
+
   ### Secret Events
 
   These events never include secret values.
@@ -91,6 +105,8 @@ defmodule Condukt.Telemetry do
           [:condukt, :agent, :start],
           [:condukt, :agent, :stop],
           [:condukt, :tool_call, :stop],
+          [:condukt, :subagent, :start],
+          [:condukt, :subagent, :stop],
           [:condukt, :secrets, :resolve],
           [:condukt, :secrets, :access]
         ],

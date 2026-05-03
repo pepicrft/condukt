@@ -46,6 +46,7 @@ defmodule Condukt.Tool do
   The `call/2` function receives a context map with:
 
   - `:agent` - The agent PID
+  - `:agent_module` - The agent module for the session
   - `:sandbox` - The active `Condukt.Sandbox` struct (use this for any
     filesystem or process-execution work)
   - `:cwd` - Project working directory (kept for tools that need to refer to

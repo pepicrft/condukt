@@ -10,6 +10,7 @@ defmodule Condukt.Tools.Subagent do
   use Condukt.Tool
 
   alias Condukt.Operation.SubmitTool
+  alias Condukt.Telemetry
 
   @contract_keys [:input, :input_schema, :output, :output_schema]
   @run_opt_keys [:timeout, :max_turns, :images]
@@ -125,22 +126,71 @@ defmodule Condukt.Tools.Subagent do
     role = Map.get(args, "role") || Map.get(args, :role)
     task = Map.get(args, "task") || Map.get(args, :task)
 
-    with {:ok, registration} <- lookup(context, role),
-         {:ok, input} <- validate_input(args, registration.input_schema),
-         {:ok, supervisor} <- fetch_supervisor(context),
-         prepared = prepare_child(registration, context),
-         {:ok, child} <- start_child(supervisor, registration.agent_module, prepared.session_opts) do
-      run_and_stop(supervisor, child, task, input, prepared)
+    with {:ok, registered_role, registration} <- lookup(context, role) do
+      call_registered(args, context, registered_role, task, registration)
     end
   end
+
+  defp call_registered(args, context, role, task, registration) do
+    metadata = subagent_metadata(context, role, registration)
+    start_time = System.monotonic_time()
+
+    Telemetry.emit([:subagent, :start], %{system_time: System.system_time()}, metadata)
+
+    result =
+      with {:ok, input} <- validate_input(args, registration.input_schema),
+           {:ok, supervisor} <- fetch_supervisor(context),
+           prepared = prepare_child(registration, context),
+           {:ok, child} <- start_child(supervisor, registration.agent_module, prepared.session_opts) do
+        run_and_stop(supervisor, child, task, input, prepared)
+      end
+
+    Telemetry.emit(
+      [:subagent, :stop],
+      %{duration: System.monotonic_time() - start_time},
+      subagent_stop_metadata(result, metadata)
+    )
+
+    result
+  end
+
+  defp subagent_metadata(context, role, registration) do
+    %{
+      agent: Map.get(context, :agent_module, Map.get(context, :agent)),
+      role: role,
+      child_agent: registration.agent_module,
+      input?: not is_nil(registration.input_schema),
+      output?: not is_nil(registration.output_schema)
+    }
+  end
+
+  defp subagent_stop_metadata({:ok, _result}, metadata), do: Map.put(metadata, :status, :ok)
+
+  defp subagent_stop_metadata({:error, reason}, metadata) do
+    metadata
+    |> Map.put(:status, :error)
+    |> Map.put(:error, error_name(reason))
+  end
+
+  defp error_name({:invalid_input, _error}), do: :invalid_input
+  defp error_name({:invalid_output, _error}), do: :invalid_output
+  defp error_name({:invalid_subagent_registration, _registration}), do: :invalid_subagent_registration
+  defp error_name(reason) when is_atom(reason), do: reason
+  defp error_name(reason) when is_binary(reason), do: :error
+  defp error_name(_reason), do: :error
 
   defp lookup(context, role) when is_binary(role) do
     context
     |> subagents()
     |> Enum.find(fn {registered_role, _registration} -> Atom.to_string(registered_role) == role end)
     |> case do
-      nil -> {:error, "no sub-agent registered as #{role}"}
-      {_role, registration} -> normalize_registration(registration)
+      nil ->
+        {:error, "no sub-agent registered as #{role}"}
+
+      {registered_role, registration} ->
+        with {:ok, registration} <- normalize_registration(registration) do
+          {:ok, registered_role, registration}
+        end
     end
   end
 
