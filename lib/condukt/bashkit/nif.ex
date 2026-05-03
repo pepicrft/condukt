@@ -33,6 +33,7 @@ defmodule Condukt.Bashkit.NIF do
     use RustlerPrecompiled,
       otp_app: :condukt,
       crate: "condukt_bashkit",
+      # release.yml creates plain version tags like "0.13.1", not "v0.13.1".
       base_url: "https://github.com/tuist/condukt/releases/download/#{Mix.Project.config()[:version]}",
       force_build:
         Mix.Project.get() == Condukt.MixProject or
