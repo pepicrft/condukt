@@ -8,10 +8,14 @@ Attach handlers to feed your existing observability stack: Logger,
 
 | Event | Measurements | Metadata |
 | ----- | ------------ | -------- |
-| `[:condukt, :agent, :start]` | `system_time` | `:agent`, `:prompt` |
-| `[:condukt, :agent, :stop]` | `duration` | `:agent`, `:turns` |
-| `[:condukt, :tool_call, :start]` | `system_time` | `:agent`, `:tool`, `:args` |
-| `[:condukt, :tool_call, :stop]` | `duration` | `:agent`, `:tool`, `:result` |
+| `[:condukt, :agent, :start]` | `system_time` | `:agent` |
+| `[:condukt, :agent, :stop]` | `duration` | `:agent` |
+| `[:condukt, :tool_call, :start]` | `system_time` | `:tool` |
+| `[:condukt, :tool_call, :stop]` | `duration` | `:tool` |
+| `[:condukt, :operation, :start]` | `system_time` | `:agent`, `:operation` |
+| `[:condukt, :operation, :stop]` | `duration` | `:agent`, `:operation` |
+| `[:condukt, :run, :start]` | `system_time` | `:structured?`, `:input?` |
+| `[:condukt, :run, :stop]` | `duration` | `:structured?`, `:input?` |
 | `[:condukt, :compact, :stop]` | `duration`, `before`, `after` | `:agent` |
 
 The exact set may grow over time. Attach broadly with `attach_many/4` so
@@ -27,6 +31,10 @@ new events surface in your handlers without code changes.
     [:condukt, :agent, :stop],
     [:condukt, :tool_call, :start],
     [:condukt, :tool_call, :stop],
+    [:condukt, :operation, :start],
+    [:condukt, :operation, :stop],
+    [:condukt, :run, :start],
+    [:condukt, :run, :stop],
     [:condukt, :compact, :stop]
   ],
   fn event, measurements, metadata, _config ->

@@ -1,6 +1,8 @@
 Mimic.copy(MuonTrap)
 Mimic.copy(ReqLLM)
 
+Code.require_file("support/llm_provider.ex", __DIR__)
+
 # Virtual sandbox tests are tagged `:virtual_sandbox` and excluded by
 # default. They rely on the bashkit NIF and run reliably locally, but on
 # Linux CI runners merely loading the NIF in the same BEAM process as the

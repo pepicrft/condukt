@@ -17,6 +17,7 @@ defmodule Condukt.MixProject do
       description: "A framework for building AI agents in Elixir",
       source_url: @source_url,
       elixirc_paths: elixirc_paths(Mix.env()),
+      test_ignore_filters: [~r/test\/support\//],
       aliases: aliases()
     ]
   end
@@ -70,6 +71,7 @@ defmodule Condukt.MixProject do
         "README.md": [title: "Overview"],
         "guides/getting_started.md": [title: "Getting Started"],
         "guides/agents.md": [title: "Agents"],
+        "guides/anonymous_workflows.md": [title: "Anonymous Workflows"],
         "guides/tools.md": [title: "Tools"],
         "guides/sandbox.md": [title: "Sandbox"],
         "guides/streaming_and_events.md": [title: "Streaming and Events"],
@@ -88,6 +90,7 @@ defmodule Condukt.MixProject do
         ],
         Guides: [
           "guides/agents.md",
+          "guides/anonymous_workflows.md",
           "guides/tools.md",
           "guides/sandbox.md",
           "guides/streaming_and_events.md",
@@ -118,6 +121,7 @@ defmodule Condukt.MixProject do
         ],
         Tools: [
           Condukt.Tool,
+          Condukt.Tool.Inline,
           Condukt.Tools,
           Condukt.Tools.Read,
           Condukt.Tools.Bash,

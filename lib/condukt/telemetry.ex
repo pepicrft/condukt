@@ -53,6 +53,23 @@ defmodule Condukt.Telemetry do
     - Measurements: `%{duration: integer}`
     - Metadata: `%{agent: module, operation: atom, kind: atom, reason: term, stacktrace: list}`
 
+  ### Anonymous Run Events
+
+  Wrap a `Condukt.run/2` call (the runtime entry point that does not require
+  an agent module). The inner agent and tool events still fire for free.
+
+  - `[:condukt, :run, :start]` - Anonymous run started
+    - Measurements: `%{system_time: integer}`
+    - Metadata: `%{structured?: boolean, input?: boolean}`
+
+  - `[:condukt, :run, :stop]` - Anonymous run finished
+    - Measurements: `%{duration: integer}`
+    - Metadata: `%{structured?: boolean, input?: boolean}`
+
+  - `[:condukt, :run, :exception]` - Anonymous run raised an exception
+    - Measurements: `%{duration: integer}`
+    - Metadata: `%{structured?: boolean, input?: boolean, kind: atom, reason: term, stacktrace: list}`
+
   ## Example: Attaching Handlers
 
       :telemetry.attach_many(

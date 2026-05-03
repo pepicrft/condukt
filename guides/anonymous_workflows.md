@@ -1,0 +1,138 @@
+# Anonymous Workflows
+
+Anonymous workflows are one-call agent runs. They are useful for scripts,
+notebooks, jobs, CI tasks, and callbacks where defining a named agent module
+would add ceremony without adding useful state.
+
+`Condukt.run/2` accepts a prompt as the first argument:
+
+```elixir
+{:ok, text} =
+  Condukt.run("Summarize README.md in three bullets.",
+    model: "anthropic:claude-sonnet-4-20250514",
+    tools: [Condukt.Tools.Read]
+  )
+```
+
+Condukt starts a transient `Condukt.Session`, runs the prompt, returns the
+final text, and stops the session. No conversation history is kept across
+calls.
+
+## Runtime options
+
+Anonymous workflows accept the same run options as agent runs:
+
+* `:timeout` caps the synchronous call timeout in milliseconds
+* `:max_turns` caps tool-use loops
+* `:images` attaches images to the user message
+
+They also accept the same session options you would pass to an agent's
+`start_link/1`, including `:model`, `:api_key`, `:base_url`,
+`:system_prompt`, `:thinking_level`, `:tools`, `:sandbox`, `:cwd`,
+`:session_store`, `:compactor`, `:redactor`, and
+`:load_project_instructions`.
+
+Anonymous workflows default `:load_project_instructions` to `false`. Pass
+`load_project_instructions: true` when you want `AGENTS.md`, `CLAUDE.md`, and
+local skills to shape the transient run.
+
+## Typed input
+
+Use `:input` when you want the prompt to be instructions and the arguments to
+be a separate JSON payload:
+
+```elixir
+{:ok, text} =
+  Condukt.run("Review the supplied pull request metadata.",
+    input: %{repo: "tuist/condukt", pr_number: 42},
+    input_schema: %{
+      type: "object",
+      properties: %{
+        repo: %{type: "string"},
+        pr_number: %{type: "integer"}
+      },
+      required: ["repo", "pr_number"]
+    }
+  )
+```
+
+When `:input_schema` is present, Condukt validates the input with JSV before
+making an LLM request. Input must be a map.
+
+## Structured output
+
+Use `:output` to require a JSON Schema-shaped result:
+
+```elixir
+{:ok, %{verdict: "approve", summary: summary}} =
+  Condukt.run("Decide a review verdict.",
+    input: %{repo: "tuist/condukt", pr_number: 42},
+    output: %{
+      type: "object",
+      properties: %{
+        verdict: %{type: "string", enum: ["approve", "request_changes", "comment"]},
+        summary: %{type: "string"}
+      },
+      required: ["verdict", "summary"]
+    }
+  )
+```
+
+Structured mode appends a synthetic `submit_result` tool. The model calls that
+tool with the final result, Condukt validates the submitted map with JSV, and
+the validated value is returned.
+
+If the schema's top-level `properties` keys are atoms, Condukt atomizes the
+matching top-level result keys after validation.
+
+## Inline tools
+
+For small workflow-specific tools, use `Condukt.tool/1`:
+
+```elixir
+ls =
+  Condukt.tool(
+    name: "ls",
+    description: "Lists files under a glob.",
+    parameters: %{
+      type: "object",
+      properties: %{pattern: %{type: "string"}},
+      required: ["pattern"]
+    },
+    call: fn %{"pattern" => pattern}, context ->
+      Condukt.Sandbox.glob(context.sandbox, pattern)
+    end
+  )
+
+{:ok, text} =
+  Condukt.run("List Elixir files under lib/.",
+    tools: [ls]
+  )
+```
+
+Inline tool callbacks receive the same context map as module tools:
+`:agent`, `:sandbox`, `:cwd`, and `:opts`. `:opts` is always `[]` for inline
+tools.
+
+## Errors
+
+Anonymous workflows return `{:error, reason}` for validation failures, LLM
+errors, and session startup failures.
+
+Common structured workflow reasons include:
+
+* `{:invalid_input, %JSV.ValidationError{}}`
+* `{:invalid_output, %JSV.ValidationError{}}`
+* `{:invalid_input, :input_must_be_a_map}`
+* `:no_result_submitted`
+
+## Choosing an API
+
+Use anonymous workflows when the task fits in one call and no module-level
+agent identity is useful.
+
+Use `operation/2` when you want a named compile-time entrypoint on an agent
+module.
+
+Use a supervised agent process when you need long-lived state, conversation
+history, streaming interaction, or OTP supervision.

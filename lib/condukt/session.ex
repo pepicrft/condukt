@@ -682,31 +682,38 @@ defmodule Condukt.Session do
   end
 
   defp execute_tool(tool_map, name, args, state, id) do
-    case Map.get(tool_map, name) do
-      nil ->
+    case Map.fetch(tool_map, name) do
+      :error ->
         Message.tool_result(id, {:error, "Unknown tool: #{name}"})
 
-      {module, opts} ->
-        context = %{agent: self(), sandbox: state.sandbox, cwd: state.cwd, opts: opts}
+      {:ok, tool_spec} ->
+        execute_known_tool(tool_spec, args, state, id)
+    end
+  end
 
-        case Tool.execute({module, opts}, args, context) do
-          {:ok, result} -> Message.tool_result(id, result)
-          {:error, reason} -> Message.tool_result(id, {:error, reason})
-        end
+  defp execute_known_tool({module, opts}, args, state, id) do
+    execute_tool_spec({module, opts}, args, tool_context(state, opts), id)
+  end
 
-      module ->
-        context = %{agent: self(), sandbox: state.sandbox, cwd: state.cwd, opts: []}
+  defp execute_known_tool(tool_spec, args, state, id) do
+    execute_tool_spec(tool_spec, args, tool_context(state, []), id)
+  end
 
-        case Tool.execute(module, args, context) do
-          {:ok, result} -> Message.tool_result(id, result)
-          {:error, reason} -> Message.tool_result(id, {:error, reason})
-        end
+  defp tool_context(state, opts) do
+    %{agent: self(), sandbox: state.sandbox, cwd: state.cwd, opts: opts}
+  end
+
+  defp execute_tool_spec(tool_spec, args, context, id) do
+    case Tool.execute(tool_spec, args, context) do
+      {:ok, result} -> Message.tool_result(id, result)
+      {:error, reason} -> Message.tool_result(id, {:error, reason})
     end
   end
 
   defp build_tool_map(tools) do
     tools
     |> Map.new(fn
+      %Condukt.Tool.Inline{} = inline -> {inline.name, inline}
       {module, opts} = spec -> {Tool.name(spec), {module, opts}}
       module -> {Tool.name(module), module}
     end)

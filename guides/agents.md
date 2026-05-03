@@ -12,7 +12,7 @@ redaction).
 | Callback | Default | Purpose |
 | -------- | ------- | ------- |
 | `system_prompt/0` | `nil` | Static system prompt for the agent. |
-| `tools/0` | `[]` | List of tool modules or `{module, opts}` tuples. |
+| `tools/0` | `[]` | List of tool modules, `{module, opts}` tuples, or inline tools. |
 | `model/0` | `"anthropic:claude-sonnet-4-20250514"` | ReqLLM `provider:model` identifier. |
 | `thinking_level/0` | `:medium` | One of `:off`, `:minimal`, `:low`, `:medium`, `:high`. |
 | `init/1` | identity | Called with the keyword opts at startup. |
@@ -75,7 +75,8 @@ MyApp.ResearchAgent.start_link(
 
 ## Public API
 
-The `Condukt` module forwards these calls to `Condukt.Session`:
+For a running agent process, the `Condukt` module forwards these calls to
+`Condukt.Session`:
 
 * `Condukt.run/3` runs a prompt to completion
 * `Condukt.stream/3` returns a lazy stream of events
@@ -85,6 +86,10 @@ The `Condukt` module forwards these calls to `Condukt.Session`:
 * `Condukt.compact/1` runs the configured compactor
 * `Condukt.steer/2` injects a message mid run, skipping remaining tool calls
 * `Condukt.follow_up/2` queues a message to be delivered after the current run
+
+`Condukt.run/2` also accepts a prompt as the first argument for anonymous
+workflows that do not need an agent module. See the
+[Anonymous Workflows guide](anonymous_workflows.md).
 
 ## Handling events in the agent module
 
