@@ -8,11 +8,11 @@
   <a href="https://github.com/tuist/condukt/actions/workflows/condukt.yml"><img src="https://github.com/tuist/condukt/actions/workflows/condukt.yml/badge.svg" alt="CI" /></a>
 </p>
 
-A framework for building AI agents in Elixir.
+An Elixir library and standalone agentic engine for building reliable AI agents and workflow projects.
 
-Use Condukt as a Hex library inside an Elixir application, or install the standalone workflow engine as a single executable with [mise](https://mise.jdx.dev/). The engine is built with Burrito and bundles Erlang plus Condukt's bytecode, so workflow projects can run without a local Elixir toolchain.
+Condukt has two modes. Use it as a Hex library inside an Elixir application when you want agents embedded in your own OTP system. Install it as the `condukt` engine when you want a single executable that runs agentic workflow projects from the command line, cron, or webhooks.
 
-Condukt treats AI agents as first-class OTP processes that can reason, use tools, and orchestrate complex workflows. Built on Erlang/OTP primitives for reliability and concurrency.
+The engine is built with Burrito and bundles Erlang plus Condukt's bytecode, so workflow projects can run without a local Elixir toolchain. Both modes share the same OTP-native agent runtime, tool system, sandboxing model, and multi-provider LLM support.
 
 ## Motivation 💡
 
