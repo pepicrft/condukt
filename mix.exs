@@ -70,6 +70,7 @@ defmodule Condukt.MixProject do
         "guides/agents.md": [title: "Agents"],
         "guides/anonymous_workflows.md": [title: "Anonymous Workflows"],
         "guides/tools.md": [title: "Tools"],
+        "guides/subagents.md": [title: "Sub-agents"],
         "guides/sandbox.md": [title: "Sandbox"],
         "guides/streaming_and_events.md": [title: "Streaming and Events"],
         "guides/sessions_and_persistence.md": [title: "Sessions and Persistence"],
@@ -89,6 +90,7 @@ defmodule Condukt.MixProject do
           "guides/agents.md",
           "guides/anonymous_workflows.md",
           "guides/tools.md",
+          "guides/subagents.md",
           "guides/sandbox.md",
           "guides/streaming_and_events.md",
           "guides/sessions_and_persistence.md",
@@ -126,7 +128,8 @@ defmodule Condukt.MixProject do
           Condukt.Tools.Edit,
           Condukt.Tools.Write,
           Condukt.Tools.Glob,
-          Condukt.Tools.Grep
+          Condukt.Tools.Grep,
+          Condukt.Tools.Subagent
         ],
         Sandbox: [
           Condukt.Sandbox,
