@@ -37,7 +37,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install tooling with mise
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
           cache: true
 
@@ -99,13 +99,13 @@ jobs:
           retention-days: 1
 
   # ============================================================================
-  # build_nif
-  # Builds the bashkit NIF for every supported target/NIF-version pair.
+  # build_nifs
+  # Builds each NIF for every supported target/NIF-version pair.
   # Each artifact is uploaded so the publish job can attach it to the
-  # GitHub release and feed it into the rustler_precompiled checksum file.
+  # GitHub release and feed it into the rustler_precompiled checksum files.
   # ============================================================================
-  build_nif:
-    name: Build NIF (${{ matrix.job.target }} | nif ${{ matrix.nif }})
+  build_nifs:
+    name: Build NIF (${{ matrix.crate }} | ${{ matrix.job.target }} | nif ${{ matrix.nif }})
     needs: plan
     if: needs.plan.outputs.should_release == 'true'
     runs-on: ${{ matrix.job.os }}
@@ -114,6 +114,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        crate: [condukt_bashkit, condukt_workflows]
         nif: ["2.16", "2.17"]
         job:
           - { target: aarch64-apple-darwin,        os: macos-14 }
@@ -140,7 +141,7 @@ jobs:
         # were trying to install cross at all.
         uses: philss/rustler-precompiled-action@v1.1.5
         with:
-          project-name: condukt_bashkit
+          project-name: ${{ matrix.crate }}
           project-version: ${{ needs.plan.outputs.next_version }}
           target: ${{ matrix.job.target }}
           nif-version: ${{ matrix.nif }}
@@ -150,7 +151,7 @@ jobs:
           # passed as strings, and any non-empty string is truthy in GH
           # expressions, so "false" would still trigger the install.
           use-cross: ${{ matrix.job.use-cross == true && 'true' || '' }}
-          project-dir: native/condukt_bashkit
+          project-dir: native/${{ matrix.crate }}
 
       - name: Upload NIF artifact
         uses: actions/upload-artifact@v4
@@ -168,10 +169,12 @@ jobs:
   # ============================================================================
   publish:
     name: Publish to Hex.pm and create GitHub release
-    needs: [plan, build_nif]
+    needs: [plan, build_nifs]
     if: needs.plan.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      release_commit: ${{ steps.publish.outputs.release_commit }}
     # Publish under the non-dev Mix environment so Hex package validation and
     # publishing exercise the precompiled NIF path, not the dev source build.
     env:
@@ -184,7 +187,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install tooling with mise
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
           cache: true
 
@@ -206,18 +209,26 @@ jobs:
           name: release-context
           path: .
 
-      - name: Download NIF artifacts
+      - name: Download bashkit NIF artifacts
         uses: actions/download-artifact@v4
         with:
-          path: nif-artifacts
+          path: nif-artifacts/condukt_bashkit
           pattern: "*condukt_bashkit-*.tar.gz"
           merge-multiple: true
 
-      - name: Generate checksum file
+      - name: Download workflows NIF artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: nif-artifacts/condukt_workflows
+          pattern: "*condukt_workflows-*.tar.gz"
+          merge-multiple: true
+
+      - name: Generate checksum files
         run: |
           set -euo pipefail
-          ls -la nif-artifacts/
-          elixir scripts/generate_nif_checksum.exs nif-artifacts
+          find nif-artifacts -maxdepth 2 -type f -name '*.tar.gz' -print | sort
+          elixir scripts/generate_nif_checksum.exs nif-artifacts/condukt_bashkit Elixir.Condukt.Bashkit.NIF
+          elixir scripts/generate_nif_checksum.exs nif-artifacts/condukt_workflows Elixir.Condukt.Workflows.NIF
 
       - name: Update version and changelog
         run: |
@@ -241,7 +252,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add mix.exs CHANGELOG.md "checksum-Elixir.Condukt.Bashkit.NIF.exs"
+          git add mix.exs CHANGELOG.md \
+            "checksum-Elixir.Condukt.Bashkit.NIF.exs" \
+            "checksum-Elixir.Condukt.Workflows.NIF.exs"
           git commit -m "[Release] Condukt ${{ needs.plan.outputs.next_version }}"
           git tag -a "${{ needs.plan.outputs.next_version }}" -m "${{ needs.plan.outputs.next_version }}"
 
@@ -256,9 +269,171 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          mapfile -t nif_files < <(find nif-artifacts -type f -name '*.tar.gz' | sort)
+
           gh release create "${{ needs.plan.outputs.next_version }}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "${{ steps.publish.outputs.release_commit }}" \
             --title "${{ needs.plan.outputs.next_version }}" \
             --notes-file RELEASE_NOTES.md \
-            nif-artifacts/*.tar.gz
+            "${nif_files[@]}"
+
+  # ============================================================================
+  # build_engines
+  # Builds Burrito-wrapped standalone engine binaries. These jobs run after the
+  # initial GitHub release exists so rustler_precompiled can download the just
+  # published target-specific NIF artifacts and compile the bytecode metadata
+  # for the same target the Burrito wrapper is building.
+  # ============================================================================
+  build_engines:
+    name: Build engine (${{ matrix.burrito_target }})
+    needs: [plan, publish]
+    if: needs.plan.outputs.should_release == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - burrito_target: linux_x64
+            asset_suffix: linux-x64-gnu
+            binary_name: condukt_linux_x64
+            archive_ext: tar.gz
+            target_arch: x86_64
+            target_vendor: unknown
+            target_os: linux
+            target_abi: gnu
+          - burrito_target: macos_x64
+            asset_suffix: macos-x64
+            binary_name: condukt_macos_x64
+            archive_ext: tar.gz
+            target_arch: x86_64
+            target_vendor: apple
+            target_os: darwin
+            target_abi: ""
+          - burrito_target: macos_arm64
+            asset_suffix: macos-arm64
+            binary_name: condukt_macos_arm64
+            archive_ext: tar.gz
+            target_arch: aarch64
+            target_vendor: apple
+            target_os: darwin
+            target_abi: ""
+          - burrito_target: windows_x64
+            asset_suffix: windows-x64-msvc
+            binary_name: condukt_windows_x64.exe
+            archive_ext: zip
+            target_arch: x86_64
+            target_vendor: pc
+            target_os: windows
+            target_abi: msvc
+
+    steps:
+      - name: Check out the release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.publish.outputs.release_commit }}
+
+      - name: Install tooling with mise
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
+        with:
+          cache: true
+
+      - name: Install archive tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full xz-utils
+
+      - name: Install Hex and Rebar
+        run: |
+          mix local.hex --force
+          mix local.rebar --force
+
+      - name: Fetch production dependencies
+        run: MIX_ENV=prod mix deps.get --only prod
+
+      - name: Build Burrito engine
+        env:
+          BURRITO_TARGET: ${{ matrix.burrito_target }}
+          CONDUKT_BASHKIT_PRECOMPILED: "1"
+          CONDUKT_WORKFLOWS_PRECOMPILED: "1"
+          TARGET_ARCH: ${{ matrix.target_arch }}
+          TARGET_VENDOR: ${{ matrix.target_vendor }}
+          TARGET_OS: ${{ matrix.target_os }}
+          TARGET_ABI_VALUE: ${{ matrix.target_abi }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "$TARGET_ABI_VALUE" ]; then
+            export TARGET_ABI="$TARGET_ABI_VALUE"
+          fi
+
+          MIX_ENV=prod mix release condukt --overwrite
+
+      - name: Package engine asset
+        env:
+          VERSION: ${{ needs.plan.outputs.next_version }}
+          BURRITO_TARGET: ${{ matrix.burrito_target }}
+          ASSET_SUFFIX: ${{ matrix.asset_suffix }}
+          BINARY_NAME: ${{ matrix.binary_name }}
+          ARCHIVE_EXT: ${{ matrix.archive_ext }}
+        run: |
+          set -euo pipefail
+
+          binary="burrito_out/${BINARY_NAME}"
+          test -f "$binary"
+
+          asset_base="condukt-${VERSION}-${ASSET_SUFFIX}"
+          package_dir="dist/${asset_base}"
+          mkdir -p "$package_dir"
+
+          if [ "$ARCHIVE_EXT" = "zip" ]; then
+            cp "$binary" "${package_dir}/condukt.exe"
+            (cd "$package_dir" && 7z a "../${asset_base}.zip" condukt.exe)
+          else
+            cp "$binary" "${package_dir}/condukt"
+            chmod 755 "${package_dir}/condukt"
+            tar -czf "dist/${asset_base}.tar.gz" -C "$package_dir" condukt
+          fi
+
+          (cd dist && sha256sum "${asset_base}.${ARCHIVE_EXT}" > "${asset_base}.${ARCHIVE_EXT}.sha256")
+
+      - name: Upload engine asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: condukt-engine-${{ matrix.burrito_target }}
+          path: |
+            dist/condukt-${{ needs.plan.outputs.next_version }}-${{ matrix.asset_suffix }}.${{ matrix.archive_ext }}
+            dist/condukt-${{ needs.plan.outputs.next_version }}-${{ matrix.asset_suffix }}.${{ matrix.archive_ext }}.sha256
+          retention-days: 1
+
+  # ============================================================================
+  # publish_engine_assets
+  # Uploads all standalone engine archives to the already-created GitHub release.
+  # ============================================================================
+  publish_engine_assets:
+    name: Publish engine assets
+    needs: [plan, publish, build_engines]
+    if: needs.plan.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Download engine artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: engine-artifacts
+          pattern: condukt-engine-*
+          merge-multiple: true
+
+      - name: Upload engine assets to GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          find engine-artifacts -maxdepth 1 -type f -print | sort
+          gh release upload "${{ needs.plan.outputs.next_version }}" engine-artifacts/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber

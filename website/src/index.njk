@@ -1,26 +1,29 @@
 ---
 layout: base.njk
 title: null
-description: A framework for building AI agents in Elixir, with OTP-native primitives, streaming, and a pluggable tool system.
+description: A framework for building AI agents in Elixir, with OTP-native primitives, streaming, workflows, and a standalone engine.
 ---
 
 <section class="hero">
   <div class="container">
     <img class="hero-logo" src="/assets/logo.png" alt="Condukt logo" width="120" height="120" />
-    <p class="eyebrow">Elixir · OTP · LLMs</p>
+    <p class="eyebrow">Elixir · OTP · Workflow engine</p>
     <h1>Build resilient AI agents in Elixir.</h1>
     <p class="lede">
       {{ site.name }} treats agents as first-class OTP processes: supervised,
-      observable, and built for production. Stream tokens, call tools, and
-      compose workflows on top of the BEAM.
+      observable, and built for production. Embed it as a library, or install
+      the standalone engine to run workflow projects without a local Elixir
+      toolchain.
     </p>
     <div class="cta-row">
       <a class="btn primary" href="{{ site.docs }}">Read the docs</a>
       <a class="btn ghost" href="{{ site.repo }}">View on GitHub</a>
     </div>
-    <div class="code-block install">{% highlight "elixir" %}def deps do
-  [{:condukt, "~> 0.10"}]
-end{% endhighlight %}</div>
+    <div class="code-block install">{% highlight "bash" %}# Library
+{:condukt, "~> 0.13"}
+
+# Engine
+mise use -g github:tuist/condukt{% endhighlight %}</div>
   </div>
 </section>
 
@@ -54,6 +57,14 @@ end{% endhighlight %}</div>
       </article>
       <article>
         <span class="feature-icon" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/><path d="m8 8 4 4-4 4"/></svg>
+        </span>
+        <h3>Workflow engine</h3>
+        <p>A Burrito-built <code>condukt</code> executable runs Starlark
+        workflow projects on Linux, macOS, and Windows through mise.</p>
+      </article>
+      <article>
+        <span class="feature-icon" aria-hidden="true">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg>
         </span>
         <h3>Pluggable tools</h3>
@@ -82,12 +93,26 @@ end{% endhighlight %}</div>
 
 <section id="install" class="install-section">
   <div class="container">
-    <h2>Get started</h2>
+    <h2>Two ways to run Condukt</h2>
+    <div class="mode-grid">
+      <article>
+        <h3>Library</h3>
+        <p>Use Hex when agents should run inside your Elixir app and share
+        your supervision tree.</p>
+        <div class="code-block">{% highlight "elixir" %}def deps do
+  [{:condukt, "~> 0.13"}]
+end{% endhighlight %}</div>
+      </article>
+      <article>
+        <h3>Engine</h3>
+        <p>Use mise when you want the standalone workflow runner with Erlang
+        and Condukt bundled into one executable.</p>
+        <div class="code-block">{% highlight "bash" %}mise use -g github:tuist/condukt
+condukt workflows check --root .{% endhighlight %}</div>
+      </article>
+    </div>
+
     <ol class="steps">
-      <li>
-        <h3>Add the dependency</h3>
-        <div class="code-block">{% highlight "elixir" %}{:condukt, "~> 0.10"}{% endhighlight %}</div>
-      </li>
       <li>
         <h3>Define an agent</h3>
         <div class="code-block">{% highlight "elixir" %}defmodule MyApp.CodingAgent do

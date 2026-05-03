@@ -11,6 +11,10 @@
 - Tools that read/write files or run subprocesses must route through the
   `Condukt.Sandbox.*` facade, not `File.*` / `MuonTrap.cmd/3` directly. The
   sandbox is in `context.sandbox` when the tool's `call/2` is invoked.
+- Session secrets are resolved through `Condukt.Secrets` and exposed to tools
+  through `context.secrets`; command tools should use `Condukt.Secrets.env/1`
+  or `Condukt.Secrets.merge_env/2` instead of reading provider-specific secret
+  stores directly.
 - `Condukt.Sandbox.Local` is the default and operates against the host
   filesystem. `Condukt.Sandbox.Virtual` is in-tree and routes through a
   Rust NIF wrapping bashkit for in-memory virtual filesystem isolation.
@@ -23,8 +27,12 @@
 - Agents can declare `subagents/0` as `role: AgentModule` or
   `role: {AgentModule, opts}`. Sessions auto-inject `Condukt.Tools.Subagent`
   when roles are registered.
-- Child sessions inherit the parent `:sandbox`, `:cwd`, and `:api_key` unless
-  those values are overridden in the role registration opts.
+- Role opts can declare optional `:input`/`:input_schema` and
+  `:output`/`:output_schema` JSON Schemas. Only fields listed in `required`
+  are required.
+- Child sessions inherit the parent `:sandbox`, `:cwd`, `:api_key`,
+  `:base_url`, and resolved `:secrets` unless those values are overridden in
+  the role registration opts.
 - See `guides/subagents.md` for declaration, inheritance, and supervision
   details.
 
@@ -44,6 +52,50 @@
   named `checksum-Elixir.Condukt.Bashkit.NIF.exs` in the package source.
   See `.github/workflows/release.yml` for the build matrix.
 
+## Workflows
+
+- `Condukt.Workflows` loads Starlark workflow declarations from a project root,
+  resolves package loads through a TOML lockfile, materializes Elixir structs,
+  and starts caller-owned runtimes for manual, cron, and webhook-triggered
+  runs.
+- The workflows NIF lives in `native/condukt_workflows/`. It evaluates
+  Starlark, runs PubGrub resolution, and computes deterministic SHA-256 tree
+  hashes. It must return materialized Elixir maps and lists, not pointers into
+  Starlark heap state.
+- Workflow package identity uses versioned load strings:
+  `<host>/<path>@<version>`. Non-relative loads require a version. Relative
+  loads stay inside the workspace.
+- Shared packages are stored under `~/.condukt/store/<sha256>/`. Store writes
+  must verify `Condukt.Workflows.NIF.sha256_tree/1` before the atomic rename.
+- `condukt.lock` is TOML, committed, deterministic, and offline-first. Use
+  `mix condukt.workflows.lock` to update it.
+- Workflow runtimes are not auto-started by `Condukt.Application`. Callers use
+  `Condukt.Workflows.serve/2` or `mix condukt.workflows.serve`.
+- `mix condukt.workflows.check` is the validation gate for workflow graphs,
+  tool refs, sandbox kinds, and model identifiers.
+
+## Engine releases
+
+- Condukt has two distribution modes. Library mode is the Hex package consumed
+  by Elixir applications. Engine mode is the standalone `condukt` executable
+  built with Burrito for running workflow projects without a local Elixir or
+  Erlang install.
+- Burrito targets are configured in `mix.exs` under `releases/0`. Release CI
+  builds Linux x64, macOS x64, macOS arm64, and Windows x64 archives and
+  attaches them to the GitHub release after the Hex package and NIF artifacts
+  are published.
+- Engine assets are named for mise's GitHub backend autodetection:
+  `condukt-<version>-linux-x64-gnu.tar.gz`,
+  `condukt-<version>-macos-x64.tar.gz`,
+  `condukt-<version>-macos-arm64.tar.gz`, and
+  `condukt-<version>-windows-x64-msvc.zip`.
+- Burrito requires Zig, XZ, and 7z at build time. Zig is pinned in `mise.toml`.
+  Erlang is pinned to an exact OTP 28 patch version so Burrito can fetch the
+  matching precompiled ERTS from the Beam Machine cache.
+- Engine builds set `CONDUKT_BASHKIT_PRECOMPILED=1` and
+  `CONDUKT_WORKFLOWS_PRECOMPILED=1` so the release bytecode points at the
+  target-specific NIF artifacts already attached to the GitHub release.
+
 ## Workflow
 
 - After every change, create a git commit and push it to the current branch.
@@ -51,6 +103,15 @@
 ## Elixir
 
 - Do not type Elixir code by hand when avoidable. Prefer structural edits and tool-assisted changes.
+- Do not introduce `try`/`catch` or `rescue` patterns in production Elixir
+  code. Prefer tuple-returning APIs and explicit pattern matching. If a
+  boundary genuinely needs non-local failure handling, use an existing project
+  abstraction or add one deliberately instead of catching locally.
+- Tests must not mutate global process state such as `System.put_env/2`,
+  `System.delete_env/1`, `Application.put_env/3`, or
+  `Application.delete_env/2`. Prefer explicit dependency injection, per-test
+  processes, unique temporary paths, and local options so affected tests can run
+  with `async: true`.
 
 ## Marketing site (`website/`)
 

@@ -35,7 +35,10 @@ defmodule Condukt.Bashkit.NIF do
       crate: "condukt_bashkit",
       # release.yml creates plain version tags like "0.13.1", not "v0.13.1".
       base_url: "https://github.com/tuist/condukt/releases/download/#{Mix.Project.config()[:version]}",
-      force_build: Mix.env() == :dev,
+      force_build:
+        System.get_env("CONDUKT_BASHKIT_PRECOMPILED") not in ["1", "true"] and
+          (Mix.env() == :dev or
+             System.get_env("CONDUKT_BASHKIT_BUILD") in ["1", "true"]),
       version: Mix.Project.config()[:version],
       targets: ~w(
         aarch64-apple-darwin

@@ -51,6 +51,9 @@ defmodule Condukt.Tool do
   - `:cwd` - Project working directory (kept for tools that need to refer to
     the host project root for non-sandbox concerns; tools that read/write
     files or run commands should go through `:sandbox`)
+  - `:secrets` - Resolved session secrets. Built-in command tools expose these
+    as environment variables. Custom trusted tools can use
+    `Condukt.Secrets.env/1` when they need the same values.
   - `:opts` - Options passed when adding the tool to the agent
 
   ## Sandbox-aware tools

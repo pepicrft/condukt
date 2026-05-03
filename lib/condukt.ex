@@ -73,7 +73,9 @@ defmodule Condukt do
   Returns the sub-agents this agent can delegate work to.
 
   Each entry maps a role atom to an agent module, or to `{agent_module, opts}`.
-  Registration opts are passed to the child session when the sub-agent runs.
+  Registration opts are passed to the child session when the sub-agent runs,
+  except `:input`/`:input_schema` and `:output`/`:output_schema`, which define
+  optional structured contracts for the sub-agent tool boundary.
   """
   @callback subagents() :: keyword(module() | {module(), keyword()})
 
@@ -99,6 +101,15 @@ defmodule Condukt do
   @callback sandbox() :: nil | module() | {module(), keyword()} | Condukt.Sandbox.t()
 
   @doc """
+  Returns the default session secret declarations for this agent.
+
+  Secrets are resolved when the session starts, kept out of model context and
+  persisted snapshots, and exposed to built-in command tools as environment
+  variables. Can be overridden at `start_link/1` via the `:secrets` option.
+  """
+  @callback secrets() :: nil | keyword() | map() | struct()
+
+  @doc """
   Initializes agent state from options.
   """
   @callback init(keyword()) :: {:ok, term()} | {:stop, term()}
@@ -115,6 +126,7 @@ defmodule Condukt do
     model: 0,
     thinking_level: 0,
     sandbox: 0,
+    secrets: 0,
     init: 1,
     handle_event: 2
   ]
@@ -152,6 +164,9 @@ defmodule Condukt do
       def sandbox, do: nil
 
       @impl Condukt
+      def secrets, do: nil
+
+      @impl Condukt
       def init(opts), do: {:ok, opts}
 
       @impl Condukt
@@ -163,6 +178,7 @@ defmodule Condukt do
                      model: 0,
                      thinking_level: 0,
                      sandbox: 0,
+                     secrets: 0,
                      init: 1,
                      handle_event: 2
 
@@ -184,6 +200,9 @@ defmodule Condukt do
         `Condukt.Sandbox` struct). Defaults to
         `{Condukt.Sandbox.Local, cwd: <:cwd>}`.
       - `:subagents` - Override the agent's `subagents/0` registrations
+      - `:secrets` - Session secret declarations. Resolved at session start
+        and exposed to command tools as environment variables without adding
+        plaintext values to model context or snapshots.
       - `:session_store` - Session store module or `{module, opts}` tuple
       - `:compactor` - Compactor module or `{module, opts}` tuple
         (see `Condukt.Compactor`)

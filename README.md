@@ -8,11 +8,11 @@
   <a href="https://github.com/tuist/condukt/actions/workflows/condukt.yml"><img src="https://github.com/tuist/condukt/actions/workflows/condukt.yml/badge.svg" alt="CI" /></a>
 </p>
 
-A framework for building AI agents in Elixir.
+An Elixir library and standalone agentic engine for building reliable AI agents and workflow projects.
 
-Install it from [Hex.pm](https://hex.pm/packages/condukt) and browse the guides on [HexDocs](https://hexdocs.pm/condukt/).
+Condukt has two modes. Use it as a Hex library inside an Elixir application when you want agents embedded in your own OTP system. Install it as the `condukt` engine when you want a single executable that runs agentic workflow projects from the command line, cron, or webhooks.
 
-Condukt treats AI agents as first-class OTP processes that can reason, use tools, and orchestrate complex workflows. Built on Erlang/OTP primitives for reliability and concurrency.
+The engine is built with Burrito and bundles Erlang plus Condukt's bytecode, so workflow projects can run without a local Elixir toolchain. Both modes share the same OTP-native agent runtime, tool system, sandboxing model, and multi-provider LLM support.
 
 ## Motivation 💡
 
@@ -34,21 +34,51 @@ Rather than wrapping JavaScript agent frameworks, we built Condukt from scratch 
 - **Tool System**: Extensible tools for file operations, shell commands, and more
 - **Operations**: Compile-time typed entrypoints with JSON Schema input/output validation
 - **Anonymous Workflows**: One-off `Condukt.run/2` calls with inline tools and optional structured output
+- **Sub-agents**: Delegate isolated tasks to specialized child sessions with optional structured input/output contracts
+- **Workflow Engine**: Standalone `condukt` executable for Starlark workflow projects, installable with mise
 - **Multi-Provider**: 18+ LLM providers via [ReqLLM](https://github.com/agentjido/req_llm) (Anthropic, OpenAI, Google, etc.)
 - **Redaction**: Pluggable secret redaction on outbound messages with a regex-based default
+- **Session Secrets**: Resolve credentials from providers such as 1Password and expose them only to tool execution environments
 - **Telemetry**: Built-in observability with `:telemetry` events
 
 ## Installation 📦
+
+### Library mode
 
 Add `condukt` to your dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:condukt, "~> 0.1.0"}
+    {:condukt, "~> 0.13"}
   ]
 end
 ```
+
+Use library mode when Condukt should live inside your own OTP supervision tree.
+
+### Engine mode
+
+Install the standalone executable from GitHub Releases with mise:
+
+```sh
+mise use -g github:tuist/condukt
+condukt version
+```
+
+Use engine mode when you want to run a workflow project directly:
+
+```sh
+condukt workflows check --root .
+condukt workflows run triage --root . --input '{"issue":"broken"}'
+condukt workflows serve --root . --port 4000
+```
+
+The release assets include Linux x64, macOS x64, macOS arm64, and Windows x64 builds.
+
+See the [Workflows](guides/workflows.md) guide for creating, running, and
+sharing workflows. See the [Workflow Starlark API](guides/workflow_starlark_api.md)
+reference for every Starlark builtin available to workflow files.
 
 ## Quick Start 🚀
 
@@ -222,13 +252,59 @@ Use anonymous workflows when the whole task is contained in one call. Use a
 supervised agent when you need conversation history, long-lived state, or
 OTP supervision.
 
+## Sub-agents
+
+Agents can delegate work to specialized child agents by declaring
+`subagents/0`. Each child runs as its own `Condukt.Session` under the parent
+session's sub-agent supervisor, with separate conversation history and its own
+tools, model, and system prompt.
+
+```elixir
+defmodule MyApp.LeadAgent do
+  use Condukt
+
+  @impl true
+  def subagents do
+    [
+      reviewer:
+        {MyApp.ReviewerAgent,
+         input: %{
+           type: "object",
+           properties: %{
+             path: %{type: "string"},
+             severity: %{type: "string", enum: ["low", "medium", "high"]}
+           },
+           required: ["path"]
+         },
+         output: %{
+           type: "object",
+           properties: %{
+             findings: %{type: "array", items: %{type: "object"}},
+             summary: %{type: "string"}
+           },
+           required: ["findings", "summary"]
+         }}
+    ]
+  end
+end
+```
+
+When sub-agents are registered, Condukt injects a `subagent` tool into the
+parent. `:input` and `:output` schemas are optional. If an input schema is
+declared, Condukt validates the tool call's `input` value before the child
+starts. If an output schema is declared, Condukt adds a `submit_result` tool
+to the child and returns the validated structured value to the parent.
+
+See the [Sub-agents](guides/subagents.md) guide for role declarations,
+inheritance, supervision, and structured contracts.
+
 ## LiveBook 📓
 
 Condukt works well in LiveBook notebooks with `Mix.install/1`:
 
 ```elixir
 Mix.install([
-  {:condukt, "~> 0.1.0"}
+  {:condukt, "~> 0.13"}
 ])
 
 Application.put_env(:condukt, :api_key, System.fetch_env!("ANTHROPIC_API_KEY"))
@@ -559,7 +635,9 @@ Condukt emits telemetry events for observability:
     [:condukt, :tool_call, :start],
     [:condukt, :tool_call, :stop],
     [:condukt, :operation, :start],
-    [:condukt, :operation, :stop]
+    [:condukt, :operation, :stop],
+    [:condukt, :secrets, :resolve],
+    [:condukt, :secrets, :access]
   ],
   fn event, measurements, metadata, _config ->
     Logger.info("#{inspect(event)}: #{inspect(measurements)}")
@@ -567,6 +645,9 @@ Condukt emits telemetry events for observability:
   nil
 )
 ```
+
+Secret telemetry includes environment variable names and counts for auditing,
+but never includes resolved secret values.
 
 ## Streaming API
 

@@ -1,9 +1,10 @@
 import { createHighlighter } from "@lumis-sh/lumis";
 import { htmlInline } from "@lumis-sh/lumis/formatters";
+import bash from "@lumis-sh/lumis/langs/bash";
 import elixir from "@lumis-sh/lumis/langs/elixir";
 import theme from "@lumis-sh/themes/catppuccin_mocha";
 
-const LANGUAGES = { elixir };
+const LANGUAGES = { bash, elixir };
 
 let highlighterPromise;
 function getHighlighter() {

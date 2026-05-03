@@ -68,6 +68,18 @@ Tool results that are not strings (maps, lists) are JSON encoded before the
 redactor runs, so secrets embedded in structured output are still caught.
 The result the model sees is the redacted JSON.
 
+## Session secrets
+
+Session secrets configured through `:secrets` are converted into a
+`Condukt.Redactors.Secrets` redactor and composed ahead of the configured
+`:redactor`. This keeps resolved provider secrets in the same outbound
+redaction pipeline as regex or custom redactors.
+
+Unlike general outbound redactors, session secret values are also exact-match
+redacted from tool results before they are stored in session history. This
+prevents resolved session credentials from being persisted if a command prints
+them.
+
 ## What is not redacted
 
 * The system prompt

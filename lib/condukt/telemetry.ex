@@ -35,6 +35,19 @@ defmodule Condukt.Telemetry do
     - Measurements: `%{duration: integer}`
     - Metadata: `%{tool: string, kind: atom, reason: term, stacktrace: list}`
 
+  ### Secret Events
+
+  These events never include secret values.
+
+  - `[:condukt, :secrets, :resolve]` - Session secrets resolved
+    - Measurements: `%{count: non_neg_integer}`
+    - Metadata: `%{agent: module, names: [String.t()]}`
+
+  - `[:condukt, :secrets, :access]` - A tool received resolved session secrets
+    - Measurements: `%{count: non_neg_integer}`
+    - Metadata: `%{agent: module, tool: String.t(), names: [String.t()]}`
+    - Optional metadata: `%{tool_call_id: String.t()}`
+
   ### Operation Events
 
   Wrap a full `Condukt.Operation.run/4` call (input validation, transient
@@ -77,7 +90,9 @@ defmodule Condukt.Telemetry do
         [
           [:condukt, :agent, :start],
           [:condukt, :agent, :stop],
-          [:condukt, :tool_call, :stop]
+          [:condukt, :tool_call, :stop],
+          [:condukt, :secrets, :resolve],
+          [:condukt, :secrets, :access]
         ],
         &MyApp.Telemetry.handle_event/4,
         nil
@@ -128,7 +143,13 @@ defmodule Condukt.Telemetry do
   @doc """
   Emits a telemetry event.
   """
-  def emit(event, measurements \\ %{}, metadata \\ %{}) when is_atom(event) do
-    :telemetry.execute([:condukt, event], measurements, metadata)
+  def emit(event, measurements \\ %{}, metadata \\ %{})
+
+  def emit(event, measurements, metadata) when is_atom(event) do
+    emit([event], measurements, metadata)
+  end
+
+  def emit(event, measurements, metadata) when is_list(event) do
+    :telemetry.execute([:condukt | event], measurements, metadata)
   end
 end

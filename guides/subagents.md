@@ -25,15 +25,34 @@ defmodule MyApp.LeadAgent do
   def subagents do
     [
       researcher: MyApp.ResearchAgent,
-      coder: {MyApp.CoderAgent, model: "anthropic:claude-sonnet-4-20250514"}
+      coder:
+        {MyApp.CoderAgent,
+         model: "anthropic:claude-sonnet-4-20250514",
+         input: %{
+           type: "object",
+           properties: %{
+             files: %{type: "array", items: %{type: "string"}},
+             focus: %{type: "string"}
+           },
+           required: ["files"]
+         },
+         output: %{
+           type: "object",
+           properties: %{
+             summary: %{type: "string"},
+             changed_files: %{type: "array", items: %{type: "string"}}
+           },
+           required: ["summary", "changed_files"]
+         }}
     ]
   end
 end
 ```
 
 Each entry is `role: AgentModule` or `role: {AgentModule, opts}`. The role
-atom is the identifier the parent model uses. Registration opts are passed to
-the child session startup call.
+atom is the identifier the parent model uses. Most registration opts are
+passed to the child session startup call. `:input`, `:input_schema`,
+`:output`, and `:output_schema` are reserved for the sub-agent contract.
 
 You can also override registrations when starting a session:
 
@@ -56,18 +75,81 @@ tool into the parent agent:
   "name": "subagent",
   "parameters": {
     "type": "object",
-    "properties": {
-      "role": {"type": "string", "enum": ["researcher", "coder"]},
-      "task": {"type": "string", "description": "What the sub-agent should do."}
-    },
-    "required": ["role", "task"]
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "role": {"type": "string", "enum": ["researcher"]},
+          "task": {"type": "string"}
+        },
+        "required": ["role", "task"]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "role": {"type": "string", "enum": ["coder"]},
+          "task": {"type": "string"},
+          "input": {
+            "type": "object",
+            "properties": {
+              "files": {"type": "array", "items": {"type": "string"}},
+              "focus": {"type": "string"}
+            },
+            "required": ["files"]
+          }
+        },
+        "required": ["role", "task", "input"]
+      }
+    ]
   }
 }
 ```
 
-The model sees the registered roles in the `role` enum. When it calls the
-tool, Condukt starts a child session, runs `Condukt.run(child, task)`, returns
-the final response as the tool result, and then terminates the child session.
+The model sees a role-specific schema. Fields listed in the JSON Schema
+`required` list are required. Properties omitted from `required` stay optional.
+When the model calls the tool, Condukt validates the optional structured input,
+starts a child session, runs the task, returns the final result as the tool
+result, and then terminates the child session.
+
+## Structured input and output
+
+Sub-agent input and output schemas are optional:
+
+- `:input` or `:input_schema` validates the `input` argument on the `subagent`
+  tool call before the child starts.
+- `:output` or `:output_schema` adds a `submit_result` tool to the child
+  session and validates the submitted value before returning it to the parent.
+- If no output schema is declared, the child returns free-form text.
+
+Example:
+
+```elixir
+def subagents do
+  [
+    reviewer:
+      {MyApp.ReviewerAgent,
+       input: %{
+         type: "object",
+         properties: %{
+           path: %{type: "string"},
+           severity: %{type: "string", enum: ["low", "medium", "high"]}
+         },
+         required: ["path"]
+       },
+       output: %{
+         type: "object",
+         properties: %{
+           findings: %{type: "array", items: %{type: "object"}},
+           summary: %{type: "string"}
+         },
+         required: ["findings", "summary"]
+       }}
+  ]
+end
+```
+
+In this example `path` is required and `severity` is optional. The parent
+receives a validated map with `findings` and `summary` instead of parsing text.
 
 ## Inheritance
 
@@ -76,6 +158,8 @@ By default a child sub-agent inherits these parent session values:
 - `:sandbox`
 - `:cwd`
 - `:api_key`
+- `:base_url`
+- `:secrets`
 
 Registration opts override inherited values:
 

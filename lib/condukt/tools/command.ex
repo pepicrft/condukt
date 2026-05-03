@@ -10,6 +10,8 @@ defmodule Condukt.Tools.Command do
 
   use Condukt.Tool
 
+  alias Condukt.Secrets
+
   @max_lines 2000
   @max_bytes 50 * 1024
   @default_timeout 120_000
@@ -74,7 +76,7 @@ defmodule Condukt.Tools.Command do
       base_cwd = context[:cwd] || File.cwd!()
       cwd = resolve_cwd(args["cwd"], base_cwd)
       timeout = trunc((args["timeout"] || div(@default_timeout, 1000)) * 1000)
-      env = build_env(Keyword.get(context.opts, :env, []))
+      env = build_env(Secrets.merge_env(context[:secrets], Keyword.get(context.opts, :env, [])))
 
       case execute_command(command, command_args, cwd, timeout, env) do
         {:ok, output, exit_code} ->

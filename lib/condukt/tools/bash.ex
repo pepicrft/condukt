@@ -17,7 +17,7 @@ defmodule Condukt.Tools.Bash do
 
   use Condukt.Tool
 
-  alias Condukt.Sandbox
+  alias Condukt.{Sandbox, Secrets}
 
   @max_lines 2000
   @max_bytes 50 * 1024
@@ -66,6 +66,7 @@ defmodule Condukt.Tools.Bash do
     exec_opts =
       []
       |> put_if_present(:cwd, args["cwd"])
+      |> put_if_present(:env, Secrets.env(context[:secrets]))
       |> Keyword.put(:timeout, timeout)
 
     case Sandbox.exec(sandbox, command, exec_opts) do

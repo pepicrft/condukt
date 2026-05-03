@@ -83,6 +83,7 @@ defmodule Condukt.Sandbox.Virtual do
   @impl Sandbox
   def exec(%State{session: session, base_cwd: base_cwd}, command, opts) do
     timeout = Keyword.get(opts, :timeout)
+    env = Keyword.get(opts, :env, [])
 
     # Stateless exec: each call resets cwd to the sandbox's base, then
     # optionally `cd`s into the per-call :cwd. This matches Sandbox.Local
@@ -94,6 +95,7 @@ defmodule Condukt.Sandbox.Virtual do
         nil -> command
         cwd -> "cd #{shell_quote(cwd)} && #{command}"
       end
+      |> prepend_env_exports(env)
 
     NIF.exec(session, script, timeout)
   end
@@ -148,4 +150,33 @@ defmodule Condukt.Sandbox.Virtual do
   defp shell_quote(s) do
     "'" <> String.replace(s, "'", "'\\''") <> "'"
   end
+
+  defp prepend_env_exports(script, []), do: script
+
+  defp prepend_env_exports(script, env) do
+    case normalize_env(env) do
+      [] ->
+        script
+
+      normalized ->
+        exports = Enum.map_join(normalized, "\n", fn {key, value} -> "export #{key}=#{shell_quote(value)}" end)
+        exports <> "\n" <> script
+    end
+  end
+
+  defp normalize_env(env) when is_map(env) do
+    env
+    |> Map.new(fn {key, value} -> {to_string(key), to_string(value)} end)
+    |> Enum.filter(&valid_env?/1)
+  end
+
+  defp normalize_env(env) when is_list(env) do
+    env
+    |> Enum.map(fn {key, value} -> {to_string(key), to_string(value)} end)
+    |> Enum.filter(&valid_env?/1)
+  end
+
+  defp normalize_env(_), do: []
+
+  defp valid_env?({key, _value}), do: Regex.match?(~r/^[A-Za-z_][A-Za-z0-9_]*$/, key)
 end
