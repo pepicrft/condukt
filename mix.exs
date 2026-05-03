@@ -47,13 +47,10 @@ defmodule Condukt.MixProject do
       {:telemetry, "~> 1.0"},
 
       # Native interop with the bashkit virtual sandbox.
-      # `rustler_precompiled` downloads prebuilt artifacts at compile time so
-      # consumers don't need a Rust toolchain. `rustler` is only required for
-      # building the NIF from source (Condukt's own CI release builds, plus
-      # any downstream user who opts into a source build via the
-      # `CONDUKT_BASHKIT_BUILD` environment variable).
+      # Dev builds compile the NIF from source via `rustler`; non-dev builds
+      # download prebuilt artifacts via `rustler_precompiled`.
       {:rustler_precompiled, "~> 0.8"},
-      {:rustler, ">= 0.0.0", optional: true},
+      {:rustler, ">= 0.0.0", only: :dev, runtime: false},
 
       # Development & Testing
       {:quokka, "~> 2.12", only: [:dev, :test], runtime: false},
