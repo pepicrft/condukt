@@ -1,6 +1,16 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.14.0] - 2026-05-03
+
+### Features
+
+- Add sandbox abstraction with Local and Virtual (bashkit NIF) backends
+
+
+- Add anonymous runtime workflows
+
+
 ## [0.13.1] - 2026-05-03
 
 ### Changes
