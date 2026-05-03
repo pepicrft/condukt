@@ -15,11 +15,7 @@ defmodule Condukt.Sandbox.Local do
   @behaviour Condukt.Sandbox
 
   alias Condukt.Sandbox
-
-  defmodule State do
-    @moduledoc false
-    defstruct [:cwd]
-  end
+  alias Condukt.Sandbox.Local.State
 
   @base_env %{
     "TERM" => "dumb",
@@ -70,23 +66,24 @@ defmodule Condukt.Sandbox.Local do
     absolute = resolve(path, cwd)
 
     with {:ok, content} <- File.read(absolute) do
-      occurrences = count_occurrences(content, old_text)
+      apply_edit(absolute, content, old_text, new_text)
+    end
+  end
 
-      cond do
-        occurrences == 0 ->
-          {:ok, %{occurrences: 0, content: content}}
+  defp apply_edit(absolute, content, old_text, new_text) do
+    case count_occurrences(content, old_text) do
+      0 -> {:ok, %{occurrences: 0, content: content}}
+      n when n > 1 -> {:ok, %{occurrences: n, content: content}}
+      1 -> write_replacement(absolute, content, old_text, new_text)
+    end
+  end
 
-        occurrences > 1 ->
-          {:ok, %{occurrences: occurrences, content: content}}
+  defp write_replacement(absolute, content, old_text, new_text) do
+    {:ok, new_content} = replace_first(content, old_text, new_text)
 
-        true ->
-          {:ok, new_content} = replace_first(content, old_text, new_text)
-
-          case File.write(absolute, new_content) do
-            :ok -> {:ok, %{occurrences: 1, content: new_content}}
-            {:error, reason} -> {:error, reason}
-          end
-      end
+    case File.write(absolute, new_content) do
+      :ok -> {:ok, %{occurrences: 1, content: new_content}}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -229,21 +226,24 @@ defmodule Condukt.Sandbox.Local do
   end
 
   defp scan_file(path, regex, base) do
-    rel = Path.relative_to(path, base)
+    case File.read(path) do
+      {:ok, content} -> scan_content(content, regex, Path.relative_to(path, base))
+      {:error, _} -> []
+    end
+  end
 
-    path
-    |> File.stream!()
+  defp scan_content(content, regex, rel_path) do
+    content
+    |> String.split("\n")
     |> Stream.with_index(1)
-    |> Stream.flat_map(fn {line, line_number} ->
-      line = String.trim_trailing(line, "\n")
+    |> Stream.flat_map(&match_line(&1, regex, rel_path))
+  end
 
-      if Regex.match?(regex, line) do
-        [%{path: rel, line_number: line_number, line: line}]
-      else
-        []
-      end
-    end)
-  rescue
-    _ -> []
+  defp match_line({line, line_number}, regex, rel_path) do
+    if Regex.match?(regex, line) do
+      [%{path: rel_path, line_number: line_number, line: line}]
+    else
+      []
+    end
   end
 end

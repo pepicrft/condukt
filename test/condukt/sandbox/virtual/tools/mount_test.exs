@@ -1,5 +1,5 @@
 defmodule Condukt.Sandbox.Virtual.Tools.MountTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Condukt.Sandbox
   alias Condukt.Sandbox.Virtual.Tools.Mount

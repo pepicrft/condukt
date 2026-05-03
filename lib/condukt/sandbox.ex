@@ -55,12 +55,6 @@ defmodule Condukt.Sandbox do
   databases, in-process state) have nothing to sandbox and are unaffected.
   """
 
-  @typedoc "Opaque sandbox handle threaded through tool contexts."
-  @opaque t :: %__MODULE__{module: module(), state: term(), opts: keyword()}
-
-  @type path :: String.t()
-  @type exec_result :: %{output: binary(), exit_code: integer()}
-
   defstruct [:module, :state, :opts]
 
   @doc "Initializes per-session sandbox state."
@@ -70,17 +64,17 @@ defmodule Condukt.Sandbox do
   @callback shutdown(state :: term()) :: :ok
 
   @doc "Reads a file's raw bytes."
-  @callback read_file(state :: term(), path()) :: {:ok, binary()} | {:error, term()}
+  @callback read_file(state :: term(), path :: binary()) :: {:ok, binary()} | {:error, term()}
 
   @doc "Writes raw bytes to a file, creating parent directories as needed."
-  @callback write_file(state :: term(), path(), content :: binary()) :: :ok | {:error, term()}
+  @callback write_file(state :: term(), path :: binary(), content :: binary()) :: :ok | {:error, term()}
 
   @doc """
   Replaces the unique occurrence of `old_text` with `new_text`.
   Returns the count of pre-edit occurrences alongside the post-edit content
   so callers can decide how to surface ambiguity or no-op edits.
   """
-  @callback edit_file(state :: term(), path(), old_text :: binary(), new_text :: binary()) ::
+  @callback edit_file(state :: term(), path :: binary(), old_text :: binary(), new_text :: binary()) ::
               {:ok, %{occurrences: non_neg_integer(), content: binary()}}
               | {:error, term()}
 
@@ -92,7 +86,7 @@ defmodule Condukt.Sandbox do
     * `:timeout` — milliseconds before the command is killed
   """
   @callback exec(state :: term(), command :: binary(), opts :: keyword()) ::
-              {:ok, exec_result()} | {:error, :timeout | term()}
+              {:ok, %{output: binary(), exit_code: integer()}} | {:error, :timeout | term()}
 
   @doc """
   Returns paths matching `pattern`. Options:
@@ -101,7 +95,7 @@ defmodule Condukt.Sandbox do
     * `:limit` — maximum number of paths to return
   """
   @callback glob(state :: term(), pattern :: binary(), opts :: keyword()) ::
-              {:ok, [path()]} | {:error, term()}
+              {:ok, [binary()]} | {:error, term()}
 
   @doc """
   Searches file contents for `pattern` (regex). Options:
@@ -112,14 +106,14 @@ defmodule Condukt.Sandbox do
     * `:limit` — maximum matches to return
   """
   @callback grep(state :: term(), pattern :: binary(), opts :: keyword()) ::
-              {:ok, [%{path: path(), line_number: pos_integer(), line: binary()}]}
+              {:ok, [%{path: binary(), line_number: pos_integer(), line: binary()}]}
               | {:error, term()}
 
   @doc """
   Mounts a host directory into the sandbox at `vfs_path`. Sandboxes that have
   no separate VFS (like `Local`) should return `{:error, :not_supported}`.
   """
-  @callback mount(state :: term(), host_path :: path(), vfs_path :: path()) ::
+  @callback mount(state :: term(), host_path :: binary(), vfs_path :: binary()) ::
               :ok | {:error, :not_supported | term()}
 
   @optional_callbacks [mount: 3, grep: 3, glob: 3]
@@ -135,7 +129,6 @@ defmodule Condukt.Sandbox do
   sandbox that fails to allocate, a virtual sandbox whose NIF refused to
   start, etc).
   """
-  @spec new(module(), keyword()) :: {:ok, t()} | {:error, term()}
   def new(module, opts \\ []) when is_atom(module) do
     case module.init(opts) do
       {:ok, state} -> {:ok, %__MODULE__{module: module, state: state, opts: opts}}
@@ -149,35 +142,27 @@ defmodule Condukt.Sandbox do
   Accepts an already-built struct, a bare module, or a `{module, opts}` tuple.
   Returns `{:ok, sandbox}` or `{:error, reason}`.
   """
-  @spec resolve(t() | module() | {module(), keyword()}) :: {:ok, t()} | {:error, term()}
   def resolve(%__MODULE__{} = sandbox), do: {:ok, sandbox}
   def resolve(module) when is_atom(module), do: new(module, [])
   def resolve({module, opts}) when is_atom(module) and is_list(opts), do: new(module, opts)
   def resolve(other), do: {:error, {:invalid_sandbox, other}}
 
   @doc "Releases the sandbox state."
-  @spec shutdown(t()) :: :ok
   def shutdown(%__MODULE__{module: module, state: state}), do: module.shutdown(state)
 
   # ============================================================================
   # Primitive facade — what tools call
   # ============================================================================
 
-  @spec read(t(), path()) :: {:ok, binary()} | {:error, term()}
   def read(%__MODULE__{module: module, state: state}, path), do: module.read_file(state, path)
 
-  @spec write(t(), path(), binary()) :: :ok | {:error, term()}
   def write(%__MODULE__{module: module, state: state}, path, content), do: module.write_file(state, path, content)
 
-  @spec edit(t(), path(), binary(), binary()) ::
-          {:ok, %{occurrences: non_neg_integer(), content: binary()}} | {:error, term()}
   def edit(%__MODULE__{module: module, state: state}, path, old_text, new_text),
     do: module.edit_file(state, path, old_text, new_text)
 
-  @spec exec(t(), binary(), keyword()) :: {:ok, exec_result()} | {:error, term()}
   def exec(%__MODULE__{module: module, state: state}, command, opts \\ []), do: module.exec(state, command, opts)
 
-  @spec glob(t(), binary(), keyword()) :: {:ok, [path()]} | {:error, term()}
   def glob(%__MODULE__{module: module, state: state}, pattern, opts \\ []) do
     if function_exported?(module, :glob, 3) do
       module.glob(state, pattern, opts)
@@ -186,8 +171,6 @@ defmodule Condukt.Sandbox do
     end
   end
 
-  @spec grep(t(), binary(), keyword()) ::
-          {:ok, [%{path: path(), line_number: pos_integer(), line: binary()}]} | {:error, term()}
   def grep(%__MODULE__{module: module, state: state}, pattern, opts \\ []) do
     if function_exported?(module, :grep, 3) do
       module.grep(state, pattern, opts)
@@ -196,7 +179,6 @@ defmodule Condukt.Sandbox do
     end
   end
 
-  @spec mount(t(), path(), path()) :: :ok | {:error, :not_supported | term()}
   def mount(%__MODULE__{module: module, state: state}, host_path, vfs_path) do
     if function_exported?(module, :mount, 3) do
       module.mount(state, host_path, vfs_path)

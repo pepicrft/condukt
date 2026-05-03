@@ -8,7 +8,6 @@
 //! schedulers.
 
 use bashkit::{Bash, FileSystem, PosixFs, RealFs, RealFsMode};
-use once_cell::sync::Lazy;
 use rustler::{Atom, Binary, Env, NifResult, NifTuple, NifUnitEnum, ResourceArc};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -41,13 +40,23 @@ mod atoms {
     }
 }
 
-static RUNTIME: Lazy<Runtime> = Lazy::new(|| {
-    tokio::runtime::Builder::new_multi_thread()
+// Each Session owns its own current-thread tokio runtime. Reasons:
+//
+// 1. NIF calls on the same Session are already serialized by the Bash
+//    Mutex; a current-thread runtime matches that serialization, with no
+//    cross-thread future moves and no shared-runtime races.
+// 2. A single global multi-thread runtime puts an `&mut Bash` (a !Send
+//    MutexGuard) into a future that tokio could move across worker
+//    threads, which is UB. Keeping each Session single-threaded avoids it.
+// 3. Per-Session runtime overhead is paid once at session start and is
+//    dwarfed by bashkit's own per-call cost; concurrent Sessions still
+//    run independently because they each have their own runtime.
+fn build_runtime() -> Runtime {
+    tokio::runtime::Builder::new_current_thread()
         .enable_all()
-        .thread_name("condukt-bashkit")
         .build()
         .expect("failed to build bashkit tokio runtime")
-});
+}
 
 // ============================================================================
 // Resource
@@ -55,6 +64,7 @@ static RUNTIME: Lazy<Runtime> = Lazy::new(|| {
 
 pub struct Session {
     bash: Mutex<Bash>,
+    runtime: Runtime,
 }
 
 #[rustler::resource_impl]
@@ -107,8 +117,10 @@ pub struct GrepMatch {
 #[rustler::nif(schedule = "DirtyIo")]
 fn new_session(mounts: Vec<MountSpec>) -> NifResult<ResourceArc<Session>> {
     let bash = build_bash(&mounts).map_err(|e| rustler::Error::Term(Box::new(format!("{e}"))))?;
+    let runtime = build_runtime();
     Ok(ResourceArc::new(Session {
         bash: Mutex::new(bash),
+        runtime,
     }))
 }
 
@@ -131,8 +143,8 @@ fn exec(
 
     let fut = bash.exec(&command);
     let result = match timeout {
-        Some(d) => RUNTIME.block_on(async move { tokio::time::timeout(d, fut).await }),
-        None => Ok(RUNTIME.block_on(fut)),
+        Some(d) => session.runtime.block_on(async move { tokio::time::timeout(d, fut).await }),
+        None => Ok(session.runtime.block_on(fut)),
     };
 
     match result {
@@ -156,7 +168,7 @@ fn read_file<'a>(
     drop(bash);
 
     let path_buf = PathBuf::from(&path);
-    let read = RUNTIME.block_on(fs.read_file(&path_buf));
+    let read = session.runtime.block_on(fs.read_file(&path_buf));
 
     match read {
         Ok(bytes) => {
@@ -183,7 +195,7 @@ fn write_file(
     let path_buf = PathBuf::from(&path);
     let bytes = content.as_slice().to_vec();
 
-    let result = RUNTIME.block_on(async move {
+    let result = session.runtime.block_on(async move {
         if let Some(parent) = path_buf.parent() {
             if !parent.as_os_str().is_empty() {
                 let _ = fs.mkdir(parent, true).await;
@@ -210,7 +222,7 @@ fn edit_file(
     drop(bash);
 
     let path_buf = PathBuf::from(&path);
-    let read = RUNTIME.block_on(fs.read_file(&path_buf));
+    let read = session.runtime.block_on(fs.read_file(&path_buf));
     let bytes = match read {
         Ok(b) => b,
         Err(e) => return Ok(Err(map_bashkit_error(&e))),
@@ -224,7 +236,7 @@ fn edit_file(
     }
 
     let new_content = content.replacen(&old_text, &new_text, 1);
-    let write = RUNTIME.block_on(fs.write_file(&path_buf, new_content.as_bytes()));
+    let write = session.runtime.block_on(fs.write_file(&path_buf, new_content.as_bytes()));
     match write {
         Ok(()) => Ok(Ok(EditResult {
             occurrences: 1,
@@ -258,7 +270,7 @@ fn glob(
         .unwrap_or_default();
 
     let script = format!("{cd}shopt -s nullglob 2>/dev/null; printf '%s\\n' {}", pattern);
-    let result = RUNTIME.block_on(bash.exec(&script));
+    let result = session.runtime.block_on(bash.exec(&script));
 
     match result {
         Err(e) => Ok(Err(map_bashkit_error(&e))),
@@ -302,7 +314,7 @@ fn grep(
         root = escape_single_quotes(&search_root),
     );
 
-    let result = RUNTIME.block_on(bash.exec(&script));
+    let result = session.runtime.block_on(bash.exec(&script));
 
     match result {
         Err(e) => Ok(Err(map_bashkit_error(&e))),

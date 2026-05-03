@@ -159,7 +159,6 @@ name = "condukt_bashkit"
 version = "0.1.0"
 dependencies = [
  "bashkit",
- "once_cell",
  "rustler",
  "tokio",
 ]

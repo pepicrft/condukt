@@ -1,5 +1,9 @@
 defmodule Condukt.Sandbox.VirtualTest do
-  use ExUnit.Case, async: true
+  # Run serially: each test creates its own bashkit NIF Session with a
+  # per-Session tokio runtime. Running them in parallel adds nothing
+  # (sessions are independent already) and just multiplies the cost of
+  # spinning up runtimes.
+  use ExUnit.Case, async: false
 
   alias Condukt.Sandbox
 

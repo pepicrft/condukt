@@ -29,11 +29,7 @@ defmodule Condukt.Sandbox.Virtual do
 
   alias Condukt.Bashkit.NIF
   alias Condukt.Sandbox
-
-  defmodule State do
-    @moduledoc false
-    defstruct [:session, :base_cwd]
-  end
+  alias Condukt.Sandbox.Virtual.State
 
   # ============================================================================
   # Sandbox callbacks
@@ -41,12 +37,21 @@ defmodule Condukt.Sandbox.Virtual do
 
   @impl Sandbox
   def init(opts) do
-    mounts = opts |> Keyword.get(:mounts, []) |> normalize_mounts()
-    session = NIF.new_session(mounts)
-    base_cwd = capture_base_cwd(session, opts[:cwd])
-    {:ok, %State{session: session, base_cwd: base_cwd}}
-  rescue
-    e in [ArgumentError, ErlangError] -> {:error, Exception.message(e)}
+    with {:ok, mounts} <- normalize_mounts(Keyword.get(opts, :mounts, [])),
+         {:ok, session} <- start_nif_session(mounts) do
+      base_cwd = capture_base_cwd(session, opts[:cwd])
+      {:ok, %State{session: session, base_cwd: base_cwd}}
+    end
+  end
+
+  defp start_nif_session(mounts) do
+    {:ok, NIF.new_session(mounts)}
+  catch
+    kind, reason -> {:error, format_caught(kind, reason)}
+  end
+
+  defp format_caught(_kind, reason) do
+    if is_exception(reason), do: Exception.message(reason), else: inspect(reason)
   end
 
   @impl Sandbox
@@ -120,14 +125,26 @@ defmodule Condukt.Sandbox.Virtual do
   # ============================================================================
 
   defp normalize_mounts(mounts) when is_list(mounts) do
-    Enum.map(mounts, fn
-      {host, vfs} -> {to_string(host), to_string(vfs), :readwrite}
-      {host, vfs, mode} when mode in [:readonly, :readwrite] -> {to_string(host), to_string(vfs), mode}
-      other -> raise ArgumentError, "invalid mount spec: #{inspect(other)}"
+    Enum.reduce_while(mounts, {:ok, []}, fn entry, {:ok, acc} ->
+      case normalize_mount(entry) do
+        {:ok, normalized} -> {:cont, {:ok, [normalized | acc]}}
+        {:error, _} = err -> {:halt, err}
+      end
     end)
+    |> case do
+      {:ok, list} -> {:ok, Enum.reverse(list)}
+      err -> err
+    end
   end
 
-  defp normalize_mounts(_), do: raise(ArgumentError, ":mounts must be a list of {host, vfs[, mode]}")
+  defp normalize_mounts(_), do: {:error, ":mounts must be a list of {host, vfs[, mode]}"}
+
+  defp normalize_mount({host, vfs}), do: {:ok, {to_string(host), to_string(vfs), :readwrite}}
+
+  defp normalize_mount({host, vfs, mode}) when mode in [:readonly, :readwrite],
+    do: {:ok, {to_string(host), to_string(vfs), mode}}
+
+  defp normalize_mount(other), do: {:error, "invalid mount spec: #{inspect(other)}"}
 
   defp shell_quote(s) do
     "'" <> String.replace(s, "'", "'\\''") <> "'"
