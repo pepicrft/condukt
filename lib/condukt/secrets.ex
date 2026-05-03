@@ -93,6 +93,17 @@ defmodule Condukt.Secrets do
   def env(%__MODULE__{env: env}), do: env
 
   @doc """
+  Returns resolved secret environment variable names without values.
+  """
+  def names(nil), do: []
+
+  def names(%__MODULE__{} = secrets) do
+    secrets
+    |> env()
+    |> Enum.map(fn {name, _value} -> name end)
+  end
+
+  @doc """
   Merges trusted environment overrides with session secrets.
 
   Session secrets win when the same variable is present in both places.

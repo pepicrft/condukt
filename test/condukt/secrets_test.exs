@@ -24,6 +24,7 @@ defmodule Condukt.SecretsTest do
 
     assert {"API_TOKEN", "static-token"} in secrets.env
     assert {"ENV_TOKEN", "env-token"} in secrets.env
+    assert Enum.sort(Secrets.names(secrets)) == ["API_TOKEN", "ENV_TOKEN"]
   end
 
   test "later declarations replace earlier declarations" do

@@ -177,7 +177,7 @@ First, tool-specific grants. A session might have five secrets, but not every to
 
 Second, short-lived credentials. Static tokens are convenient, but agents are a good forcing function for better security. If a session can request a credential that expires in ten minutes and is scoped to one repository, that is better than a long-lived token sitting in a vault.
 
-Third, better audit. If an agent uses a secret, the session should be able to emit a structured event: which environment variable was exposed, to which tool, for which invocation. Not the value. The access. That gives operators something to reason about later.
+Third, better audit. When an agent uses a secret, the session emits a structured event: which environment variable was exposed, to which tool, for which invocation. Not the value. The access. That gives operators something to reason about later.
 
 Fourth, OAuth-native tools. MCP is pointing in this direction. Some tools should not receive secrets as environment variables at all. They should receive delegated access through an authorization flow that binds the user, the tool, and the requested action.
 

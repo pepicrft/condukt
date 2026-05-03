@@ -560,7 +560,9 @@ Condukt emits telemetry events for observability:
     [:condukt, :tool_call, :start],
     [:condukt, :tool_call, :stop],
     [:condukt, :operation, :start],
-    [:condukt, :operation, :stop]
+    [:condukt, :operation, :stop],
+    [:condukt, :secrets, :resolve],
+    [:condukt, :secrets, :access]
   ],
   fn event, measurements, metadata, _config ->
     Logger.info("#{inspect(event)}: #{inspect(measurements)}")
@@ -568,6 +570,9 @@ Condukt emits telemetry events for observability:
   nil
 )
 ```
+
+Secret telemetry includes environment variable names and counts for auditing,
+but never includes resolved secret values.
 
 ## Streaming API
 

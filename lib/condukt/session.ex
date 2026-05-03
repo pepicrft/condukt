@@ -209,6 +209,8 @@ defmodule Condukt.Session do
 
         with {:sandbox, {:ok, sandbox}} <- {:sandbox, resolve_sandbox(opts[:sandbox], cwd)},
              {:secrets, {:ok, secrets}} <- {:secrets, Secrets.resolve(opts[:secrets])} do
+          emit_secret_resolve(agent_module, secrets)
+
           state =
             %__MODULE__{
               agent_module: agent_module,
@@ -571,6 +573,8 @@ defmodule Condukt.Session do
         description: spec.description,
         parameter_schema: convert_json_schema_to_nimble(spec.parameters),
         callback: fn args ->
+          emit_secret_access(state, spec.name)
+
           context = %{agent: self(), sandbox: state.sandbox, cwd: state.cwd, opts: [], secrets: state.secrets}
 
           case Tool.execute(tool_spec, args, context) do
@@ -708,9 +712,37 @@ defmodule Condukt.Session do
         Message.tool_result(id, {:error, "Unknown tool: #{name}"})
 
       {:ok, tool_spec} ->
+        emit_secret_access(state, name, id)
         execute_known_tool(tool_spec, args, state, id)
     end
   end
+
+  defp emit_secret_resolve(agent_module, secrets) do
+    case Secrets.names(secrets) do
+      [] ->
+        :ok
+
+      names ->
+        Telemetry.emit([:secrets, :resolve], %{count: length(names)}, %{agent: agent_module, names: names})
+    end
+  end
+
+  defp emit_secret_access(state, tool, tool_call_id \\ nil) do
+    case Secrets.names(state.secrets) do
+      [] ->
+        :ok
+
+      names ->
+        metadata =
+          %{agent: state.agent_module, tool: tool, names: names}
+          |> maybe_put(:tool_call_id, tool_call_id)
+
+        Telemetry.emit([:secrets, :access], %{count: length(names)}, metadata)
+    end
+  end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
   defp execute_known_tool({module, opts}, args, state, id) do
     execute_tool_spec({module, opts}, args, tool_context(state, opts), id)

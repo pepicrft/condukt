@@ -73,6 +73,36 @@ defmodule Condukt.SessionTest do
     GenServer.stop(pid)
   end
 
+  test "emits telemetry when session secrets resolve" do
+    handler_id = "secrets-resolve-test-#{inspect(make_ref())}"
+    test_pid = self()
+
+    :telemetry.attach(
+      handler_id,
+      [:condukt, :secrets, :resolve],
+      fn event, measurements, metadata, _ ->
+        send(test_pid, {:secret_telemetry, event, measurements, metadata})
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+
+    {:ok, pid} =
+      ConfigAgent.start_link(
+        secrets: [GH_TOKEN: {:static, "secret-token"}, DATABASE_URL: {:static, "postgres://secret"}],
+        load_project_instructions: false
+      )
+
+    assert_receive {:secret_telemetry, [:condukt, :secrets, :resolve], %{count: 2}, metadata}
+    assert metadata.agent == ConfigAgent
+    assert Enum.sort(metadata.names) == ["DATABASE_URL", "GH_TOKEN"]
+    refute inspect(metadata) =~ "secret-token"
+    refute inspect(metadata) =~ "postgres://secret"
+
+    GenServer.stop(pid)
+  end
+
   test "returns a secrets init failure when configured secrets cannot resolve" do
     previous = Process.flag(:trap_exit, true)
 
@@ -88,6 +118,20 @@ defmodule Condukt.SessionTest do
   end
 
   test "redacts session secrets from tool results before the next model turn" do
+    handler_id = "secrets-access-test-#{inspect(make_ref())}"
+    test_pid = self()
+
+    :telemetry.attach(
+      handler_id,
+      [:condukt, :secrets, :access],
+      fn event, measurements, metadata, _ ->
+        send(test_pid, {:secret_telemetry, event, measurements, metadata})
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+
     tool =
       Condukt.tool(
         name: "show_secret",
@@ -116,6 +160,13 @@ defmodule Condukt.SessionTest do
       )
 
     assert {:ok, "done"} = Condukt.run(pid, "call the tool")
+
+    assert_receive {:secret_telemetry, [:condukt, :secrets, :access], %{count: 1}, metadata}
+    assert metadata.agent == ConfigAgent
+    assert metadata.tool == "show_secret"
+    assert metadata.tool_call_id == "call_1"
+    assert metadata.names == ["GH_TOKEN"]
+    refute inspect(metadata) =~ "secret-token"
 
     assert_receive {LLMProvider, :request, ^model_id, _first_context, _first_opts}
     assert_receive {LLMProvider, :request, ^model_id, second_context, _second_opts}

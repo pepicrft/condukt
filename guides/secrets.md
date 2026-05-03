@@ -122,6 +122,37 @@ end
 The model cannot add or change environment variables through tool arguments.
 It can only invoke the tools you configured.
 
+## Auditing access
+
+Condukt emits value-free telemetry for secret resolution and access:
+
+* `[:condukt, :secrets, :resolve]` when a session resolves secrets.
+* `[:condukt, :secrets, :access]` when a tool receives resolved secrets.
+
+Both events include `count` as a measurement and `:names` metadata with
+environment variable names such as `["GH_TOKEN"]`. Access events also include
+`:tool`, and include `:tool_call_id` when the access comes from a concrete
+provider-returned tool call. Secret values are never included in measurements
+or metadata.
+
+Attach a handler if you want an audit trail:
+
+```elixir
+:telemetry.attach(
+  "secret-access-audit",
+  [:condukt, :secrets, :access],
+  fn _event, measurements, metadata, _config ->
+    Logger.info("agent secret access",
+      count: measurements.count,
+      agent: inspect(metadata.agent),
+      tool: metadata.tool,
+      names: metadata.names
+    )
+  end,
+  nil
+)
+```
+
 ## Custom providers
 
 Implement `Condukt.SecretProvider` when your secrets live somewhere else:
