@@ -7,7 +7,7 @@
     "build": "eleventy",
     "dev": "eleventy --serve --quiet",
     "clean": "rm -rf _site",
-    "deploy": "aube run build && wrangler deploy"
+    "deploy": "aube run build && wrangler pages deploy ./_site --project-name=condukt-website --branch=main --commit-dirty=true"
   },
   "devDependencies": {
     "@11ty/eleventy": "^3.0.0",
