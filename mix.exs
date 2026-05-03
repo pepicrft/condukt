@@ -1,7 +1,7 @@
 defmodule Condukt.MixProject do
   use Mix.Project
 
-  @version "0.14.2"
+  @version "0.15.0"
   @source_url "https://github.com/tuist/condukt"
 
   def project do

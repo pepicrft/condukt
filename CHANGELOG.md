@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.15.0] - 2026-05-03
+
+### Features
+
+- Add session secret providers
+
+
 ## [0.14.2] - 2026-05-03
 
 ### Bug Fixes
