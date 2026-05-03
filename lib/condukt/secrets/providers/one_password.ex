@@ -39,7 +39,7 @@ defmodule Condukt.Secrets.Providers.OnePassword do
       env = Keyword.get(opts, :env, [])
       args = build_args(ref, opts)
 
-      case run(command, args,
+      case MuonTrap.cmd(command, args,
              stderr_to_stdout: true,
              env: build_env(env),
              timeout: timeout
@@ -66,12 +66,6 @@ defmodule Condukt.Secrets.Providers.OnePassword do
   defp append_account(args, nil), do: args
   defp append_account(args, account), do: args ++ ["--account", to_string(account)]
 
-  defp run(command, args, opts) do
-    MuonTrap.cmd(command, args, opts)
-  catch
-    :error, error -> {"failed to run #{command}: #{format_error(error)}", 1}
-  end
-
   defp build_env(overrides) do
     @safe_env_vars
     |> Enum.reduce(%{}, fn key, acc ->
@@ -93,12 +87,4 @@ defmodule Condukt.Secrets.Providers.OnePassword do
   end
 
   defp normalize_env(_), do: %{}
-
-  defp format_error(error) do
-    if is_exception(error) do
-      Exception.message(error)
-    else
-      inspect(error)
-    end
-  end
 end

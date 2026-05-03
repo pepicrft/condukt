@@ -44,6 +44,10 @@
 ## Elixir
 
 - Do not type Elixir code by hand when avoidable. Prefer structural edits and tool-assisted changes.
+- Do not introduce `try`/`catch` or `rescue` patterns in production Elixir
+  code. Prefer tuple-returning APIs and explicit pattern matching. If a
+  boundary genuinely needs non-local failure handling, use an existing project
+  abstraction or add one deliberately instead of catching locally.
 - Tests must not mutate global process state such as `System.put_env/2`,
   `System.delete_env/1`, `Application.put_env/3`, or
   `Application.delete_env/2`. Prefer explicit dependency injection, per-test
