@@ -27,8 +27,7 @@ We took the inspiration from [Flue Framework](https://flueframework.com/), which
 
 Picking a sandbox is a single option at session start.
 
-```elixir
-defmodule MyApp.CodingAgent do
+<div class="code-block">{% highlight "elixir" %}defmodule MyApp.CodingAgent do
   use Condukt
 
   @impl true
@@ -52,15 +51,13 @@ end
     sandbox:
       {Condukt.Sandbox.Virtual,
        mounts: [{File.cwd!(), "/workspace", :readonly}]}
-  )
-```
+  ){% endhighlight %}</div>
 
 The same agent definition. The same tools. What changes is where the calls actually land.
 
 The same is true for typed operations, which spin up a transient session per call.
 
-```elixir
-defmodule MyApp.LintAgent do
+<div class="code-block">{% highlight "elixir" %}defmodule MyApp.LintAgent do
   use Condukt
 
   @impl true
@@ -76,8 +73,7 @@ end
 {:ok, %{ok: true}} =
   MyApp.LintAgent.lint_file(%{path: "/workspace/lib/foo.ex"},
     sandbox: Condukt.Sandbox.Virtual
-  )
-```
+  ){% endhighlight %}</div>
 
 A coding agent that drove on `Local` while you developed locally now runs on `Virtual` in production, with the same code paths exercised.
 
