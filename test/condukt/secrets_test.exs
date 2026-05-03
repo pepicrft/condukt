@@ -1,5 +1,5 @@
 defmodule Condukt.SecretsTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
   use Mimic
 
   alias Condukt.{Message, Secrets}
@@ -10,16 +10,16 @@ defmodule Condukt.SecretsTest do
   setup :verify_on_exit!
 
   test "resolves static and environment provider secrets" do
-    System.put_env("CONDUKT_TEST_TOKEN", "env-token")
-
-    on_exit(fn ->
-      System.delete_env("CONDUKT_TEST_TOKEN")
-    end)
-
     assert {:ok, secrets} =
              Secrets.resolve(
                API_TOKEN: {:static, "static-token"},
-               ENV_TOKEN: {:env, "CONDUKT_TEST_TOKEN"}
+               ENV_TOKEN:
+                 {:env,
+                  name: "CONDUKT_TEST_TOKEN",
+                  fetch_env: fn
+                    "CONDUKT_TEST_TOKEN" -> {:ok, "env-token"}
+                    _name -> :error
+                  end}
              )
 
     assert {"API_TOKEN", "static-token"} in secrets.env

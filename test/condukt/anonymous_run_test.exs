@@ -189,6 +189,8 @@ defmodule Condukt.AnonymousRunTest do
         nil
       )
 
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
       # Use the input-validation failure path so we don't need ReqLLM mocks.
       assert {:error, {:invalid_input, _}} =
                Condukt.AnonymousRun.run("task",
@@ -199,8 +201,6 @@ defmodule Condukt.AnonymousRunTest do
       assert_receive {:telemetry, [:condukt, :run, :start], %{system_time: _}, %{structured?: false, input?: true}}
 
       assert_receive {:telemetry, [:condukt, :run, :stop], %{duration: _}, %{structured?: false, input?: true}}
-
-      :telemetry.detach(handler_id)
     end
   end
 end

@@ -44,6 +44,11 @@
 ## Elixir
 
 - Do not type Elixir code by hand when avoidable. Prefer structural edits and tool-assisted changes.
+- Tests must not mutate global process state such as `System.put_env/2`,
+  `System.delete_env/1`, `Application.put_env/3`, or
+  `Application.delete_env/2`. Prefer explicit dependency injection, per-test
+  processes, unique temporary paths, and local options so affected tests can run
+  with `async: true`.
 
 ## Marketing site (`website/`)
 

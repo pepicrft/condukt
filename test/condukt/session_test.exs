@@ -276,14 +276,18 @@ defmodule Condukt.SessionTest do
       user_state: :ok
     }
 
+    handler_id = "compact-test-#{inspect(ref)}"
+
     :telemetry.attach(
-      "compact-test-#{inspect(ref)}",
+      handler_id,
       [:condukt, :compact, :stop],
       fn _event, measurements, metadata, _ ->
         send(self(), {:compact_telemetry, measurements, metadata})
       end,
       nil
     )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
 
     assert {:noreply, updated_state} =
              Condukt.Session.handle_cast(
@@ -298,8 +302,6 @@ defmodule Condukt.SessionTest do
     assert length(persisted) == 1
 
     assert_receive {:compact_telemetry, %{before: 4, after: 1, duration: _}, %{agent: ConfigAgent}}
-
-    :telemetry.detach("compact-test-#{inspect(ref)}")
   end
 
   test "compact/1 is a no-op when no compactor is configured" do
