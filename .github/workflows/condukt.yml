@@ -75,9 +75,7 @@ jobs:
         run: mix deps.get
 
       - name: Run test suite
-        env:
-          RUST_BACKTRACE: "full"
-        run: mix test --trace
+        run: mix test
 
   format:
     name: Check formatting

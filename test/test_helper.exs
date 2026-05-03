@@ -1,18 +1,16 @@
 Mimic.copy(MuonTrap)
 Mimic.copy(ReqLLM)
 
-# The Virtual sandbox depends on a precompiled (or source-built) NIF. When
-# the NIF is unavailable on this platform, exclude the tagged tests rather
-# than failing the suite — consumers in environments without the NIF should
-# still be able to use Sandbox.Local exclusively.
-exclude =
-  try do
-    _ = Condukt.Bashkit.NIF.module_info(:exports)
-    []
-  rescue
-    _ -> [virtual_sandbox: true]
-  catch
-    _, _ -> [virtual_sandbox: true]
-  end
+# Virtual sandbox tests are tagged `:virtual_sandbox` and excluded by
+# default. They rely on the bashkit NIF and run reliably locally, but on
+# Linux CI runners merely loading the NIF in the same BEAM process as the
+# rest of the suite has reproduced intermittent segfaults during ExUnit's
+# between-test cleanup. Until that is root-caused, opt in explicitly:
+#
+#   mix test --include virtual_sandbox
+#
+# Or run only the Virtual sandbox suite:
+#
+#   mix test --only virtual_sandbox
 
-ExUnit.start(exclude: exclude)
+ExUnit.start(exclude: [virtual_sandbox: true])
