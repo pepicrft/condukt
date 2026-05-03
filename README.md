@@ -8,11 +8,11 @@
   <a href="https://github.com/tuist/condukt/actions/workflows/condukt.yml"><img src="https://github.com/tuist/condukt/actions/workflows/condukt.yml/badge.svg" alt="CI" /></a>
 </p>
 
-A framework for building AI agents in Elixir.
+An Elixir library and standalone agentic engine for building reliable AI agents and workflow projects.
 
-Install it from [Hex.pm](https://hex.pm/packages/condukt) and browse the guides on [HexDocs](https://hexdocs.pm/condukt/).
+Condukt has two modes. Use it as a Hex library inside an Elixir application when you want agents embedded in your own OTP system. Install it as the `condukt` engine when you want a single executable that runs agentic workflow projects from the command line, cron, or webhooks.
 
-Condukt treats AI agents as first-class OTP processes that can reason, use tools, and orchestrate complex workflows. Built on Erlang/OTP primitives for reliability and concurrency.
+The engine is built with Burrito and bundles Erlang plus Condukt's bytecode, so workflow projects can run without a local Elixir toolchain. Both modes share the same OTP-native agent runtime, tool system, sandboxing model, and multi-provider LLM support.
 
 ## Motivation 💡
 
@@ -34,6 +34,7 @@ Rather than wrapping JavaScript agent frameworks, we built Condukt from scratch 
 - **Tool System**: Extensible tools for file operations, shell commands, and more
 - **Operations**: Compile-time typed entrypoints with JSON Schema input/output validation
 - **Anonymous Workflows**: One-off `Condukt.run/2` calls with inline tools and optional structured output
+- **Workflow Engine**: Standalone `condukt` executable for Starlark workflow projects, installable with mise
 - **Multi-Provider**: 18+ LLM providers via [ReqLLM](https://github.com/agentjido/req_llm) (Anthropic, OpenAI, Google, etc.)
 - **Redaction**: Pluggable secret redaction on outbound messages with a regex-based default
 - **Session Secrets**: Resolve credentials from providers such as 1Password and expose them only to tool execution environments
@@ -41,15 +42,42 @@ Rather than wrapping JavaScript agent frameworks, we built Condukt from scratch 
 
 ## Installation 📦
 
+### Library mode
+
 Add `condukt` to your dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:condukt, "~> 0.1.0"}
+    {:condukt, "~> 0.13"}
   ]
 end
 ```
+
+Use library mode when Condukt should live inside your own OTP supervision tree.
+
+### Engine mode
+
+Install the standalone executable from GitHub Releases with mise:
+
+```sh
+mise use -g github:tuist/condukt
+condukt version
+```
+
+Use engine mode when you want to run a workflow project directly:
+
+```sh
+condukt workflows check --root .
+condukt workflows run triage --root . --input '{"issue":"broken"}'
+condukt workflows serve --root . --port 4000
+```
+
+The release assets include Linux x64, macOS x64, macOS arm64, and Windows x64 builds.
+
+See the [Workflows](guides/workflows.md) guide for creating, running, and
+sharing workflows. See the [Workflow Starlark API](guides/workflow_starlark_api.md)
+reference for every Starlark builtin available to workflow files.
 
 ## Quick Start 🚀
 
@@ -229,7 +257,7 @@ Condukt works well in LiveBook notebooks with `Mix.install/1`:
 
 ```elixir
 Mix.install([
-  {:condukt, "~> 0.1.0"}
+  {:condukt, "~> 0.13"}
 ])
 
 Application.put_env(:condukt, :api_key, System.fetch_env!("ANTHROPIC_API_KEY"))

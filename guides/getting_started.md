@@ -13,7 +13,7 @@ Add `:condukt` to your dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:condukt, "~> 0.10"}
+    {:condukt, "~> 0.13"}
   ]
 end
 ```

@@ -189,6 +189,31 @@ pre, code {
 
 .install-section { padding: 4rem 0 6rem; border-top: 1px solid var(--border); }
 
+.mode-grid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  margin-bottom: 2rem;
+}
+
+.mode-grid article {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 1.25rem;
+}
+
+.mode-grid h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.mode-grid p {
+  color: var(--fg-muted);
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+}
+
 .steps {
   list-style: decimal;
   padding-left: 1.25rem;

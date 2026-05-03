@@ -1,6 +1,15 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [Unreleased]
+
+### Features
+
+- Add Burrito-built standalone engine releases installable with mise
+- Add Starlark-backed workflow projects with lockfiles, triggers, runtime supervision, and Mix tasks
+- Document workflow creation, sharing, and the Starlark API surface
+
+
 ## [0.15.0] - 2026-05-03
 
 ### Features

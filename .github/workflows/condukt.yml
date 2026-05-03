@@ -13,12 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     env:
       MIX_ENV: test
-      # Compile the NIF module as plain stubs on Linux CI. A loaded
-      # bashkit NIF segfaults BEAM at process exit on these runners
-      # regardless of test execution; stubbing avoids loading the .so
-      # entirely. Default mix test excludes :virtual_sandbox tests, so
-      # the stubs are never invoked in CI.
+      # Compile native modules as plain stubs in the broad Elixir jobs.
+      # The tagged NIF tests are excluded from the default suite, and
+      # loading these shared libraries on Linux runners can segfault BEAM
+      # during process teardown even when the tagged tests do not run.
+      # Native coverage lives in dedicated jobs below.
       CONDUKT_BASHKIT_DISABLE: "1"
+      CONDUKT_WORKFLOWS_DISABLE: "1"
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
@@ -58,6 +59,7 @@ jobs:
     env:
       MIX_ENV: test
       CONDUKT_BASHKIT_DISABLE: "1"
+      CONDUKT_WORKFLOWS_DISABLE: "1"
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
@@ -91,6 +93,7 @@ jobs:
     env:
       MIX_ENV: test
       CONDUKT_BASHKIT_DISABLE: "1"
+      CONDUKT_WORKFLOWS_DISABLE: "1"
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
@@ -124,6 +127,7 @@ jobs:
     env:
       MIX_ENV: test
       CONDUKT_BASHKIT_DISABLE: "1"
+      CONDUKT_WORKFLOWS_DISABLE: "1"
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
@@ -149,3 +153,36 @@ jobs:
 
       - name: Run Credo
         run: mix credo --strict
+
+  workflows_nif:
+    name: Build workflows NIF
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: test
+      CONDUKT_BASHKIT_DISABLE: "1"
+      CONDUKT_WORKFLOWS_BUILD: "1"
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install BEAM tooling with mise
+        uses: jdx/mise-action@v3
+        with:
+          cache: true
+
+      - name: Install Hex and Rebar
+        run: |
+          mix local.hex --force
+          mix local.rebar --force
+
+      - name: Fetch dependencies
+        run: mix deps.get
+
+      - name: Compile dependencies
+        run: mix deps.compile
+
+      - name: Run Rust workflows tests
+        run: cargo test --manifest-path native/condukt_workflows/Cargo.toml
+
+      - name: Compile workflows NIF
+        run: mix compile --warnings-as-errors
