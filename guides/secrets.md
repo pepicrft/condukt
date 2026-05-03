@@ -167,6 +167,11 @@ sent back to the model:
 Values shorter than four bytes are not redacted because replacing tiny strings
 causes too many false positives.
 
+Under the hood, resolved session secrets become a
+`Condukt.Redactors.Secrets` spec and are composed with the session's configured
+`:redactor`. Secret redaction runs first so custom redactors cannot transform a
+secret before the exact-match replacement has a chance to run.
+
 Redaction is a safety layer, not a permission model. A tool subprocess that
 receives `GH_TOKEN` can use it. Scope tokens and 1Password service accounts to
 the smallest set of resources that the session needs.

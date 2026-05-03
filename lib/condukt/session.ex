@@ -496,9 +496,9 @@ defmodule Condukt.Session do
 
   defp build_context(state, messages) do
     context_messages =
-      state.secrets
-      |> Secrets.redact_messages(messages)
-      |> then(&Redactor.redact_messages(state.redactor, &1))
+      state
+      |> outbound_redactor()
+      |> Redactor.redact_messages(messages)
       |> Enum.map(&message_to_req_llm/1)
       |> List.flatten()
 
@@ -509,6 +509,14 @@ defmodule Condukt.Session do
     else
       ReqLLM.Context.new(context_messages)
     end
+  end
+
+  defp outbound_redactor(state) do
+    [
+      Secrets.redactor(state.secrets),
+      state.redactor
+    ]
+    |> Enum.reject(&is_nil/1)
   end
 
   defp message_to_req_llm(%Message{role: :user, content: content, images: []}) do

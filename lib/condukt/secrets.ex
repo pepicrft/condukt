@@ -40,7 +40,8 @@ defmodule Condukt.Secrets do
   redacted from outbound user and tool messages as a final guard.
   """
 
-  alias Condukt.Message
+  alias Condukt.Redactor
+  alias Condukt.Redactors
   alias Condukt.Secrets.Providers
 
   defstruct env: []
@@ -53,7 +54,6 @@ defmodule Condukt.Secrets do
   }
 
   @env_name_pattern ~r/^[A-Za-z_][A-Za-z0-9_]*$/
-  @min_redacted_size 4
 
   @doc """
   Returns an empty secrets container.
@@ -105,14 +105,19 @@ defmodule Condukt.Secrets do
   end
 
   @doc """
+  Returns a redactor spec for the resolved secrets.
+
+  The returned spec can be composed with any other `Condukt.Redactor` spec.
+  Returns `nil` when there are no resolved secrets.
+  """
+  def redactor(nil), do: nil
+  def redactor(%__MODULE__{env: []}), do: nil
+  def redactor(%__MODULE__{} = secrets), do: {Redactors.Secrets, secrets: secrets}
+
+  @doc """
   Redacts resolved secret values from outbound messages.
   """
-  def redact_messages(nil, messages), do: messages
-  def redact_messages(%__MODULE__{env: []}, messages), do: messages
-
-  def redact_messages(%__MODULE__{} = secrets, messages) do
-    Enum.map(messages, &redact_message(secrets, &1))
-  end
+  def redact_messages(secrets, messages), do: Redactor.redact_messages(redactor(secrets), messages)
 
   @doc """
   Redacts resolved secret values from a tool result before it is stored.
@@ -128,13 +133,7 @@ defmodule Condukt.Secrets do
   def redact_text(%__MODULE__{env: []}, text), do: text
 
   def redact_text(%__MODULE__{} = secrets, text) when is_binary(text) do
-    Enum.reduce(secrets.env, text, fn {name, value}, acc ->
-      if redactable?(value) do
-        String.replace(acc, value, "[REDACTED:#{name}]")
-      else
-        acc
-      end
-    end)
+    Redactor.apply(redactor(secrets), text)
   end
 
   defp resolve_entry({name, source}) do
@@ -179,10 +178,16 @@ defmodule Condukt.Secrets do
   defp provider_module(alias) when is_map_key(@provider_aliases, alias), do: {:ok, Map.fetch!(@provider_aliases, alias)}
 
   defp provider_module(module) when is_atom(module) do
-    if function_exported?(module, :load, 1) do
-      {:ok, module}
-    else
-      {:error, {:unknown_secret_provider, module}}
+    case Code.ensure_loaded(module) do
+      {:module, ^module} ->
+        if function_exported?(module, :load, 1) do
+          {:ok, module}
+        else
+          {:error, {:unknown_secret_provider, module}}
+        end
+
+      {:error, _reason} ->
+        {:error, {:unknown_secret_provider, module}}
     end
   end
 
@@ -210,16 +215,6 @@ defmodule Condukt.Secrets do
 
   defp normalize_env(_), do: %{}
 
-  defp redact_message(secrets, %Message{role: :user, content: content} = msg) when is_binary(content) do
-    %{msg | content: redact_text(secrets, content)}
-  end
-
-  defp redact_message(secrets, %Message{role: :tool_result, content: content} = msg) do
-    %{msg | content: redact_value(secrets, content)}
-  end
-
-  defp redact_message(_secrets, %Message{} = msg), do: msg
-
   defp redact_value(secrets, value) when is_binary(value), do: redact_text(secrets, value)
 
   defp redact_value(secrets, values) when is_list(values) do
@@ -231,6 +226,4 @@ defmodule Condukt.Secrets do
   end
 
   defp redact_value(_secrets, value), do: value
-
-  defp redactable?(value), do: is_binary(value) and byte_size(value) >= @min_redacted_size
 end

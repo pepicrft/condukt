@@ -3,6 +3,7 @@ defmodule Condukt.SecretsTest do
   use Mimic
 
   alias Condukt.{Message, Secrets}
+  alias Condukt.Redactor
   alias Condukt.Secrets.Providers.OnePassword
 
   setup :set_mimic_from_context
@@ -40,7 +41,7 @@ defmodule Condukt.SecretsTest do
              Secrets.resolve(%{"not-valid-name" => {:static, "value"}})
   end
 
-  test "redacts resolved secrets from messages and nested tool results" do
+  test "redacts resolved secrets through the redactor pipeline" do
     {:ok, secrets} = Secrets.resolve(API_TOKEN: {:static, "secret-token"})
 
     messages = [
@@ -50,8 +51,20 @@ defmodule Condukt.SecretsTest do
 
     assert [
              %Message{content: "use [REDACTED:API_TOKEN]"},
-             %Message{content: %{"token" => "[REDACTED:API_TOKEN]", "list" => ["[REDACTED:API_TOKEN]"]}}
-           ] = Secrets.redact_messages(secrets, messages)
+             %Message{content: tool_content}
+           ] = Redactor.redact_messages(Secrets.redactor(secrets), messages)
+
+    assert JSON.decode!(tool_content) == %{
+             "token" => "[REDACTED:API_TOKEN]",
+             "list" => ["[REDACTED:API_TOKEN]"]
+           }
+  end
+
+  test "redacts resolved secrets from stored tool result structures" do
+    {:ok, secrets} = Secrets.resolve(API_TOKEN: {:static, "secret-token"})
+
+    assert %{"token" => "[REDACTED:API_TOKEN]", "list" => ["[REDACTED:API_TOKEN]"]} =
+             Secrets.redact_result(secrets, %{"token" => "secret-token", "list" => ["secret-token"]})
   end
 
   test "does not redact very short values" do

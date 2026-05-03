@@ -44,12 +44,17 @@ defmodule Condukt.Redactor do
   @doc """
   Applies a redactor spec to a single string.
 
-  The spec is either a module implementing the behaviour, a `{module, opts}`
-  tuple, or `nil`. Returns `text` unchanged when `spec` is `nil`.
+  The spec is a module implementing the behaviour, a `{module, opts}` tuple, a
+  list of redactor specs, or `nil`. Returns `text` unchanged when `spec` is
+  `nil` or an empty list.
   """
   def apply(nil, text), do: text
   def apply(module, text) when is_atom(module), do: module.redact(text, [])
   def apply({module, opts}, text) when is_atom(module) and is_list(opts), do: module.redact(text, opts)
+
+  def apply(specs, text) when is_list(specs) do
+    Enum.reduce(specs, text, fn spec, acc -> __MODULE__.apply(spec, acc) end)
+  end
 
   @doc """
   Returns `messages` with redaction applied to user input and tool results.
@@ -59,6 +64,7 @@ defmodule Condukt.Redactor do
   embedded secrets in structured output are still caught.
   """
   def redact_messages(nil, messages), do: messages
+  def redact_messages([], messages), do: messages
   def redact_messages(spec, messages), do: Enum.map(messages, &redact_message(spec, &1))
 
   defp redact_message(spec, %Message{role: :user, content: content} = msg) when is_binary(content) do

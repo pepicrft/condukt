@@ -152,7 +152,8 @@ defmodule Condukt.MixProject do
         ],
         Redaction: [
           Condukt.Redactor,
-          Condukt.Redactors.Regex
+          Condukt.Redactors.Regex,
+          Condukt.Redactors.Secrets
         ],
         Secrets: [
           Condukt.SecretProvider,

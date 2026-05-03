@@ -26,6 +26,13 @@ defmodule Condukt.RedactorTest do
     test "passes opts when spec is a {module, opts} tuple" do
       assert Redactor.apply({UpcaseRedactor, prefix: ">> "}, "hi") == ">> HI"
     end
+
+    test "applies a list of redactors in order" do
+      secret_redactor = Condukt.Secrets.redactor(%Condukt.Secrets{env: [{"TOKEN", "secret-token"}]})
+
+      assert Redactor.apply([secret_redactor, UpcaseRedactor], "value secret-token") ==
+               "VALUE [REDACTED:TOKEN]"
+    end
   end
 
   describe "redact_messages/2" do
