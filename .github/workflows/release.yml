@@ -194,7 +194,8 @@ jobs:
           mix local.rebar --force
 
       - name: Assert release Mix environment
-        run: elixir -e 'Mix.start(); unless Mix.env() == :prod, do: raise("release publishing must run with MIX_ENV=prod")'
+        run: |
+          elixir -e 'Mix.start(); unless Mix.env() == :prod, do: raise("release publishing must run with MIX_ENV=prod")'
 
       - name: Fetch dependencies
         run: mix deps.get
