@@ -17,8 +17,7 @@ defmodule Condukt.Workflows.NIF do
       base_url: "https://github.com/tuist/condukt/releases/download/#{Mix.Project.config()[:version]}",
       force_build:
         System.get_env("CONDUKT_WORKFLOWS_PRECOMPILED") not in ["1", "true"] and
-          (Mix.env() == :dev or
-             System.get_env("CONDUKT_WORKFLOWS_BUILD") in ["1", "true"]),
+          Mix.env() in [:dev, :test],
       version: Mix.Project.config()[:version],
       targets: ~w(
         aarch64-apple-darwin
