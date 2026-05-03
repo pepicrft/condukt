@@ -1,0 +1,18 @@
+---
+layout: base.njk
+---
+<article class="post">
+  <div class="container">
+    <p class="post-meta">
+      <time datetime="{{ page.date | htmlDateString }}">{{ page.date | readableDate }}</time>
+      {% if author %}<span class="post-meta-sep">·</span><span>{{ author }}</span>{% endif %}
+    </p>
+    <h1>{{ title }}</h1>
+    {% if description %}<p class="lede">{{ description }}</p>{% endif %}
+    <div class="post-body">
+      {{ content | safe }}
+    </div>
+    <hr class="post-divider" />
+    <p class="post-back"><a href="/blog/">← All posts</a></p>
+  </div>
+</article>

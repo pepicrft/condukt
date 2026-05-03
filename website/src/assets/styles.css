@@ -210,3 +210,157 @@ pre, code {
 
 .site-footer p { margin: 0 0 0.25rem; }
 .muted { color: var(--fg-muted); }
+
+.blog-index {
+  padding: 5rem 0 6rem;
+}
+
+.blog-index h1 {
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  line-height: 1.15;
+  margin: 0 0 1rem;
+  letter-spacing: -0.02em;
+}
+
+.blog-index .lede {
+  margin-bottom: 1rem;
+}
+
+.blog-feeds {
+  margin: 0 0 2.5rem;
+  font-size: 0.9rem;
+  color: var(--fg-muted);
+}
+
+.post-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-top: 1px solid var(--border);
+}
+
+.post-list li {
+  border-bottom: 1px solid var(--border);
+}
+
+.post-list a {
+  display: block;
+  padding: 1.5rem 0;
+  color: var(--fg);
+}
+
+.post-list a:hover {
+  text-decoration: none;
+}
+
+.post-list a:hover h2 {
+  color: var(--accent);
+}
+
+.post-list-date {
+  color: var(--fg-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 0.4rem;
+}
+
+.post-list h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+}
+
+.post-list-desc {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 0.95rem;
+}
+
+.post {
+  padding: 4rem 0 6rem;
+}
+
+.post h1 {
+  font-size: clamp(1.85rem, 4vw, 2.6rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.5rem;
+}
+
+.post-meta {
+  color: var(--fg-muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 0.75rem;
+}
+
+.post-meta-sep {
+  margin: 0 0.5rem;
+}
+
+.post .lede {
+  margin-bottom: 2.5rem;
+}
+
+.post-body p,
+.post-body li {
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.post-body h2 {
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.4rem;
+  letter-spacing: -0.01em;
+}
+
+.post-body h3 {
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.15rem;
+}
+
+.post-body code {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  padding: 0.05rem 0.35rem;
+  font-size: 0.9em;
+}
+
+.post-body pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.post-body pre code {
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+.post-body blockquote {
+  border-left: 3px solid var(--accent);
+  margin: 1.5rem 0;
+  padding: 0.25rem 0 0.25rem 1rem;
+  color: var(--fg-muted);
+}
+
+.post-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 3rem 0 1.5rem;
+}
+
+.post-back {
+  margin: 0;
+  font-size: 0.95rem;
+}

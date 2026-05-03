@@ -1,0 +1,33 @@
+---
+layout: base.njk
+title: Blog
+description: Updates, deep dives, and release notes from the Condukt team.
+permalink: /blog/
+---
+
+<section class="blog-index">
+  <div class="container">
+    <p class="eyebrow">Blog</p>
+    <h1>Notes from the Condukt team.</h1>
+    <p class="lede">Release notes, OTP patterns, and lessons we learn while building production AI agents on the BEAM.</p>
+    <p class="blog-feeds">Subscribe via <a href="/blog/rss.xml">RSS</a> or <a href="/blog/feed.xml">Atom</a>.</p>
+    {% set posts = collections.posts | reverse %}
+    {% if posts.length == 0 %}
+      <p class="muted">No posts yet.</p>
+    {% else %}
+      <ol class="post-list" reversed>
+      {% for post in posts %}
+        <li>
+          <a href="{{ post.url }}">
+            <p class="post-list-date">
+              <time datetime="{{ post.date | htmlDateString }}">{{ post.date | readableDate }}</time>
+            </p>
+            <h2>{{ post.data.title }}</h2>
+            {% if post.data.description %}<p class="post-list-desc">{{ post.data.description }}</p>{% endif %}
+          </a>
+        </li>
+      {% endfor %}
+      </ol>
+    {% endif %}
+  </div>
+</section>

@@ -14,6 +14,8 @@
     <meta name="theme-color" content="{{ site.themeColor }}" />
     <link rel="canonical" href="{{ pageUrl }}" />
     <link rel="alternate" type="application/atom+xml" href="https://github.com/tuist/condukt/releases.atom" title="Condukt releases" />
+    <link rel="alternate" type="application/atom+xml" href="/blog/feed.xml" title="Condukt blog (Atom)" />
+    <link rel="alternate" type="application/rss+xml" href="/blog/rss.xml" title="Condukt blog (RSS)" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="{{ site.name }}" />
@@ -69,6 +71,7 @@
         <nav class="site-nav">
           <a href="/#features">Features</a>
           <a href="/#install">Install</a>
+          <a href="/blog/">Blog</a>
           <a href="{{ site.docs }}">Docs</a>
           <a href="{{ site.repo }}">GitHub</a>
         </nav>
@@ -79,13 +82,7 @@
 
     <footer class="site-footer">
       <div class="container">
-        <p>{{ site.tagline }}</p>
-        <p class="muted">
-          MIT licensed · <a href="{{ site.repo }}">github.com/tuist/condukt</a>
-        </p>
-        <p class="muted">
-          Made by the <a href="https://tuist.dev">Tuist</a> team.
-        </p>
+        <p>{{ site.tagline }} · MIT licensed · <a href="{{ site.repo }}">github.com/tuist/condukt</a> · Made by the <a href="https://tuist.dev">Tuist</a> team.</p>
       </div>
     </footer>
   </body>

@@ -1,0 +1,29 @@
+---
+permalink: /blog/feed.xml
+eleventyExcludeFromCollections: true
+---
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>{{ site.name }} blog</title>
+  <subtitle>{{ site.tagline }}</subtitle>
+  <link href="{{ site.url }}/blog/feed.xml" rel="self" />
+  <link href="{{ site.url }}/blog/" />
+  <id>{{ site.url }}/blog/</id>
+  {% set latest = collections.posts | last %}
+  {% if latest %}<updated>{{ latest.date.toISOString() }}</updated>{% endif %}
+  <author>
+    <name>Tuist</name>
+    <uri>https://tuist.dev</uri>
+  </author>
+  {% for post in collections.posts | reverse %}
+  <entry>
+    <title>{{ post.data.title }}</title>
+    <link href="{{ site.url }}{{ post.url }}" />
+    <id>{{ site.url }}{{ post.url }}</id>
+    <updated>{{ post.date.toISOString() }}</updated>
+    <published>{{ post.date.toISOString() }}</published>
+    {% if post.data.description %}<summary>{{ post.data.description }}</summary>{% endif %}
+    {% if post.data.author %}<author><name>{{ post.data.author }}</name></author>{% endif %}
+  </entry>
+  {% endfor %}
+</feed>
