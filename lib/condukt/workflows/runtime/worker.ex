@@ -25,17 +25,7 @@ defmodule Condukt.Workflows.Runtime.Worker do
 
   @doc false
   def run_once(%Workflow{} = workflow, input) when is_map(input) do
-    span(workflow, fn ->
-      with :ok <- validate_input(input, workflow.inputs_schema),
-           {:ok, session_opts} <- Workflow.to_session_opts(workflow),
-           {:ok, pid} <- Condukt.Session.start_link(AgentShim, session_opts) do
-        try do
-          Condukt.Session.run(pid, prompt(workflow, input))
-        after
-          if Process.alive?(pid), do: GenServer.stop(pid)
-        end
-      end
-    end)
+    span(workflow, fn -> start_and_run(workflow, input) end)
   end
 
   @impl true
@@ -46,6 +36,20 @@ defmodule Condukt.Workflows.Runtime.Worker do
   @impl true
   def handle_call({:invoke, input}, _from, state) do
     {:reply, run_once(state.workflow, input), state}
+  end
+
+  defp start_and_run(workflow, input) do
+    with :ok <- validate_input(input, workflow.inputs_schema),
+         {:ok, session_opts} <- Workflow.to_session_opts(workflow),
+         {:ok, pid} <- Condukt.Session.start_link(AgentShim, session_opts) do
+      run_session(pid, prompt(workflow, input))
+    end
+  end
+
+  defp run_session(pid, prompt) do
+    Condukt.Session.run(pid, prompt)
+  after
+    if Process.alive?(pid), do: GenServer.stop(pid)
   end
 
   defp validate_input(_input, nil), do: :ok
@@ -84,29 +88,14 @@ defmodule Condukt.Workflows.Runtime.Worker do
       metadata
     )
 
-    try do
-      result = fun.()
+    result = fun.()
 
-      :telemetry.execute(
-        [:condukt, :workflow, :run, :stop],
-        %{duration: System.monotonic_time() - start_time},
-        metadata
-      )
+    :telemetry.execute(
+      [:condukt, :workflow, :run, :stop],
+      %{duration: System.monotonic_time() - start_time},
+      metadata
+    )
 
-      result
-    catch
-      kind, reason ->
-        :telemetry.execute(
-          [:condukt, :workflow, :run, :exception],
-          %{duration: System.monotonic_time() - start_time},
-          Map.merge(metadata, %{
-            kind: kind,
-            reason: reason,
-            stacktrace: __STACKTRACE__
-          })
-        )
-
-        :erlang.raise(kind, reason, __STACKTRACE__)
-    end
+    result
   end
 end

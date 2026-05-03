@@ -5,19 +5,7 @@ defmodule Condukt.Workflows.Resolver do
 
   alias Condukt.Workflows.Fetcher.Git
   alias Condukt.Workflows.{Lockfile, NIF, Project, Store}
-
-  defmodule Requirement do
-    @moduledoc """
-    Dependency requirement extracted from a Starlark `load()` string.
-    """
-
-    @type t :: %__MODULE__{
-            url: String.t(),
-            version_spec: String.t()
-          }
-
-    defstruct [:url, :version_spec]
-  end
+  alias Condukt.Workflows.Resolver.Requirement
 
   @doc false
   def collect_requirements(%Project{workflows: workflows}) do
@@ -104,41 +92,44 @@ defmodule Condukt.Workflows.Resolver do
         fetcher = Keyword.get(opts, :fetcher, Git)
         store = Keyword.get_lazy(opts, :store, &Store.default/0)
 
-        requirements
-        |> Enum.reduce_while({:ok, %{}}, fn requirement, {:ok, index} ->
-          case index_requirement(requirement, fetcher, store) do
-            {:ok, package_index} -> {:cont, {:ok, Map.put(index, requirement.url, package_index)}}
-            {:error, reason} -> {:halt, {:error, reason}}
-          end
-        end)
+        Enum.reduce_while(requirements, {:ok, %{}}, &build_package_index(&1, &2, fetcher, store))
+    end
+  end
+
+  defp build_package_index(requirement, {:ok, index}, fetcher, store) do
+    case index_requirement(requirement, fetcher, store) do
+      {:ok, package_index} -> {:cont, {:ok, Map.put(index, requirement.url, package_index)}}
+      {:error, reason} -> {:halt, {:error, reason}}
     end
   end
 
   defp index_requirement(%Requirement{url: url}, fetcher, store) do
     with {:ok, versions} <- fetcher.list_versions(url) do
-      versions
-      |> Enum.reduce_while({:ok, %{}}, fn version, {:ok, acc} ->
-        version_string = Version.to_string(version)
-
-        case fetcher.fetch(url, version_string) do
-          {:ok, fetched} ->
-            maybe_store(fetcher, store, fetched)
-            {:cont, {:ok, Map.put(acc, version_string, fetch_to_index_info(fetched))}}
-
-          {:error, reason} ->
-            {:halt, {:error, reason}}
-        end
-      end)
+      Enum.reduce_while(versions, {:ok, %{}}, &fetch_index_version(&1, &2, url, fetcher, store))
     end
   end
 
-  defp maybe_store(_fetcher, store, %{source_dir: source_dir, sha256: sha256}) do
+  defp fetch_index_version(version, {:ok, acc}, url, fetcher, store) do
+    version_string = Version.to_string(version)
+
+    case fetcher.fetch(url, version_string) do
+      {:ok, fetched} -> store_fetched_version(acc, store, fetched, version_string)
+      {:error, reason} -> {:halt, {:error, reason}}
+    end
+  end
+
+  defp store_fetched_version(acc, store, fetched, version_string) do
+    maybe_store(store, fetched)
+    {:cont, {:ok, Map.put(acc, version_string, fetch_to_index_info(fetched))}}
+  end
+
+  defp maybe_store(store, %{source_dir: source_dir, sha256: sha256}) do
     _ = Store.put(store, source_dir, sha256)
     File.rm_rf(source_dir)
     :ok
   end
 
-  defp maybe_store(_fetcher, _store, _fetched), do: :ok
+  defp maybe_store(_store, _fetched), do: :ok
 
   defp fetch_to_index_info(fetched) do
     %{

@@ -158,6 +158,7 @@ defmodule Condukt.MixProject do
           Condukt.Workflows.Lockfile,
           Condukt.Workflows.Store,
           Condukt.Workflows.Resolver,
+          Condukt.Workflows.Resolver.Requirement,
           Condukt.Workflows.Fetcher,
           Condukt.Workflows.Fetcher.Git,
           Condukt.Workflows.Eval,

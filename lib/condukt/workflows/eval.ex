@@ -29,29 +29,39 @@ defmodule Condukt.Workflows.Eval do
     if MapSet.member?(seen, path) do
       {:ok, acc}
     else
-      seen = MapSet.put(seen, path)
-
-      with {:ok, %{"loads" => loads}} <- NIF.parse_only(source, path) do
-        Enum.reduce_while(loads, {:ok, acc}, fn load, {:ok, acc} ->
-          case resolve_load(load, path, opts) do
-            {:ok, :builtin, load_source} ->
-              {:cont, {:ok, Map.put_new(acc, load, load_source)}}
-
-            {:ok, resolved_path, load_source} ->
-              acc = Map.put_new(acc, load, load_source)
-
-              case collect_loads(resolved_path, load_source, acc, seen, opts) do
-                {:ok, acc} -> {:cont, {:ok, acc}}
-                {:error, reason} -> {:halt, {:error, reason}}
-              end
-
-            {:error, reason} ->
-              {:halt, {:error, reason}}
-          end
-        end)
-      end
+      do_collect_loads(path, source, acc, seen, opts)
     end
   end
+
+  defp do_collect_loads(path, source, acc, seen, opts) do
+    seen = MapSet.put(seen, path)
+
+    with {:ok, %{"loads" => loads}} <- NIF.parse_only(source, path) do
+      Enum.reduce_while(loads, {:ok, acc}, &collect_load(&1, &2, path, seen, opts))
+    end
+  end
+
+  defp collect_load(load, {:ok, acc}, path, seen, opts) do
+    load
+    |> resolve_load(path, opts)
+    |> collect_resolved_load(load, acc, seen, opts)
+  end
+
+  defp collect_resolved_load({:ok, :builtin, load_source}, load, acc, _seen, _opts) do
+    {:cont, {:ok, Map.put_new(acc, load, load_source)}}
+  end
+
+  defp collect_resolved_load({:ok, resolved_path, load_source}, load, acc, seen, opts) do
+    acc = Map.put_new(acc, load, load_source)
+    continue_collecting_loads(collect_loads(resolved_path, load_source, acc, seen, opts))
+  end
+
+  defp collect_resolved_load({:error, reason}, _load, _acc, _seen, _opts) do
+    {:halt, {:error, reason}}
+  end
+
+  defp continue_collecting_loads({:ok, acc}), do: {:cont, {:ok, acc}}
+  defp continue_collecting_loads({:error, reason}), do: {:halt, {:error, reason}}
 
   defp resolve_load(load, from_path, opts) do
     cond do

@@ -5,8 +5,6 @@ defmodule Condukt.Workflows.Store do
 
   alias Condukt.Workflows.NIF
 
-  @type t :: %__MODULE__{root: Path.t()}
-
   defstruct [:root]
 
   @doc false

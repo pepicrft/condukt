@@ -3,18 +3,6 @@ defmodule Condukt.Workflows.Lockfile do
   Workflow dependency lockfile loaded from `condukt.lock`.
   """
 
-  @type package :: %{
-          version: String.t(),
-          sha256: String.t(),
-          integrity: String.t(),
-          dependencies: [String.t()]
-        }
-
-  @type t :: %__MODULE__{
-          version: pos_integer(),
-          packages: %{String.t() => package()}
-        }
-
   defstruct version: 1, packages: %{}
 
   @doc false

@@ -11,7 +11,6 @@ defmodule Condukt.Workflows do
   @doc """
   Loads a workflow project from `root`.
   """
-  @spec load_project(Path.t()) :: {:ok, Project.t()} | {:error, term()}
   def load_project(root) when is_binary(root) do
     root = Path.expand(root)
 
@@ -32,7 +31,6 @@ defmodule Condukt.Workflows do
   @doc """
   Returns all workflows materialized in a loaded project.
   """
-  @spec list(Project.t()) :: [Workflow.t()]
   def list(%Project{workflows: workflows}) do
     workflows
     |> Map.values()
@@ -42,7 +40,6 @@ defmodule Condukt.Workflows do
   @doc """
   Fetches a workflow by name from a loaded project.
   """
-  @spec get(Project.t(), String.t()) :: {:ok, Workflow.t()} | :error
   def get(%Project{workflows: workflows}, name) when is_binary(name) do
     case Map.fetch(workflows, name) do
       {:ok, workflow} -> {:ok, workflow}
@@ -53,7 +50,6 @@ defmodule Condukt.Workflows do
   @doc """
   Runs one workflow once with the given input map.
   """
-  @spec run(Project.t(), String.t(), map()) :: {:ok, term()} | {:error, term()}
   def run(%Project{} = project, name, input) when is_binary(name) and is_map(input) do
     case get(project, name) do
       {:ok, workflow} -> Runtime.Worker.run_once(workflow, input)
@@ -64,7 +60,6 @@ defmodule Condukt.Workflows do
   @doc """
   Starts a caller-owned workflow runtime supervisor.
   """
-  @spec serve(Project.t(), keyword()) :: {:ok, pid()} | {:error, term()}
   def serve(%Project{} = project, opts \\ []) do
     Runtime.start_link(Keyword.put(opts, :project, project))
   end
@@ -97,19 +92,23 @@ defmodule Condukt.Workflows do
     |> Path.join("workflows/**/*.star")
     |> Path.wildcard(match_dot: false)
     |> Enum.sort()
-    |> Enum.reduce_while({:ok, %{}}, fn path, {:ok, acc} ->
-      case load_workflow_file(path, root, external_loader) do
-        {:ok, workflows} ->
-          case merge_workflows(acc, workflows) do
-            {:ok, workflows} -> {:cont, {:ok, workflows}}
-            {:error, reason} -> {:halt, {:error, reason}}
-          end
-
-        {:error, reason} ->
-          {:halt, {:error, reason}}
-      end
-    end)
+    |> Enum.reduce_while({:ok, %{}}, &load_and_merge_workflow_file(&1, &2, root, external_loader))
   end
+
+  defp load_and_merge_workflow_file(path, {:ok, acc}, root, external_loader) do
+    path
+    |> load_workflow_file(root, external_loader)
+    |> merge_loaded_workflows(acc)
+  end
+
+  defp merge_loaded_workflows({:ok, workflows}, acc) do
+    case merge_workflows(acc, workflows) do
+      {:ok, workflows} -> {:cont, {:ok, workflows}}
+      {:error, reason} -> {:halt, {:error, reason}}
+    end
+  end
+
+  defp merge_loaded_workflows({:error, reason}, _acc), do: {:halt, {:error, reason}}
 
   defp load_workflow_file(path, root, external_loader) do
     with {:ok, %{"graph" => %{"workflows" => declarations}}} <-

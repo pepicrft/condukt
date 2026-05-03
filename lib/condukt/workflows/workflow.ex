@@ -15,18 +15,6 @@ defmodule Condukt.Workflows.Workflow do
     "high" => :high
   }
 
-  @type t :: %__MODULE__{
-          name: String.t(),
-          source_path: Path.t(),
-          agent: map() | nil,
-          tools: [term()],
-          sandbox: term(),
-          triggers: [map()],
-          inputs_schema: map() | nil,
-          system_prompt: String.t() | nil,
-          model: String.t() | nil
-        }
-
   defstruct [
     :name,
     :source_path,
