@@ -11,6 +11,10 @@
 - Tools that read/write files or run subprocesses must route through the
   `Condukt.Sandbox.*` facade, not `File.*` / `MuonTrap.cmd/3` directly. The
   sandbox is in `context.sandbox` when the tool's `call/2` is invoked.
+- Session secrets are resolved through `Condukt.Secrets` and exposed to tools
+  through `context.secrets`; command tools should use `Condukt.Secrets.env/1`
+  or `Condukt.Secrets.merge_env/2` instead of reading provider-specific secret
+  stores directly.
 - `Condukt.Sandbox.Local` is the default and operates against the host
   filesystem. `Condukt.Sandbox.Virtual` is in-tree and routes through a
   Rust NIF wrapping bashkit for in-memory virtual filesystem isolation.

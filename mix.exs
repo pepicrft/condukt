@@ -78,6 +78,7 @@ defmodule Condukt.MixProject do
         "guides/sessions_and_persistence.md": [title: "Sessions and Persistence"],
         "guides/compaction.md": [title: "Compaction"],
         "guides/redaction.md": [title: "Redaction"],
+        "guides/secrets.md": [title: "Secrets"],
         "guides/project_instructions.md": [title: "Project Instructions"],
         "guides/telemetry.md": [title: "Telemetry"],
         "guides/providers.md": [title: "Providers"],
@@ -97,6 +98,7 @@ defmodule Condukt.MixProject do
           "guides/sessions_and_persistence.md",
           "guides/compaction.md",
           "guides/redaction.md",
+          "guides/secrets.md",
           "guides/project_instructions.md",
           "guides/telemetry.md",
           "guides/providers.md"
@@ -151,6 +153,13 @@ defmodule Condukt.MixProject do
         Redaction: [
           Condukt.Redactor,
           Condukt.Redactors.Regex
+        ],
+        Secrets: [
+          Condukt.SecretProvider,
+          Condukt.Secrets,
+          Condukt.Secrets.Providers.Env,
+          Condukt.Secrets.Providers.OnePassword,
+          Condukt.Secrets.Providers.Static
         ],
         Providers: [
           Condukt.Providers.Ollama

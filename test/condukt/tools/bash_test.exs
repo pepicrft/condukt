@@ -30,6 +30,21 @@ defmodule Condukt.Tools.BashTest do
     assert String.contains?(result, "hello")
   end
 
+  test "passes session secrets as environment variables", %{tmp_dir: tmp_dir, context: context} do
+    context = Map.put(context, :secrets, %Condukt.Secrets{env: [{"GH_TOKEN", "secret-token"}]})
+
+    MuonTrap
+    |> expect(:cmd, fn "bash", ["-c", "echo $GH_TOKEN"], opts ->
+      assert opts[:cd] == tmp_dir
+      assert {"GH_TOKEN", "secret-token"} in opts[:env]
+      {"secret-token\n", 0}
+    end)
+
+    {:ok, result} = Bash.call(%{"command" => "echo $GH_TOKEN"}, context)
+
+    assert String.contains?(result, "secret-token")
+  end
+
   test "captures stderr", %{tmp_dir: tmp_dir, context: context} do
     MuonTrap
     |> expect(:cmd, fn "bash", ["-c", "echo error >&2"], opts ->

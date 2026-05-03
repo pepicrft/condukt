@@ -23,7 +23,7 @@ defmodule Condukt.Session do
 
   use GenServer
 
-  alias Condukt.{Compactor, Context, Message, Redactor, Sandbox, SessionStore, Telemetry, Tool}
+  alias Condukt.{Compactor, Context, Message, Redactor, Sandbox, Secrets, SessionStore, Telemetry, Tool}
   alias Condukt.SessionStore.Snapshot
   alias ReqLLM.ToolCall
 
@@ -41,6 +41,7 @@ defmodule Condukt.Session do
     :tools,
     :cwd,
     :sandbox,
+    :secrets,
     :api_key,
     :base_url,
     :session_store,
@@ -80,6 +81,7 @@ defmodule Condukt.Session do
       |> Keyword.put_new(:tools, agent_module.tools())
       |> put_configured_opt(config, :cwd, &File.cwd!/0)
       |> put_configured_opt(config, :sandbox, fn -> agent_sandbox(agent_module) end)
+      |> put_configured_opt(config, :secrets, fn -> agent_secrets(agent_module) end)
       |> put_configured_opt(config, :session_store)
       |> put_configured_opt(config, :compactor)
       |> put_configured_opt(config, :redactor)
@@ -98,6 +100,12 @@ defmodule Condukt.Session do
   defp agent_sandbox(agent_module) do
     if function_exported?(agent_module, :sandbox, 0) do
       agent_module.sandbox()
+    end
+  end
+
+  defp agent_secrets(agent_module) do
+    if function_exported?(agent_module, :secrets, 0) do
+      agent_module.secrets()
     end
   end
 
@@ -199,32 +207,36 @@ defmodule Condukt.Session do
         project_context = load_project_context(opts)
         cwd = Keyword.fetch!(opts, :cwd)
 
-        case resolve_sandbox(opts[:sandbox], cwd) do
-          {:ok, sandbox} ->
-            state =
-              %__MODULE__{
-                agent_module: agent_module,
-                model: restore_value(opts, :model, snapshot && snapshot.model),
-                thinking_level: restore_value(opts, :thinking_level, snapshot && snapshot.thinking_level),
-                configured_system_prompt: configured_system_prompt,
-                system_prompt: Context.compose_system_prompt(configured_system_prompt, project_context.prompt),
-                tools: Keyword.fetch!(opts, :tools),
-                cwd: cwd,
-                sandbox: sandbox,
-                api_key: opts[:api_key],
-                base_url: opts[:base_url],
-                session_store: session_store,
-                compactor: opts[:compactor],
-                redactor: opts[:redactor],
-                project_context: project_context,
-                user_state: user_state
-              }
-              |> restore_messages(snapshot)
+        with {:sandbox, {:ok, sandbox}} <- {:sandbox, resolve_sandbox(opts[:sandbox], cwd)},
+             {:secrets, {:ok, secrets}} <- {:secrets, Secrets.resolve(opts[:secrets])} do
+          state =
+            %__MODULE__{
+              agent_module: agent_module,
+              model: restore_value(opts, :model, snapshot && snapshot.model),
+              thinking_level: restore_value(opts, :thinking_level, snapshot && snapshot.thinking_level),
+              configured_system_prompt: configured_system_prompt,
+              system_prompt: Context.compose_system_prompt(configured_system_prompt, project_context.prompt),
+              tools: Keyword.fetch!(opts, :tools),
+              cwd: cwd,
+              sandbox: sandbox,
+              secrets: secrets,
+              api_key: opts[:api_key],
+              base_url: opts[:base_url],
+              session_store: session_store,
+              compactor: opts[:compactor],
+              redactor: opts[:redactor],
+              project_context: project_context,
+              user_state: user_state
+            }
+            |> restore_messages(snapshot)
 
-            {:ok, state}
-
-          {:error, reason} ->
+          {:ok, state}
+        else
+          {:sandbox, {:error, reason}} ->
             {:stop, {:sandbox_init_failed, reason}}
+
+          {:secrets, {:error, reason}} ->
+            {:stop, {:secrets_init_failed, reason}}
         end
 
       {:stop, reason} ->
@@ -484,8 +496,9 @@ defmodule Condukt.Session do
 
   defp build_context(state, messages) do
     context_messages =
-      state.redactor
-      |> Redactor.redact_messages(messages)
+      state.secrets
+      |> Secrets.redact_messages(messages)
+      |> then(&Redactor.redact_messages(state.redactor, &1))
       |> Enum.map(&message_to_req_llm/1)
       |> List.flatten()
 
@@ -550,11 +563,11 @@ defmodule Condukt.Session do
         description: spec.description,
         parameter_schema: convert_json_schema_to_nimble(spec.parameters),
         callback: fn args ->
-          context = %{agent: self(), sandbox: state.sandbox, cwd: state.cwd, opts: []}
+          context = %{agent: self(), sandbox: state.sandbox, cwd: state.cwd, opts: [], secrets: state.secrets}
 
           case Tool.execute(tool_spec, args, context) do
-            {:ok, result} when is_binary(result) -> result
-            {:ok, result} -> JSON.encode!(result)
+            {:ok, result} when is_binary(result) -> Secrets.redact_text(state.secrets, result)
+            {:ok, result} -> JSON.encode!(Secrets.redact_result(state.secrets, result))
             {:error, reason} -> "Error: #{inspect(reason)}"
           end
         end
@@ -700,13 +713,13 @@ defmodule Condukt.Session do
   end
 
   defp tool_context(state, opts) do
-    %{agent: self(), sandbox: state.sandbox, cwd: state.cwd, opts: opts}
+    %{agent: self(), sandbox: state.sandbox, cwd: state.cwd, opts: opts, secrets: state.secrets}
   end
 
   defp execute_tool_spec(tool_spec, args, context, id) do
     case Tool.execute(tool_spec, args, context) do
-      {:ok, result} -> Message.tool_result(id, result)
-      {:error, reason} -> Message.tool_result(id, {:error, reason})
+      {:ok, result} -> Message.tool_result(id, Secrets.redact_result(context[:secrets], result))
+      {:error, reason} -> Message.tool_result(id, Secrets.redact_result(context[:secrets], {:error, reason}))
     end
   end
 

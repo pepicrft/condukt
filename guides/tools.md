@@ -48,6 +48,7 @@ sandbox at `start_link/1` time and how custom sandboxes plug in.
 `Condukt.Tools.Command` is a safer alternative to `Bash` when you want to
 expose a single executable without giving the model a full shell. It also
 lets you attach trusted environment variables that the model never sees.
+Session secrets configured with `:secrets` are merged into that environment.
 
 `Command` does not currently route through the sandbox: it runs the
 configured executable directly on the host with the trusted env you provide.
@@ -71,6 +72,20 @@ defmodule MyApp.ReviewAgent do
   end
 end
 ```
+
+You can also resolve the token through a secret provider and keep the tool
+definition free of plaintext values:
+
+```elixir
+MyApp.ReviewAgent.start_link(
+  secrets: [
+    GH_TOKEN: {:one_password, "op://Engineering/GitHub/token"}
+  ]
+)
+```
+
+See the [Secrets guide](secrets.md) for provider-backed configuration and
+redaction behavior.
 
 Each scoped command tool accepts:
 
@@ -120,6 +135,7 @@ The second argument to `call/2` is a context map that includes:
 * `:cwd` is the project working directory (use `:sandbox` for any file or
   command work; `:cwd` is for resolving project-relative paths that aren't
   themselves I/O operations)
+* `:secrets` contains resolved session secrets for trusted tools
 * `:opts` is the keyword list from `{Module, opts}`
 
 ## Sandbox-aware tools
