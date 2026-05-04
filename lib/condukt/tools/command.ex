@@ -123,6 +123,7 @@ defmodule Condukt.Tools.Command do
            cd: cwd,
            stderr_to_stdout: true,
            env: env,
+           parallelism: false,
            timeout: timeout
          ) do
       {:ok, {_output, :timeout}} -> {:error, :timeout}

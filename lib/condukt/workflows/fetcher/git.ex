@@ -13,7 +13,8 @@ defmodule Condukt.Workflows.Fetcher.Git do
     repo_url = repo_url(url)
 
     case MuonTrap.cmd("git", ["clone", "--depth", "1", "--branch", version, repo_url, target_dir],
-           stderr_to_stdout: true
+           stderr_to_stdout: true,
+           parallelism: false
          ) do
       {_output, 0} ->
         load_fetch_result(target_dir, version)
@@ -28,7 +29,10 @@ defmodule Condukt.Workflows.Fetcher.Git do
   def list_versions(url) when is_binary(url) do
     repo_url = repo_url(url)
 
-    case MuonTrap.cmd("git", ["ls-remote", "--tags", repo_url], stderr_to_stdout: true) do
+    case MuonTrap.cmd("git", ["ls-remote", "--tags", repo_url],
+           stderr_to_stdout: true,
+           parallelism: false
+         ) do
       {output, 0} -> {:ok, parse_versions(output)}
       {output, exit_code} -> {:error, {:git_ls_remote_failed, exit_code, output}}
     end

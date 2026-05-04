@@ -99,6 +99,7 @@ defmodule Condukt.Sandbox.Local do
              cd: run_cwd,
              stderr_to_stdout: true,
              env: env,
+             parallelism: false,
              timeout: timeout
            ) do
         {_output, :timeout} ->
