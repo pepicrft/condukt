@@ -1,10 +1,7 @@
 defmodule Condukt.Sandbox.LocalTest do
   # Run serially: the exec/3 tests spawn real bash subprocesses via
-  # MuonTrap. Under heavy ExUnit parallelism on Linux CI runners these
-  # ports occasionally hit :epipe due to port-spawning contention, which
-  # then trips a NIF cleanup path and segfaults the runner. Serializing
-  # this one module avoids the contention without giving up async on the
-  # rest of the suite.
+  # MuonTrap. Keeping this module synchronous avoids extra port contention
+  # around the Linux runner's output-capture path.
   use ExUnit.Case, async: false
 
   alias Condukt.Sandbox
