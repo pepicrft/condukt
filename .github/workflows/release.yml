@@ -303,10 +303,7 @@ jobs:
     name: Build engine (${{ matrix.burrito_target }})
     needs: [plan, publish]
     if: needs.plan.outputs.should_release == 'true'
-    # Erlang/OTP 28.3.1 from the mise cache is built against glibc 2.38+.
-    # Ubuntu 22.04 ships glibc 2.35, so the engine packaging jobs fail before
-    # Mix can start and the GitHub release is left without standalone assets.
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
 
     strategy:
@@ -314,6 +311,7 @@ jobs:
       matrix:
         include:
           - burrito_target: linux_x64
+            runner: ubuntu-24.04
             asset_suffix: linux-x64-gnu
             binary_name: condukt_linux_x64
             archive_ext: tar.gz
@@ -322,22 +320,25 @@ jobs:
             target_os: linux
             target_abi: gnu
           - burrito_target: macos_x64
+            runner: macos-15-intel
             asset_suffix: macos-x64
             binary_name: condukt_macos_x64
             archive_ext: tar.gz
-            target_arch: x86_64
-            target_vendor: apple
-            target_os: darwin
+            target_arch: ""
+            target_vendor: ""
+            target_os: ""
             target_abi: ""
           - burrito_target: macos_arm64
+            runner: macos-15
             asset_suffix: macos-arm64
             binary_name: condukt_macos_arm64
             archive_ext: tar.gz
-            target_arch: aarch64
-            target_vendor: apple
-            target_os: darwin
+            target_arch: ""
+            target_vendor: ""
+            target_os: ""
             target_abi: ""
           - burrito_target: windows_x64
+            runner: ubuntu-24.04
             asset_suffix: windows-x64-msvc
             binary_name: condukt_windows_x64.exe
             archive_ext: zip
@@ -359,8 +360,12 @@ jobs:
 
       - name: Install archive tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y p7zip-full xz-utils
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y p7zip-full xz-utils
+          else
+            brew install p7zip xz
+          fi
 
       - name: Install Hex and Rebar
         run: |
@@ -375,18 +380,21 @@ jobs:
           BURRITO_TARGET: ${{ matrix.burrito_target }}
           CONDUKT_BASHKIT_PRECOMPILED: "1"
           CONDUKT_WORKFLOWS_PRECOMPILED: "1"
-          TARGET_ARCH: ${{ matrix.target_arch }}
-          TARGET_VENDOR: ${{ matrix.target_vendor }}
-          TARGET_OS: ${{ matrix.target_os }}
+          TARGET_ARCH_VALUE: ${{ matrix.target_arch }}
+          TARGET_VENDOR_VALUE: ${{ matrix.target_vendor }}
+          TARGET_OS_VALUE: ${{ matrix.target_os }}
           TARGET_ABI_VALUE: ${{ matrix.target_abi }}
         run: |
           set -euo pipefail
 
-          if [ -n "$TARGET_ABI_VALUE" ]; then
-            export TARGET_ABI="$TARGET_ABI_VALUE"
-          else
-            unset TARGET_ABI
-          fi
+          for target_env in TARGET_ARCH TARGET_VENDOR TARGET_OS TARGET_ABI; do
+            unset "$target_env"
+          done
+
+          [ -n "$TARGET_ARCH_VALUE" ] && export TARGET_ARCH="$TARGET_ARCH_VALUE"
+          [ -n "$TARGET_VENDOR_VALUE" ] && export TARGET_VENDOR="$TARGET_VENDOR_VALUE"
+          [ -n "$TARGET_OS_VALUE" ] && export TARGET_OS="$TARGET_OS_VALUE"
+          [ -n "$TARGET_ABI_VALUE" ] && export TARGET_ABI="$TARGET_ABI_VALUE"
 
           MIX_ENV=prod mix release condukt --overwrite
 
@@ -416,7 +424,11 @@ jobs:
             tar -czf "dist/${asset_base}.tar.gz" -C "$package_dir" condukt
           fi
 
-          (cd dist && sha256sum "${asset_base}.${ARCHIVE_EXT}" > "${asset_base}.${ARCHIVE_EXT}.sha256")
+          if command -v sha256sum >/dev/null 2>&1; then
+            (cd dist && sha256sum "${asset_base}.${ARCHIVE_EXT}" > "${asset_base}.${ARCHIVE_EXT}.sha256")
+          else
+            (cd dist && shasum -a 256 "${asset_base}.${ARCHIVE_EXT}" > "${asset_base}.${ARCHIVE_EXT}.sha256")
+          fi
 
       - name: Upload engine asset
         uses: actions/upload-artifact@v4
