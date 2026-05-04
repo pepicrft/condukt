@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.16.4] - 2026-05-04
+
+### Bug Fixes
+
+- skip website tooling in engine builds
+
+
 ## [0.16.3] - 2026-05-04
 
 ### Bug Fixes
