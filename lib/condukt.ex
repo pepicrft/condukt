@@ -78,7 +78,7 @@ defmodule Condukt do
   except `:input`/`:input_schema` and `:output`/`:output_schema`, which define
   optional structured contracts for the sub-agent tool boundary.
   """
-  @callback subagents() :: keyword(module() | {module(), keyword()} | keyword())
+  @callback subagents() :: term()
 
   @doc """
   Returns the model identifier.
