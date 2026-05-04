@@ -85,7 +85,6 @@ defmodule Condukt.MixProject do
         "guides/tools.md": [title: "Tools"],
         "guides/subagents.md": [title: "Sub-agents"],
         "guides/workflows.md": [title: "Workflows"],
-        "guides/workflow_starlark_api.md": [title: "Workflow Starlark API"],
         "guides/sandbox.md": [title: "Sandbox"],
         "guides/streaming_and_events.md": [title: "Streaming and Events"],
         "guides/sessions_and_persistence.md": [title: "Sessions and Persistence"],
@@ -110,8 +109,7 @@ defmodule Condukt.MixProject do
           "guides/subagents.md"
         ],
         Workflows: [
-          "guides/workflows.md",
-          "guides/workflow_starlark_api.md"
+          "guides/workflows.md"
         ],
         Guides: [
           "guides/sandbox.md",

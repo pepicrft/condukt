@@ -55,25 +55,32 @@
 
 ## Workflows
 
-- `Condukt.Workflows` loads Starlark workflow declarations from a project root,
-  resolves package loads through a TOML lockfile, materializes Elixir structs,
-  and starts caller-owned runtimes for manual, cron, and webhook-triggered
-  runs.
-- The workflows NIF lives in `native/condukt_workflows/`. It evaluates
-  Starlark, runs PubGrub resolution, and computes deterministic SHA-256 tree
-  hashes. It must return materialized Elixir maps and lists, not pointers into
-  Starlark heap state.
-- Workflow package identity uses versioned load strings:
-  `<host>/<path>@<version>`. Non-relative loads require a version. Relative
-  loads stay inside the workspace.
-- Shared packages are stored under `~/.condukt/store/<sha256>/`. Store writes
-  must verify `Condukt.Workflows.NIF.sha256_tree/1` before the atomic rename.
-- `condukt.lock` is TOML, committed, deterministic, and offline-first. Use
-  `mix condukt.workflows.lock` to update it.
-- Workflow runtimes are not auto-started by `Condukt.Application`. Callers use
-  `Condukt.Workflows.serve/2` or `mix condukt.workflows.serve`.
-- `mix condukt.workflows.check` is the validation gate for workflow graphs,
-  tool refs, sandbox kinds, and model identifiers.
+- A workflow is a single self-contained Starlark file. There is no project
+  layout, no `condukt.toml` manifest, and no default lockfile. The basename
+  of the file is the run name.
+- A workflow file defines a top-level `def run(inputs)` and calls
+  `workflow(inputs = ...)` at module top level to mark itself runnable.
+- `Condukt.Workflows.run(path, inputs)` evaluates the file. The Starlark
+  source runs on a dedicated OS thread. Suspending builtins
+  (`run_cmd(...)` today, `agent`/`http`/`tool`/`parallel_map` in later
+  slices) block the Starlark VM, send a request to the BEAM, and resume
+  with the host's response. Step outputs are real Starlark values, so
+  normal `if`/`for` works over them.
+- The workflows NIF lives in `native/condukt_workflows/`. Surface:
+  `start_run/3`, `resume_run/2`, `cancel_run/1`, `parse_only/2`,
+  `check/2`. The OS thread + `crossbeam-channel` pair is owned by a
+  `RunHandle` resource; `Drop` shuts the worker down if Elixir crashes
+  mid-run.
+- `Condukt.Workflows.Builtins` is the dispatch point for suspending
+  builtin requests on the Elixir side. Add new step kinds there.
+- CLI verbs are `condukt run PATH [--input JSON]` and
+  `condukt check PATH`, mirrored by `mix condukt.run` and
+  `mix condukt.check`.
+- Future slices will add: `agent`/`http`/`tool`/`parallel_map` builtins,
+  Deno-style remote `load(...)` from versioned URLs, an opt-in
+  `condukt run --lock` integrity-only lockfile, and triggers
+  (`condukt.trigger.webhook`, `condukt.schedule.cron`) via
+  `condukt serve PATH`.
 
 ## Engine releases
 
