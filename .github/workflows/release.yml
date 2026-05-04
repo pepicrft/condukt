@@ -265,6 +265,20 @@ jobs:
 
           echo "release_commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+      - name: Publish documentation to HexDocs
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+          MIX_ENV: dev
+          CONDUKT_BASHKIT_DISABLE: "1"
+          CONDUKT_WORKFLOWS_DISABLE: "1"
+        run: |
+          set -euo pipefail
+          : "${HEX_API_KEY:?HEX_API_KEY secret is required}"
+
+          mix deps.get
+          mix docs
+          mix hex.publish docs --yes
+
       - name: Create GitHub release with NIF artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
