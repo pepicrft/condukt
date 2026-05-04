@@ -2,73 +2,90 @@ defmodule Condukt.WorkflowsTest do
   use ExUnit.Case, async: true
 
   alias Condukt.Workflows
-  alias Condukt.Workflows.{Lockfile, Manifest, Project, Resolver, Store, Workflow}
 
-  test "public facade exposes the pinned entry points" do
-    assert Code.ensure_loaded?(Workflows)
-    assert function_exported?(Workflows, :load_project, 1)
-    assert function_exported?(Workflows, :list, 1)
-    assert function_exported?(Workflows, :get, 2)
-    assert function_exported?(Workflows, :run, 3)
-    assert function_exported?(Workflows, :serve, 1)
-    assert function_exported?(Workflows, :serve, 2)
+  @moduletag :tmp_dir
+
+  describe "run/3" do
+    test "runs a workflow that calls run_cmd and returns its stdout", %{tmp_dir: dir} do
+      path = Path.join(dir, "hello.star")
+
+      File.write!(path, """
+      def run(inputs):
+          result = run_cmd(["echo", "hello, " + inputs["name"]])
+          return result["stdout"]
+
+      workflow(inputs = {"name": {"type": "string"}})
+      """)
+
+      assert {:ok, "hello, world\n"} = Workflows.run(path, %{"name" => "world"})
+    end
+
+    test "supports control flow over real step outputs", %{tmp_dir: dir} do
+      path = Path.join(dir, "branch.star")
+
+      File.write!(path, """
+      def run(inputs):
+          result = run_cmd(["echo", inputs["mode"]])
+          if result["stdout"].strip() == "approve":
+              return "approved"
+          else:
+              return "rejected"
+
+      workflow(inputs = {"mode": {"type": "string"}})
+      """)
+
+      assert {:ok, "approved"} = Workflows.run(path, %{"mode" => "approve"})
+      assert {:ok, "rejected"} = Workflows.run(path, %{"mode" => "deny"})
+    end
+
+    test "errors when the file does not call workflow(...)", %{tmp_dir: dir} do
+      path = Path.join(dir, "no_marker.star")
+      File.write!(path, "def run(inputs):\n    return inputs\n")
+
+      assert {:error, message} = Workflows.run(path, %{})
+      assert message =~ "workflow(...)"
+    end
+
+    test "errors when the file does not define run/1", %{tmp_dir: dir} do
+      path = Path.join(dir, "no_run.star")
+      File.write!(path, "workflow(inputs = {})\n")
+
+      assert {:error, message} = Workflows.run(path, %{})
+      assert message =~ "run(inputs)"
+    end
+
+    test "returns a structured error for parse failures", %{tmp_dir: dir} do
+      path = Path.join(dir, "bad.star")
+      File.write!(path, "def run(:")
+
+      assert {:error, _reason} = Workflows.run(path, %{})
+    end
+
+    test "errors when the file is missing" do
+      assert {:error, {:read_failed, "/nope/missing.star", :enoent}} =
+               Workflows.run("/nope/missing.star", %{})
+    end
   end
 
-  test "project struct has the documented fields" do
-    assert %Project{} = project = struct(Project)
+  describe "check/1" do
+    test "returns :ok for a valid file", %{tmp_dir: dir} do
+      path = Path.join(dir, "ok.star")
 
-    assert Map.take(Map.from_struct(project), [:root, :manifest, :lockfile, :workflows, :warnings]) == %{
-             root: nil,
-             manifest: nil,
-             lockfile: nil,
-             workflows: %{},
-             warnings: []
-           }
-  end
+      File.write!(path, """
+      def run(inputs):
+          return inputs
 
-  test "workflow struct has the documented fields" do
-    assert %Workflow{} = workflow = struct(Workflow)
+      workflow(inputs = {})
+      """)
 
-    assert Map.take(Map.from_struct(workflow), [
-             :name,
-             :source_path,
-             :agent,
-             :tools,
-             :sandbox,
-             :triggers,
-             :inputs_schema,
-             :system_prompt,
-             :model
-           ]) == %{
-             name: nil,
-             source_path: nil,
-             agent: nil,
-             tools: [],
-             sandbox: nil,
-             triggers: [],
-             inputs_schema: nil,
-             system_prompt: nil,
-             model: nil
-           }
-  end
+      assert :ok = Workflows.check(path)
+    end
 
-  test "manifest and lockfile structs have the documented fields" do
-    assert %Manifest{} = manifest = struct(Manifest)
-    assert %Lockfile{} = lockfile = struct(Lockfile)
+    test "returns an error for a parse failure", %{tmp_dir: dir} do
+      path = Path.join(dir, "bad.star")
+      File.write!(path, "def run(:")
 
-    assert Map.take(Map.from_struct(manifest), [:name, :version, :exports, :requires_native, :signatures]) == %{
-             name: nil,
-             version: nil,
-             exports: [],
-             requires_native: [],
-             signatures: %{}
-           }
-
-    assert Map.take(Map.from_struct(lockfile), [:version, :packages]) == %{version: 1, packages: %{}}
-  end
-
-  test "store and resolver requirement structs have the documented fields" do
-    assert %Store{root: "/tmp/store"} = Store.new("/tmp/store")
-    assert %Resolver.Requirement{url: "github.com/tuist/tools", version_spec: "^1.0.0"}
+      assert {:error, _reason} = Workflows.check(path)
+    end
   end
 end

@@ -9,18 +9,14 @@ pub(crate) enum WorkflowsError {
     Parse(String),
     #[error("eval error: {0}")]
     Eval(String),
-    #[error("missing load: {0}")]
-    MissingLoad(String),
-    #[error("no solution: {0}")]
-    NoSolution(String),
-    #[error("invalid version: {0}")]
-    InvalidVersion(String),
-    #[error("not found: {0}")]
-    NotFound(String),
-    #[error("I/O error: {0}")]
-    Io(#[from] std::io::Error),
-    #[error("I/O error: {0}")]
-    WalkDir(#[from] walkdir::Error),
+    #[error("invalid arguments: {0}")]
+    InvalidArguments(String),
+    #[error("runtime error: {0}")]
+    Runtime(String),
+    #[error("workflow cancelled")]
+    Cancelled,
+    #[error("invalid response: {0}")]
+    InvalidResponse(String),
 }
 
 pub(crate) type WorkflowsResult<T> = Result<T, WorkflowsError>;
@@ -30,11 +26,10 @@ impl WorkflowsError {
         match self {
             WorkflowsError::Parse(_) => atoms::parse_error(),
             WorkflowsError::Eval(_) => atoms::eval_error(),
-            WorkflowsError::MissingLoad(_) => atoms::missing_load(),
-            WorkflowsError::NoSolution(_) => atoms::no_solution(),
-            WorkflowsError::InvalidVersion(_) => atoms::invalid_version(),
-            WorkflowsError::NotFound(_) => atoms::not_found(),
-            WorkflowsError::Io(_) | WorkflowsError::WalkDir(_) => atoms::io_error(),
+            WorkflowsError::InvalidArguments(_) => atoms::invalid_arguments(),
+            WorkflowsError::Runtime(_) => atoms::runtime_error(),
+            WorkflowsError::Cancelled => atoms::cancelled(),
+            WorkflowsError::InvalidResponse(_) => atoms::invalid_response(),
         }
     }
 }

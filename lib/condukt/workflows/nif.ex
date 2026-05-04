@@ -6,10 +6,11 @@ defmodule Condukt.Workflows.NIF do
   if System.get_env("CONDUKT_WORKFLOWS_DISABLE") in ["1", "true"] do
     @disabled_error {:error, :nif_disabled}
 
-    def eval(_source, _filename, _globals), do: @disabled_error
+    def start_run(_source, _filename, _inputs_json), do: @disabled_error
+    def resume_run(_handle, _response_json), do: @disabled_error
+    def cancel_run(_handle), do: :ok
     def parse_only(_source, _filename), do: @disabled_error
-    def resolve(_root, _requirements, _index), do: @disabled_error
-    def sha256_tree(_root_dir), do: @disabled_error
+    def check(_source, _filename), do: @disabled_error
   else
     use RustlerPrecompiled,
       otp_app: :condukt,
@@ -28,10 +29,11 @@ defmodule Condukt.Workflows.NIF do
       ),
       nif_versions: ~w(2.16 2.17)
 
-    def eval(_source, _filename, _globals), do: err()
+    def start_run(_source, _filename, _inputs_json), do: err()
+    def resume_run(_handle, _response_json), do: err()
+    def cancel_run(_handle), do: err()
     def parse_only(_source, _filename), do: err()
-    def resolve(_root, _requirements, _index), do: err()
-    def sha256_tree(_root_dir), do: err()
+    def check(_source, _filename), do: err()
 
     defp err, do: :erlang.nif_error(:nif_not_loaded)
   end

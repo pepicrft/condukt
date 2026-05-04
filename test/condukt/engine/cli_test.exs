@@ -20,8 +20,8 @@ defmodule Condukt.Engine.CLITest do
         assert CLI.main(["help"]) == 0
       end)
 
-    assert output =~ "condukt workflows check"
-    assert output =~ "condukt workflows serve"
+    assert output =~ "condukt run"
+    assert output =~ "condukt check"
   end
 
   test "returns an error for an unknown command" do
