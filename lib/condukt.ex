@@ -72,12 +72,13 @@ defmodule Condukt do
   @doc """
   Returns the sub-agents this agent can delegate work to.
 
-  Each entry maps a role atom to an agent module, or to `{agent_module, opts}`.
+  Each entry maps a role atom to an agent module, to `{agent_module, opts}`, or
+  to a keyword list of session options for an anonymous child agent.
   Registration opts are passed to the child session when the sub-agent runs,
   except `:input`/`:input_schema` and `:output`/`:output_schema`, which define
   optional structured contracts for the sub-agent tool boundary.
   """
-  @callback subagents() :: keyword(module() | {module(), keyword()})
+  @callback subagents() :: keyword(module() | {module(), keyword()} | keyword())
 
   @doc """
   Returns the model identifier.
@@ -199,7 +200,9 @@ defmodule Condukt do
       - `:sandbox` - Sandbox spec for tool I/O (module, `{module, opts}`, or
         `Condukt.Sandbox` struct). Defaults to
         `{Condukt.Sandbox.Local, cwd: <:cwd>}`.
-      - `:subagents` - Override the agent's `subagents/0` registrations
+      - `:subagents` - Override the agent's `subagents/0` registrations.
+        Each role can point at an agent module, `{agent_module, opts}`, or a
+        keyword list of session options for an anonymous child agent.
       - `:secrets` - Session secret declarations. Resolved at session start
         and exposed to command tools as environment variables without adding
         plaintext values to model context or snapshots.
@@ -321,7 +324,7 @@ defmodule Condukt do
   `:max_turns`, `:images`) plus the session options accepted by an agent's
   `start_link/1` (`:model`, `:system_prompt`, `:api_key`, `:base_url`,
   `:thinking_level`, `:tools`, `:sandbox`, `:cwd`, `:session_store`,
-  `:compactor`, `:redactor`, `:load_project_instructions`).
+  `:subagents`, `:compactor`, `:redactor`, `:load_project_instructions`).
   `:load_project_instructions` defaults to `false` for anonymous runs.
   """
   def run(prompt) when is_binary(prompt) do

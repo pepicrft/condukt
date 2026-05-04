@@ -25,8 +25,9 @@
 ## Sub-agents
 
 - Agents can declare `subagents/0` as `role: AgentModule` or
-  `role: {AgentModule, opts}`. Sessions auto-inject `Condukt.Tools.Subagent`
-  when roles are registered.
+  `role: {AgentModule, opts}`. They can also use `role: [opts]` to create an
+  anonymous child agent backed by `Condukt.AnonymousAgent`. Sessions
+  auto-inject `Condukt.Tools.Subagent` when roles are registered.
 - Role opts can declare optional `:input`/`:input_schema` and
   `:output`/`:output_schema` JSON Schemas. Only fields listed in `required`
   are required.

@@ -45,13 +45,14 @@ defmodule Condukt.Tools.SubagentTest do
         {Subagent,
          subagents: [
            researcher: {ChildAgent, input: input_schema},
-           coder: {ChildAgent, model: "test", input: optional_input_schema}
+           coder: {ChildAgent, model: "test", input: optional_input_schema},
+           analyst: [model: "test", input: optional_input_schema]
          ]}
       )
 
     assert spec.name == "subagent"
 
-    [researcher_schema, coder_schema] = spec.parameters.oneOf
+    [researcher_schema, coder_schema, analyst_schema] = spec.parameters.oneOf
 
     assert researcher_schema.properties.role.enum == ["researcher"]
     assert researcher_schema.properties.input == input_schema
@@ -60,6 +61,10 @@ defmodule Condukt.Tools.SubagentTest do
     assert coder_schema.properties.role.enum == ["coder"]
     assert coder_schema.properties.input == optional_input_schema
     assert coder_schema.required == ["role", "task"]
+
+    assert analyst_schema.properties.role.enum == ["analyst"]
+    assert analyst_schema.properties.input == optional_input_schema
+    assert analyst_schema.required == ["role", "task"]
   end
 
   test "delegates to a child session and returns its final answer as the tool result" do

@@ -273,7 +273,18 @@ defmodule Condukt.Session do
 
       {role, {module, opts}} when is_atom(role) and is_atom(module) and is_list(opts) ->
         {role, {module, opts}}
+
+      {role, opts} when is_atom(role) and is_list(opts) ->
+        {role, {Condukt.AnonymousAgent, anonymous_subagent_opts!(opts)}}
     end)
+  end
+
+  defp anonymous_subagent_opts!(opts) do
+    if Keyword.keyword?(opts) do
+      Keyword.put_new(opts, :load_project_instructions, false)
+    else
+      raise ArgumentError, "anonymous sub-agent registration must be a keyword list"
+    end
   end
 
   defp maybe_start_subagent_supervisor([]), do: {:ok, nil}

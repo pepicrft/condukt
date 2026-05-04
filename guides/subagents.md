@@ -43,16 +43,27 @@ defmodule MyApp.LeadAgent do
              changed_files: %{type: "array", items: %{type: "string"}}
            },
            required: ["summary", "changed_files"]
-         }}
+         }},
+      summarizer: [
+        model: "anthropic:claude-haiku-4-5",
+        system_prompt: "Summarize delegated context into concise notes."
+      ]
     ]
   end
 end
 ```
 
-Each entry is `role: AgentModule` or `role: {AgentModule, opts}`. The role
-atom is the identifier the parent model uses. Most registration opts are
-passed to the child session startup call. `:input`, `:input_schema`,
-`:output`, and `:output_schema` are reserved for the sub-agent contract.
+Each entry is `role: AgentModule`, `role: {AgentModule, opts}`, or
+`role: opts` for an anonymous child agent. The role atom is the identifier the
+parent model uses. Most registration opts are passed to the child session
+startup call. `:input`, `:input_schema`, `:output`, and `:output_schema` are
+reserved for the sub-agent contract.
+
+Anonymous child agents use the internal anonymous agent module, so you can
+configure the child inline with session options such as `:model`,
+`:system_prompt`, `:tools`, `:sandbox`, and structured contract options.
+They default `:load_project_instructions` to `false`; set it to `true` in the
+role opts if the child should load project instructions.
 
 You can also override registrations when starting a session:
 
@@ -60,7 +71,8 @@ You can also override registrations when starting a session:
 {:ok, agent} =
   MyApp.LeadAgent.start_link(
     subagents: [
-      reviewer: {MyApp.ReviewerAgent, model: "openai:gpt-5.2"}
+      reviewer: {MyApp.ReviewerAgent, model: "openai:gpt-5.2"},
+      summarizer: [model: "anthropic:claude-haiku-4-5"]
     ]
   )
 ```

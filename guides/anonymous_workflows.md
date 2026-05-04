@@ -29,7 +29,7 @@ Anonymous workflows accept the same run options as agent runs:
 They also accept the same session options you would pass to an agent's
 `start_link/1`, including `:model`, `:api_key`, `:base_url`,
 `:system_prompt`, `:thinking_level`, `:tools`, `:sandbox`, `:cwd`,
-`:session_store`, `:compactor`, `:redactor`, and
+`:subagents`, `:session_store`, `:compactor`, `:redactor`, and
 `:load_project_instructions`.
 
 Anonymous workflows default `:load_project_instructions` to `false`. Pass
@@ -113,6 +113,29 @@ ls =
 Inline tool callbacks receive the same context map as module tools:
 `:agent`, `:sandbox`, `:cwd`, and `:opts`. `:opts` is always `[]` for inline
 tools.
+
+## Anonymous sub-agents
+
+Anonymous workflows can register sub-agents inline with `:subagents`. Use
+`role: [opts]` when the child does not need a named module:
+
+```elixir
+{:ok, text} =
+  Condukt.run("Plan the release notes.",
+    subagents: [
+      researcher: [
+        model: "anthropic:claude-haiku-4-5",
+        system_prompt: "Find facts and return concise notes.",
+        tools: [Condukt.Tools.Read]
+      ]
+    ]
+  )
+```
+
+Inline sub-agent opts are normal session opts plus the optional `:input` and
+`:output` schemas documented in the sub-agents guide. Anonymous sub-agents
+default `:load_project_instructions` to `false`; set it to `true` in the role
+opts when the child should load project instructions.
 
 ## Errors
 

@@ -79,6 +79,12 @@ defmodule Condukt.Tools.Subagent do
     Keyword.get(opts, :input) || Keyword.get(opts, :input_schema)
   end
 
+  defp registration_input_schema(opts) when is_list(opts) do
+    if Keyword.keyword?(opts) do
+      Keyword.get(opts, :input) || Keyword.get(opts, :input_schema)
+    end
+  end
+
   defp maybe_put_input_schema(properties, nil), do: properties
   defp maybe_put_input_schema(properties, schema), do: Map.put(properties, :input, schema)
 
@@ -208,6 +214,23 @@ defmodule Condukt.Tools.Subagent do
        input_schema: Keyword.get(opts, :input) || Keyword.get(opts, :input_schema),
        output_schema: Keyword.get(opts, :output) || Keyword.get(opts, :output_schema)
      }}
+  end
+
+  defp normalize_registration(opts) when is_list(opts) do
+    if Keyword.keyword?(opts) do
+      {:ok,
+       %{
+         agent_module: Condukt.AnonymousAgent,
+         opts:
+           opts
+           |> Keyword.drop(@contract_keys)
+           |> Keyword.put_new(:load_project_instructions, false),
+         input_schema: Keyword.get(opts, :input) || Keyword.get(opts, :input_schema),
+         output_schema: Keyword.get(opts, :output) || Keyword.get(opts, :output_schema)
+       }}
+    else
+      {:error, {:invalid_subagent_registration, opts}}
+    end
   end
 
   defp normalize_registration(registration), do: {:error, {:invalid_subagent_registration, registration}}

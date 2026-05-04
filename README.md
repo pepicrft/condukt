@@ -283,7 +283,11 @@ defmodule MyApp.LeadAgent do
              summary: %{type: "string"}
            },
            required: ["findings", "summary"]
-         }}
+         }},
+      summarizer: [
+        model: "anthropic:claude-haiku-4-5",
+        system_prompt: "Summarize delegated context into concise notes."
+      ]
     ]
   end
 end
@@ -294,6 +298,8 @@ parent. `:input` and `:output` schemas are optional. If an input schema is
 declared, Condukt validates the tool call's `input` value before the child
 starts. If an output schema is declared, Condukt adds a `submit_result` tool
 to the child and returns the validated structured value to the parent.
+Use `role: [opts]` to register an anonymous child agent inline instead of
+creating a dedicated module.
 
 See the [Sub-agents](guides/subagents.md) guide for role declarations,
 inheritance, supervision, and structured contracts.
