@@ -289,6 +289,8 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target "${{ steps.publish.outputs.release_commit }}" \
             --title "${{ needs.plan.outputs.next_version }}" \
+            --latest=false \
+            --prerelease \
             --notes-file RELEASE_NOTES.md \
             "${nif_files[@]}"
 
@@ -478,3 +480,8 @@ jobs:
           gh release upload "${{ needs.plan.outputs.next_version }}" "${engine_files[@]}" \
             --repo "$GITHUB_REPOSITORY" \
             --clobber
+
+          gh release edit "${{ needs.plan.outputs.next_version }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --latest \
+            --prerelease=false
