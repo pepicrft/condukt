@@ -18,7 +18,7 @@ Condukt has two modes. Use it as a Hex library inside an Elixir application when
 
 The engine is built with Burrito and bundles Erlang plus Condukt's bytecode, so workflow projects can run without a local Elixir toolchain. Both modes share the same OTP-native agent runtime, tool system, sandboxing model, and multi-provider LLM support.
 
-## Motivation 💡
+## Motivation
 
 Condukt grew out of practical work building agentic workflows. We needed a framework that:
 
@@ -29,7 +29,7 @@ Condukt grew out of practical work building agentic workflows. We needed a frame
 
 Rather than wrapping JavaScript agent frameworks, we built Condukt from scratch using idiomatic Elixir patterns. We are sharing it because Elixir is an excellent fit for building reliable AI agents.
 
-## Features ✨
+## Features
 
 - **OTP-native**: Agents are GenServers that integrate naturally with supervision trees
 - **Streaming**: Real-time event streaming for responsive UIs
@@ -45,7 +45,7 @@ Rather than wrapping JavaScript agent frameworks, we built Condukt from scratch 
 - **Session Secrets**: Resolve credentials from providers such as 1Password and expose them only to tool execution environments
 - **Telemetry**: Built-in observability with `:telemetry` events
 
-## Installation 📦
+## Installation
 
 ### Library mode
 
@@ -84,7 +84,7 @@ See the [Workflows](https://hexdocs.pm/condukt/workflows.html) guide for creatin
 sharing workflows. See the [Workflow Starlark API](https://hexdocs.pm/condukt/workflow_starlark_api.html)
 reference for every Starlark builtin available to workflow files.
 
-## Quick Start 🚀
+## Quick Start
 
 ### 1. Define an Agent
 
@@ -119,9 +119,9 @@ end
 Condukt.stream(agent, "Add documentation to the counter module")
 |> Stream.each(fn
   {:text, chunk} -> IO.write(chunk)
-  {:tool_call, name, _id, _args} -> IO.puts("\n📦 Using tool: #{name}")
+  {:tool_call, name, _id, _args} -> IO.puts("\nUsing tool: #{name}")
   {:tool_result, _id, result} -> IO.puts("   Result: #{inspect(result)}")
-  :done -> IO.puts("\n✅ Done!")
+  :done -> IO.puts("\nDone")
   _ -> :ok
 end)
 |> Stream.run()
@@ -145,7 +145,7 @@ defmodule MyApp.Application do
 end
 ```
 
-## Operations 🎯
+## Operations
 
 Sometimes you don't want to chat with an agent. You want to call it like a
 typed function: known input, validated output, no conversation history. The
@@ -308,7 +308,7 @@ creating a dedicated module.
 See the [Sub-agents](https://hexdocs.pm/condukt/subagents.html) guide for role declarations,
 inheritance, supervision, and structured contracts.
 
-## LiveBook 📓
+## LiveBook
 
 Condukt works well in LiveBook notebooks with `Mix.install/1`:
 
@@ -341,7 +341,7 @@ response
 
 For richer notebook output, you can stream events and render them with LiveBook/Kino cells as they arrive.
 
-## Configuration ⚙️
+## Configuration
 
 ### API Keys
 
@@ -523,7 +523,7 @@ Thanks to [ReqLLM](https://github.com/agentjido/req_llm), Condukt supports 18+ p
 | xAI | `xai:grok-3` |
 | And 12+ more... | See [ReqLLM docs](https://hexdocs.pm/req_llm) |
 
-## Built-in Tools 🧰
+## Built-in Tools
 
 ### Default Tool Sets
 
@@ -572,7 +572,7 @@ Each scoped command tool accepts:
 - `cwd` - optional working directory
 - `timeout` - optional timeout in seconds
 
-## Custom Tools 🛠️
+## Custom Tools
 
 Define custom tools by implementing the `Condukt.Tool` behaviour:
 
@@ -607,7 +607,7 @@ defmodule MyApp.Tools.Weather do
 end
 ```
 
-## Events and Callbacks 📡
+## Events and Callbacks
 
 Handle events during agent execution:
 

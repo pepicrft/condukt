@@ -1,0 +1,48 @@
+# Installation
+
+Condukt can run as a Hex library inside an Elixir application or as the
+standalone `condukt` engine for workflow projects.
+
+## Library mode
+
+Add `:condukt` to your dependencies in `mix.exs`:
+
+```elixir
+def deps do
+  [
+    {:condukt, "~> 0.13"}
+  ]
+end
+```
+
+Then fetch dependencies:
+
+```sh
+mix deps.get
+```
+
+Use library mode when Condukt should live inside your own OTP supervision tree.
+
+## Engine mode
+
+Install the standalone executable from GitHub Releases with mise:
+
+```sh
+mise use -g github:tuist/condukt
+condukt version
+```
+
+Use engine mode when you want to run a workflow project directly:
+
+```sh
+condukt workflows check --root .
+condukt workflows run triage --root . --input '{"issue":"broken"}'
+condukt workflows serve --root . --port 4000
+```
+
+The release assets include Linux x64, macOS x64, macOS arm64, and Windows x64
+builds.
+
+See [Workflows](workflows.md) for creating, running, and sharing workflow
+projects. See [Workflow Starlark API](workflow_starlark_api.md) for every
+Starlark builtin available to workflow files.

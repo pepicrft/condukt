@@ -75,9 +75,10 @@ defmodule Condukt.MixProject do
 
   defp docs do
     [
-      main: "readme",
+      main: "overview",
       extras: [
-        "README.md": [title: "Overview"],
+        "guides/overview.md": [title: "Overview"],
+        "guides/installation.md": [title: "Installation"],
         "guides/getting_started.md": [title: "Getting Started"],
         "guides/agents.md": [title: "Agents"],
         "guides/anonymous_workflows.md": [title: "Anonymous Workflows"],
@@ -98,16 +99,21 @@ defmodule Condukt.MixProject do
       ],
       groups_for_extras: [
         Introduction: [
-          "README.md",
+          "guides/overview.md",
+          "guides/installation.md",
           "guides/getting_started.md"
         ],
-        Guides: [
+        Agents: [
           "guides/agents.md",
           "guides/anonymous_workflows.md",
           "guides/tools.md",
-          "guides/subagents.md",
+          "guides/subagents.md"
+        ],
+        Workflows: [
           "guides/workflows.md",
-          "guides/workflow_starlark_api.md",
+          "guides/workflow_starlark_api.md"
+        ],
+        Guides: [
           "guides/sandbox.md",
           "guides/streaming_and_events.md",
           "guides/sessions_and_persistence.md",
