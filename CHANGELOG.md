@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.16.1] - 2026-05-04
+
+### Bug Fixes
+
+- build engine release assets on compatible runner
+
+
 ## [0.16.0] - 2026-05-04
 
 ### Features
