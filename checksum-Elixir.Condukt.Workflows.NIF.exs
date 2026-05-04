@@ -1,12 +1,12 @@
 %{
-  "condukt_workflows-v0.16.1-nif-2.16-x86_64-pc-windows-msvc.dll.tar.gz" => "sha256:f253397997903c13735d2e55e2d73326a197488272a71f4b9f0bb8cd1a4cd32c",
-  "condukt_workflows-v0.16.1-nif-2.17-x86_64-pc-windows-msvc.dll.tar.gz" => "sha256:ed39d4cf1fac7a7e328b98ae555d3a2773bb40360c21e939ee91d15aae8edaed",
-  "libcondukt_workflows-v0.16.1-nif-2.16-aarch64-apple-darwin.so.tar.gz" => "sha256:6de764223684d33e26b6d236f1b990e315c3cca229f56044f2b7e0cb7533ab7f",
-  "libcondukt_workflows-v0.16.1-nif-2.16-aarch64-unknown-linux-gnu.so.tar.gz" => "sha256:fe4b30ea84046271ebbda6a24cac082b572d29f7e7f64c0e6a2a98d855329cfe",
-  "libcondukt_workflows-v0.16.1-nif-2.16-x86_64-apple-darwin.so.tar.gz" => "sha256:1d52ac2fe68a858de44391d364c984af07a33a0005ce424e13f10d3d93abf15a",
-  "libcondukt_workflows-v0.16.1-nif-2.16-x86_64-unknown-linux-gnu.so.tar.gz" => "sha256:18e09eee1a566ba0e4a509385f1157b0e431796cda211f5d347af50a4dc0552f",
-  "libcondukt_workflows-v0.16.1-nif-2.17-aarch64-apple-darwin.so.tar.gz" => "sha256:dbfce81bfff2c2a7803f7a5d074e1b3132e20d0ea203d3360ffe8570434830da",
-  "libcondukt_workflows-v0.16.1-nif-2.17-aarch64-unknown-linux-gnu.so.tar.gz" => "sha256:015187cdd59ec18c1f82706add826ca48a162e3a757e8098fdb324ff71d46989",
-  "libcondukt_workflows-v0.16.1-nif-2.17-x86_64-apple-darwin.so.tar.gz" => "sha256:11d0b6d75a0fae7c371b6157e1e058cb75dd4cf54193b7eea3f6cf9b20e6c01e",
-  "libcondukt_workflows-v0.16.1-nif-2.17-x86_64-unknown-linux-gnu.so.tar.gz" => "sha256:a93068f0c2c68e1bff26019942c5780613e5c8623d6c943cfdc3f77959673333"
+  "condukt_workflows-v0.16.2-nif-2.16-x86_64-pc-windows-msvc.dll.tar.gz" => "sha256:94d428e51973f0396b7219837863442badcdb027f8d72085885ecf85746c4b72",
+  "condukt_workflows-v0.16.2-nif-2.17-x86_64-pc-windows-msvc.dll.tar.gz" => "sha256:d5149a9d63a3a8ab9b47f7bd2661a7127086f1e2a454a53ba8a238449eb998f7",
+  "libcondukt_workflows-v0.16.2-nif-2.16-aarch64-apple-darwin.so.tar.gz" => "sha256:54aaa4f1b08d6e3e5ad500dcf48abb9eb56e7d77643108c1f96dfaf7f9b9349d",
+  "libcondukt_workflows-v0.16.2-nif-2.16-aarch64-unknown-linux-gnu.so.tar.gz" => "sha256:a354628784f41f64f0809a5642818536ad67329ed456f6bca78a15db0d2654af",
+  "libcondukt_workflows-v0.16.2-nif-2.16-x86_64-apple-darwin.so.tar.gz" => "sha256:f6ee811afc4c3b328dc1ed2316ac4a06f89dbe130df7948c3b13ab48b8567742",
+  "libcondukt_workflows-v0.16.2-nif-2.16-x86_64-unknown-linux-gnu.so.tar.gz" => "sha256:623921c8fab77355061e02ccdae720cd2dbcb1ce67d53a9be4ac4dff075149bc",
+  "libcondukt_workflows-v0.16.2-nif-2.17-aarch64-apple-darwin.so.tar.gz" => "sha256:7cc88bb2fe645aea1a121d6668bee057ba5fda5470a638dd7f251c0d1836c12a",
+  "libcondukt_workflows-v0.16.2-nif-2.17-aarch64-unknown-linux-gnu.so.tar.gz" => "sha256:14dd06529a446140c8257e285934385035134b9982a4b45e3691231f78e95180",
+  "libcondukt_workflows-v0.16.2-nif-2.17-x86_64-apple-darwin.so.tar.gz" => "sha256:f7a7726c66615a4149d93b64f564cb308732dcbd2ff9428aa260b8125ea3fb09",
+  "libcondukt_workflows-v0.16.2-nif-2.17-x86_64-unknown-linux-gnu.so.tar.gz" => "sha256:349dd8cd8f270312e922833a2fe7b4d80e6c371132a5244ac6c76f0d533e7199"
 }

@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.16.2] - 2026-05-04
+
+### Bug Fixes
+
+- package cross-platform engine releases
+
+
 ## [0.16.1] - 2026-05-04
 
 ### Bug Fixes
