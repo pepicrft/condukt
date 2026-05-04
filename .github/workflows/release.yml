@@ -357,6 +357,7 @@ jobs:
         uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
           cache: true
+          install_args: erlang elixir zig
 
       - name: Install archive tools
         run: |
