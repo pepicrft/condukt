@@ -384,6 +384,8 @@ jobs:
 
           if [ -n "$TARGET_ABI_VALUE" ]; then
             export TARGET_ABI="$TARGET_ABI_VALUE"
+          else
+            unset TARGET_ABI
           fi
 
           MIX_ENV=prod mix release condukt --overwrite

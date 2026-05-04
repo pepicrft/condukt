@@ -240,9 +240,9 @@ defmodule Condukt.MixProject do
         burrito: [
           targets: [
             linux_x64: [os: :linux, cpu: :x86_64],
-            macos_x64: [os: :darwin, cpu: :x86_64],
-            macos_arm64: [os: :darwin, cpu: :aarch64],
-            windows_x64: [os: :windows, cpu: :x86_64]
+            macos_x64: [os: :darwin, cpu: :x86_64, skip_nifs: true],
+            macos_arm64: [os: :darwin, cpu: :aarch64, skip_nifs: true],
+            windows_x64: [os: :windows, cpu: :x86_64, skip_nifs: true]
           ]
         ]
       ]
