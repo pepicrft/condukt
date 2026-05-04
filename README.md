@@ -76,8 +76,8 @@ condukt workflows serve --root . --port 4000
 
 The release assets include Linux x64, macOS x64, macOS arm64, and Windows x64 builds.
 
-See the [Workflows](guides/workflows.md) guide for creating, running, and
-sharing workflows. See the [Workflow Starlark API](guides/workflow_starlark_api.md)
+See the [Workflows](https://hexdocs.pm/condukt/workflows.html) guide for creating, running, and
+sharing workflows. See the [Workflow Starlark API](https://hexdocs.pm/condukt/workflow_starlark_api.html)
 reference for every Starlark builtin available to workflow files.
 
 ## Quick Start 🚀
@@ -301,7 +301,7 @@ to the child and returns the validated structured value to the parent.
 Use `role: [opts]` to register an anonymous child agent inline instead of
 creating a dedicated module.
 
-See the [Sub-agents](guides/subagents.md) guide for role declarations,
+See the [Sub-agents](https://hexdocs.pm/condukt/subagents.html) guide for role declarations,
 inheritance, supervision, and structured contracts.
 
 ## LiveBook 📓
