@@ -33,12 +33,15 @@ defmodule Condukt.Session do
   @default_max_turns 50
 
   defstruct [
+    :pid,
     :agent_module,
     :model,
     :thinking_level,
     :configured_system_prompt,
     :system_prompt,
     :tools,
+    :subagents,
+    :subagent_supervisor,
     :cwd,
     :sandbox,
     :secrets,
@@ -79,6 +82,7 @@ defmodule Condukt.Session do
       |> put_configured_opt(config, :system_prompt, fn -> agent_module.system_prompt() end)
       |> put_configured_opt(config, :load_project_instructions, fn -> true end)
       |> Keyword.put_new(:tools, agent_module.tools())
+      |> Keyword.put_new(:subagents, agent_subagents(agent_module))
       |> put_configured_opt(config, :cwd, &File.cwd!/0)
       |> put_configured_opt(config, :sandbox, fn -> agent_sandbox(agent_module) end)
       |> put_configured_opt(config, :secrets, fn -> agent_secrets(agent_module) end)
@@ -100,6 +104,14 @@ defmodule Condukt.Session do
   defp agent_sandbox(agent_module) do
     if function_exported?(agent_module, :sandbox, 0) do
       agent_module.sandbox()
+    end
+  end
+
+  defp agent_subagents(agent_module) do
+    if function_exported?(agent_module, :subagents, 0) do
+      agent_module.subagents()
+    else
+      []
     end
   end
 
@@ -210,15 +222,20 @@ defmodule Condukt.Session do
         with {:sandbox, {:ok, sandbox}} <- {:sandbox, resolve_sandbox(opts[:sandbox], cwd)},
              {:secrets, {:ok, secrets}} <- {:secrets, Secrets.resolve(opts[:secrets])} do
           emit_secret_resolve(agent_module, secrets)
+          subagents = normalize_subagents(Keyword.get(opts, :subagents, []))
+          {:ok, subagent_supervisor} = maybe_start_subagent_supervisor(subagents)
 
           state =
             %__MODULE__{
+              pid: self(),
               agent_module: agent_module,
               model: restore_value(opts, :model, snapshot && snapshot.model),
               thinking_level: restore_value(opts, :thinking_level, snapshot && snapshot.thinking_level),
               configured_system_prompt: configured_system_prompt,
               system_prompt: Context.compose_system_prompt(configured_system_prompt, project_context.prompt),
-              tools: Keyword.fetch!(opts, :tools),
+              tools: maybe_inject_subagent_tool(Keyword.fetch!(opts, :tools), subagents),
+              subagents: subagents,
+              subagent_supervisor: subagent_supervisor,
               cwd: cwd,
               sandbox: sandbox,
               secrets: secrets,
@@ -248,6 +265,39 @@ defmodule Condukt.Session do
 
   defp resolve_sandbox(nil, cwd), do: Sandbox.new(Sandbox.Local, cwd: cwd)
   defp resolve_sandbox(spec, _cwd), do: Sandbox.resolve(spec)
+
+  defp normalize_subagents(subagents) do
+    Enum.map(subagents, fn
+      {role, module} when is_atom(role) and is_atom(module) ->
+        {role, {module, []}}
+
+      {role, {module, opts}} when is_atom(role) and is_atom(module) and is_list(opts) ->
+        {role, {module, opts}}
+
+      {role, opts} when is_atom(role) and is_list(opts) ->
+        {role, {Condukt.AnonymousAgent, anonymous_subagent_opts!(opts)}}
+    end)
+  end
+
+  defp anonymous_subagent_opts!(opts) do
+    if Keyword.keyword?(opts) do
+      Keyword.put_new(opts, :load_project_instructions, false)
+    else
+      raise ArgumentError, "anonymous sub-agent registration must be a keyword list"
+    end
+  end
+
+  defp maybe_start_subagent_supervisor([]), do: {:ok, nil}
+
+  defp maybe_start_subagent_supervisor(_subagents) do
+    DynamicSupervisor.start_link(strategy: :one_for_one)
+  end
+
+  defp maybe_inject_subagent_tool(tools, []), do: tools
+
+  defp maybe_inject_subagent_tool(tools, subagents) do
+    tools ++ [{Condukt.Tools.Subagent, subagents: subagents}]
+  end
 
   @impl true
   def handle_call({:run, prompt, opts}, from, state) do
@@ -340,6 +390,17 @@ defmodule Condukt.Session do
   def handle_cast({:stream_complete, ref, _result}, state) do
     broadcast(state, ref, :done)
     {:noreply, %{state | streaming: false}}
+  end
+
+  @impl true
+  def terminate(_reason, %{subagent_supervisor: nil}), do: :ok
+
+  def terminate(_reason, %{subagent_supervisor: supervisor}) do
+    if Process.alive?(supervisor) do
+      Supervisor.stop(supervisor)
+    end
+
+    :ok
   end
 
   # ============================================================================
@@ -571,11 +632,10 @@ defmodule Condukt.Session do
       ReqLLM.tool(
         name: spec.name,
         description: spec.description,
-        parameter_schema: convert_json_schema_to_nimble(spec.parameters),
+        parameter_schema: normalize_json_schema(spec.parameters),
         callback: fn args ->
           emit_secret_access(state, spec.name)
-
-          context = %{agent: self(), sandbox: state.sandbox, cwd: state.cwd, opts: [], secrets: state.secrets}
+          context = tool_context(state, [])
 
           case Tool.execute(tool_spec, args, context) do
             {:ok, result} when is_binary(result) -> Secrets.redact_text(state.secrets, result)
@@ -587,35 +647,12 @@ defmodule Condukt.Session do
     end)
   end
 
-  defp convert_json_schema_to_nimble(%{properties: props, required: required}) do
-    props
-    |> Enum.map(fn {name, schema} ->
-      name_atom = if is_binary(name), do: String.to_atom(name), else: name
-
-      opts = [
-        type: json_type_to_nimble(schema[:type] || schema["type"]),
-        required: name in (required || []) or to_string(name) in (required || []),
-        doc: schema[:description] || schema["description"] || ""
-      ]
-
-      {name_atom, opts}
-    end)
+  defp normalize_json_schema(schema) when is_map(schema) do
+    Map.new(schema, fn {key, value} -> {to_string(key), normalize_json_schema(value)} end)
   end
 
-  defp convert_json_schema_to_nimble(%{"properties" => props} = schema) do
-    required = schema["required"] || []
-    convert_json_schema_to_nimble(%{properties: props, required: required})
-  end
-
-  defp convert_json_schema_to_nimble(_), do: []
-
-  defp json_type_to_nimble("string"), do: :string
-  defp json_type_to_nimble("number"), do: :float
-  defp json_type_to_nimble("integer"), do: :integer
-  defp json_type_to_nimble("boolean"), do: :boolean
-  defp json_type_to_nimble("array"), do: {:list, :any}
-  defp json_type_to_nimble("object"), do: :map
-  defp json_type_to_nimble(_), do: :string
+  defp normalize_json_schema(schema) when is_list(schema), do: Enum.map(schema, &normalize_json_schema/1)
+  defp normalize_json_schema(value), do: value
 
   defp build_llm_opts(state, tools) do
     opts = []
@@ -677,11 +714,14 @@ defmodule Condukt.Session do
     tool_map = build_tool_map(state.tools)
 
     tool_results =
-      Enum.map(tool_calls, fn {id, name, args} ->
-        Telemetry.span(:tool_call, %{tool: name}, fn ->
-          execute_tool(tool_map, name, args, state, id)
-        end)
-      end)
+      tool_calls
+      |> Task.async_stream(
+        fn tool_call -> execute_tool_call(tool_map, tool_call, state) end,
+        ordered: true,
+        timeout: :infinity
+      )
+      |> Enum.zip(tool_calls)
+      |> Enum.map(&task_result_to_tool_result/1)
 
     {tool_results, messages}
   end
@@ -690,20 +730,38 @@ defmodule Condukt.Session do
     tool_calls = Message.tool_calls(assistant_message)
     tool_map = build_tool_map(state.tools)
 
+    Enum.each(tool_calls, fn {id, name, args} ->
+      emit.({:tool_call, name, id, args})
+    end)
+
     tool_results =
-      Enum.map(tool_calls, fn {id, name, args} ->
-        emit.({:tool_call, name, id, args})
+      tool_calls
+      |> Task.async_stream(
+        fn tool_call -> execute_tool_call(tool_map, tool_call, state) end,
+        ordered: true,
+        timeout: :infinity
+      )
+      |> Enum.zip(tool_calls)
+      |> Enum.map(&task_result_to_tool_result/1)
+      |> Enum.map(fn result ->
+        emit.({:tool_result, result.tool_call_id, Message.tool_result_content(result)})
 
-        result =
-          Telemetry.span(:tool_call, %{tool: name}, fn ->
-            execute_tool(tool_map, name, args, state, id)
-          end)
-
-        emit.({:tool_result, id, Message.tool_result_content(result)})
         result
       end)
 
     {tool_results, messages}
+  end
+
+  defp execute_tool_call(tool_map, {id, name, args}, state) do
+    Telemetry.span(:tool_call, %{tool: name}, fn ->
+      execute_tool(tool_map, name, args, state, id)
+    end)
+  end
+
+  defp task_result_to_tool_result({{:ok, result}, _tool_call}), do: result
+
+  defp task_result_to_tool_result({{:exit, reason}, {id, _name, _args}}) do
+    Message.tool_result(id, {:error, reason})
   end
 
   defp execute_tool(tool_map, name, args, state, id) do
@@ -753,7 +811,18 @@ defmodule Condukt.Session do
   end
 
   defp tool_context(state, opts) do
-    %{agent: self(), sandbox: state.sandbox, cwd: state.cwd, opts: opts, secrets: state.secrets}
+    %{
+      agent: state.pid,
+      agent_module: state.agent_module,
+      sandbox: state.sandbox,
+      cwd: state.cwd,
+      opts: opts,
+      secrets: state.secrets,
+      subagents: state.subagents,
+      subagent_supervisor: state.subagent_supervisor,
+      api_key: state.api_key,
+      base_url: state.base_url
+    }
   end
 
   defp execute_tool_spec(tool_spec, args, context, id) do

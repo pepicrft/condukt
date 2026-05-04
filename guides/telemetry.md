@@ -12,6 +12,8 @@ Attach handlers to feed your existing observability stack: Logger,
 | `[:condukt, :agent, :stop]` | `duration` | `:agent` |
 | `[:condukt, :tool_call, :start]` | `system_time` | `:tool` |
 | `[:condukt, :tool_call, :stop]` | `duration` | `:tool` |
+| `[:condukt, :subagent, :start]` | `system_time` | `:agent`, `:role`, `:child_agent`, `:input?`, `:output?` |
+| `[:condukt, :subagent, :stop]` | `duration` | `:agent`, `:role`, `:child_agent`, `:input?`, `:output?`, `:status`, `:error` |
 | `[:condukt, :operation, :start]` | `system_time` | `:agent`, `:operation` |
 | `[:condukt, :operation, :stop]` | `duration` | `:agent`, `:operation` |
 | `[:condukt, :run, :start]` | `system_time` | `:structured?`, `:input?` |
@@ -27,6 +29,12 @@ Secret events are value-free. `:names` contains environment variable names
 such as `["GH_TOKEN"]`, never the resolved secret values. `:tool_call_id` is
 present when the access comes from a provider-returned tool call.
 
+Sub-agent events are value-free too. They identify the parent agent module,
+the delegated role, the child agent module, whether structured input and output
+contracts are configured, and whether delegation ended with `:ok` or `:error`.
+The `:error` metadata is an atom such as `:invalid_input`, not the rejected
+input or output payload.
+
 ## Attaching a handler
 
 ```elixir
@@ -37,6 +45,8 @@ present when the access comes from a provider-returned tool call.
     [:condukt, :agent, :stop],
     [:condukt, :tool_call, :start],
     [:condukt, :tool_call, :stop],
+    [:condukt, :subagent, :start],
+    [:condukt, :subagent, :stop],
     [:condukt, :operation, :start],
     [:condukt, :operation, :stop],
     [:condukt, :run, :start],
@@ -67,6 +77,8 @@ def metrics do
       unit: {:native, :millisecond}
     ),
     counter("condukt.tool_call.stop.count", tags: [:tool]),
+    summary("condukt.subagent.stop.duration", tags: [:agent, :role, :child_agent, :status]),
+    counter("condukt.subagent.stop.count", tags: [:agent, :role, :child_agent, :status]),
     counter("condukt.secrets.access.count", tags: [:agent, :tool])
   ]
 end

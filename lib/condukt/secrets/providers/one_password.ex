@@ -42,6 +42,7 @@ defmodule Condukt.Secrets.Providers.OnePassword do
       case MuonTrap.cmd(command, args,
              stderr_to_stdout: true,
              env: build_env(env),
+             parallelism: false,
              timeout: timeout
            ) do
         {output, 0} -> {:ok, String.trim_trailing(output, "\n")}

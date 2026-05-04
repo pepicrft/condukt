@@ -34,6 +34,7 @@ Rather than wrapping JavaScript agent frameworks, we built Condukt from scratch 
 - **Tool System**: Extensible tools for file operations, shell commands, and more
 - **Operations**: Compile-time typed entrypoints with JSON Schema input/output validation
 - **Anonymous Workflows**: One-off `Condukt.run/2` calls with inline tools and optional structured output
+- **Sub-agents**: Delegate isolated tasks to specialized child sessions with optional structured input/output contracts
 - **Workflow Engine**: Standalone `condukt` executable for Starlark workflow projects, installable with mise
 - **Multi-Provider**: 18+ LLM providers via [ReqLLM](https://github.com/agentjido/req_llm) (Anthropic, OpenAI, Google, etc.)
 - **Redaction**: Pluggable secret redaction on outbound messages with a regex-based default
@@ -250,6 +251,58 @@ Anonymous workflows can also take typed input and return structured output:
 Use anonymous workflows when the whole task is contained in one call. Use a
 supervised agent when you need conversation history, long-lived state, or
 OTP supervision.
+
+## Sub-agents
+
+Agents can delegate work to specialized child agents by declaring
+`subagents/0`. Each child runs as its own `Condukt.Session` under the parent
+session's sub-agent supervisor, with separate conversation history and its own
+tools, model, and system prompt.
+
+```elixir
+defmodule MyApp.LeadAgent do
+  use Condukt
+
+  @impl true
+  def subagents do
+    [
+      reviewer:
+        {MyApp.ReviewerAgent,
+         input: %{
+           type: "object",
+           properties: %{
+             path: %{type: "string"},
+             severity: %{type: "string", enum: ["low", "medium", "high"]}
+           },
+           required: ["path"]
+         },
+         output: %{
+           type: "object",
+           properties: %{
+             findings: %{type: "array", items: %{type: "object"}},
+             summary: %{type: "string"}
+           },
+           required: ["findings", "summary"]
+         }},
+      summarizer: [
+        model: "anthropic:claude-haiku-4-5",
+        system_prompt: "Summarize delegated context into concise notes."
+      ]
+    ]
+  end
+end
+```
+
+When sub-agents are registered, Condukt injects a `subagent` tool into the
+parent. `:input` and `:output` schemas are optional. If an input schema is
+declared, Condukt validates the tool call's `input` value before the child
+starts. If an output schema is declared, Condukt adds a `submit_result` tool
+to the child and returns the validated structured value to the parent.
+Use `role: [opts]` to register an anonymous child agent inline instead of
+creating a dedicated module.
+
+See the [Sub-agents](guides/subagents.md) guide for role declarations,
+inheritance, supervision, and structured contracts.
 
 ## LiveBook 📓
 
@@ -587,6 +640,8 @@ Condukt emits telemetry events for observability:
     [:condukt, :agent, :stop],
     [:condukt, :tool_call, :start],
     [:condukt, :tool_call, :stop],
+    [:condukt, :subagent, :start],
+    [:condukt, :subagent, :stop],
     [:condukt, :operation, :start],
     [:condukt, :operation, :stop],
     [:condukt, :secrets, :resolve],
@@ -601,6 +656,11 @@ Condukt emits telemetry events for observability:
 
 Secret telemetry includes environment variable names and counts for auditing,
 but never includes resolved secret values.
+
+Sub-agent telemetry identifies the parent agent, delegated role, child agent,
+whether structured input and output contracts are configured, and whether the
+delegation ended with `:ok` or `:error`. It never includes task text, structured
+input values, or structured output values.
 
 ## Streaming API
 

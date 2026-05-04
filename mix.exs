@@ -82,6 +82,7 @@ defmodule Condukt.MixProject do
         "guides/agents.md": [title: "Agents"],
         "guides/anonymous_workflows.md": [title: "Anonymous Workflows"],
         "guides/tools.md": [title: "Tools"],
+        "guides/subagents.md": [title: "Sub-agents"],
         "guides/workflows.md": [title: "Workflows"],
         "guides/workflow_starlark_api.md": [title: "Workflow Starlark API"],
         "guides/sandbox.md": [title: "Sandbox"],
@@ -104,6 +105,7 @@ defmodule Condukt.MixProject do
           "guides/agents.md",
           "guides/anonymous_workflows.md",
           "guides/tools.md",
+          "guides/subagents.md",
           "guides/workflows.md",
           "guides/workflow_starlark_api.md",
           "guides/sandbox.md",
@@ -147,7 +149,8 @@ defmodule Condukt.MixProject do
           Condukt.Tools.Edit,
           Condukt.Tools.Write,
           Condukt.Tools.Glob,
-          Condukt.Tools.Grep
+          Condukt.Tools.Grep,
+          Condukt.Tools.Subagent
         ],
         Workflows: [
           Condukt.Workflows,

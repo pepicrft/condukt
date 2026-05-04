@@ -44,6 +44,37 @@ defmodule Condukt.AnonymousRunTest do
       assert Enum.any?(opts[:tools], &(&1.name == "ping"))
       assert_receive {:tool_called, "hi"}
     end
+
+    test "delegates to an anonymous subagent registered inline" do
+      tool_call = ToolCall.new("call_1", "subagent", JSON.encode!(%{"role" => "researcher", "task" => "write notes"}))
+
+      {parent_model, parent_model_id} =
+        LLMProvider.model([
+          LLMProvider.response(%Message{role: :assistant, content: [], tool_calls: [tool_call]}, :tool_calls),
+          LLMProvider.text_response("parent done")
+        ])
+
+      {child_model, child_model_id} = LLMProvider.model(LLMProvider.text_response("field notes"))
+
+      assert {:ok, "parent done"} =
+               Condukt.AnonymousRun.run("delegate",
+                 model: parent_model,
+                 subagents: [
+                   researcher: [
+                     model: child_model,
+                     system_prompt: "Write field notes."
+                   ]
+                 ]
+               )
+
+      assert_receive {LLMProvider, :request, ^parent_model_id, _context, parent_opts}
+      assert Enum.any?(parent_opts[:tools], &(&1.name == "subagent"))
+
+      assert_receive {LLMProvider, :request, ^child_model_id, child_context, _child_opts}
+      assert Enum.any?(child_context.messages, &message_text?(&1, "write notes"))
+
+      assert_receive {LLMProvider, :request, ^parent_model_id, _context, _parent_opts}
+    end
   end
 
   describe "run/2 with :input (no output)" do
@@ -203,4 +234,14 @@ defmodule Condukt.AnonymousRunTest do
       assert_receive {:telemetry, [:condukt, :run, :stop], %{duration: _}, %{structured?: false, input?: true}}
     end
   end
+
+  defp message_text?(%Message{content: content}, text) when is_list(content) do
+    Enum.any?(content, fn
+      %{text: ^text} -> true
+      _part -> false
+    end)
+  end
+
+  defp message_text?(%Message{content: text}, text) when is_binary(text), do: true
+  defp message_text?(_message, _text), do: false
 end

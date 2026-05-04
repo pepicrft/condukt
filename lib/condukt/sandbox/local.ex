@@ -22,6 +22,10 @@ defmodule Condukt.Sandbox.Local do
     "PAGER" => "cat",
     "GIT_PAGER" => "cat"
   }
+  @capture_script """
+  exec > "$1" 2>&1
+  exec bash -c "$2"
+  """
   @safe_env_vars ~w(PATH HOME USER LOGNAME HOSTNAME SHELL LANG LC_ALL LC_CTYPE TZ TMPDIR TMP TEMP)
 
   # ============================================================================
@@ -93,22 +97,26 @@ defmodule Condukt.Sandbox.Local do
     timeout = Keyword.get(opts, :timeout, 120_000)
     env_overrides = Keyword.get(opts, :env, [])
     env = build_env(env_overrides)
+    capture_path = capture_path()
 
     try do
-      case MuonTrap.cmd("bash", ["-c", command],
+      case MuonTrap.cmd("bash", ["-c", @capture_script, "condukt-capture", capture_path, command],
              cd: run_cwd,
              stderr_to_stdout: true,
              env: env,
+             parallelism: false,
              timeout: timeout
            ) do
         {_output, :timeout} ->
           {:error, :timeout}
 
         {output, exit_code} ->
-          {:ok, %{output: output, exit_code: exit_code}}
+          {:ok, %{output: capture_output(capture_path, output), exit_code: exit_code}}
       end
     catch
       :error, error -> {:error, format_error(error)}
+    after
+      File.rm(capture_path)
     end
   end
 
@@ -185,6 +193,17 @@ defmodule Condukt.Sandbox.Local do
   end
 
   defp normalize_env(_), do: %{}
+
+  defp capture_path do
+    Path.join(System.tmp_dir!(), "condukt-command-#{System.unique_integer([:monotonic, :positive])}.log")
+  end
+
+  defp capture_output(path, fallback) do
+    case File.read(path) do
+      {:ok, output} -> output
+      {:error, _reason} -> fallback
+    end
+  end
 
   defp format_error(error) do
     if is_exception(error), do: Exception.message(error), else: inspect(error)

@@ -47,6 +47,7 @@ defmodule Condukt do
   - **Session** - A GenServer managing conversation state and the agent loop
   - **Message** - User, assistant, or tool result messages in the conversation
   - **Tool** - A capability the agent can invoke (read files, run commands, etc.)
+  - **Sub-agent** - A delegated agent session that runs a task in isolation
   - **Provider** - An LLM backend (Anthropic, OpenAI, Ollama, etc.)
   - **Event** - Notifications during agent execution for streaming/UI
   """
@@ -67,6 +68,17 @@ defmodule Condukt do
   Returns the list of tools this agent can use.
   """
   @callback tools() :: [module() | {module(), keyword()} | struct()]
+
+  @doc """
+  Returns the sub-agents this agent can delegate work to.
+
+  Each entry maps a role atom to an agent module, to `{agent_module, opts}`, or
+  to a keyword list of session options for an anonymous child agent.
+  Registration opts are passed to the child session when the sub-agent runs,
+  except `:input`/`:input_schema` and `:output`/`:output_schema`, which define
+  optional structured contracts for the sub-agent tool boundary.
+  """
+  @callback subagents() :: term()
 
   @doc """
   Returns the model identifier.
@@ -111,6 +123,7 @@ defmodule Condukt do
   @optional_callbacks [
     system_prompt: 0,
     tools: 0,
+    subagents: 0,
     model: 0,
     thinking_level: 0,
     sandbox: 0,
@@ -140,6 +153,9 @@ defmodule Condukt do
       def tools, do: []
 
       @impl Condukt
+      def subagents, do: []
+
+      @impl Condukt
       def model, do: "anthropic:claude-sonnet-4-20250514"
 
       @impl Condukt
@@ -159,6 +175,7 @@ defmodule Condukt do
 
       defoverridable system_prompt: 0,
                      tools: 0,
+                     subagents: 0,
                      model: 0,
                      thinking_level: 0,
                      sandbox: 0,
@@ -183,6 +200,9 @@ defmodule Condukt do
       - `:sandbox` - Sandbox spec for tool I/O (module, `{module, opts}`, or
         `Condukt.Sandbox` struct). Defaults to
         `{Condukt.Sandbox.Local, cwd: <:cwd>}`.
+      - `:subagents` - Override the agent's `subagents/0` registrations.
+        Each role can point at an agent module, `{agent_module, opts}`, or a
+        keyword list of session options for an anonymous child agent.
       - `:secrets` - Session secret declarations. Resolved at session start
         and exposed to command tools as environment variables without adding
         plaintext values to model context or snapshots.
@@ -304,7 +324,7 @@ defmodule Condukt do
   `:max_turns`, `:images`) plus the session options accepted by an agent's
   `start_link/1` (`:model`, `:system_prompt`, `:api_key`, `:base_url`,
   `:thinking_level`, `:tools`, `:sandbox`, `:cwd`, `:session_store`,
-  `:compactor`, `:redactor`, `:load_project_instructions`).
+  `:subagents`, `:compactor`, `:redactor`, `:load_project_instructions`).
   `:load_project_instructions` defaults to `false` for anonymous runs.
   """
   def run(prompt) when is_binary(prompt) do

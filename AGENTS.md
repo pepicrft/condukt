@@ -22,6 +22,21 @@
   executable directly, by design, and is not sandbox-routed.
 - See `guides/sandbox.md` for behaviour shape and how to add custom sandboxes.
 
+## Sub-agents
+
+- Agents can declare `subagents/0` as `role: AgentModule` or
+  `role: {AgentModule, opts}`. They can also use `role: [opts]` to create an
+  anonymous child agent backed by `Condukt.AnonymousAgent`. Sessions
+  auto-inject `Condukt.Tools.Subagent` when roles are registered.
+- Role opts can declare optional `:input`/`:input_schema` and
+  `:output`/`:output_schema` JSON Schemas. Only fields listed in `required`
+  are required.
+- Child sessions inherit the parent `:sandbox`, `:cwd`, `:api_key`,
+  `:base_url`, and resolved `:secrets` unless those values are overridden in
+  the role registration opts.
+- See `guides/subagents.md` for declaration, inheritance, and supervision
+  details.
+
 ## Native NIF (`native/condukt_bashkit/`)
 
 - The `condukt_bashkit` Rust crate wraps the bashkit virtual sandbox into

@@ -131,6 +131,7 @@ end
 The second argument to `call/2` is a context map that includes:
 
 * `:agent` is the agent PID
+* `:agent_module` is the agent module for the session
 * `:sandbox` is the active `Condukt.Sandbox` struct
 * `:cwd` is the project working directory (use `:sandbox` for any file or
   command work; `:cwd` is for resolving project-relative paths that aren't

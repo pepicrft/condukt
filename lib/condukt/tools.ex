@@ -16,6 +16,7 @@ defmodule Condukt.Tools do
   - `Condukt.Tools.Write` - Write files
   - `Condukt.Tools.Glob` - Find files by glob pattern
   - `Condukt.Tools.Grep` - Search file contents by regex
+  - `Condukt.Tools.Subagent` - Delegate work to registered sub-agent roles
 
   Every built-in tool routes its filesystem and process work through the
   active `Condukt.Sandbox`, so the same tool list works against the host
@@ -69,7 +70,10 @@ defmodule Condukt.Tools do
   end
 
   @doc """
-  Returns all available built-in tools.
+  Returns all built-in tools that can be attached directly to an agent.
+
+  `Condukt.Tools.Subagent` is injected automatically when an agent declares
+  sub-agents, so it is not included here.
   """
   def all do
     [Read, Bash, Edit, Write, Glob, Grep]
