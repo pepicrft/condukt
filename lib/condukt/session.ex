@@ -56,7 +56,6 @@ defmodule Condukt.Session do
     :pid,
     :agent_module,
     :runtime,
-    :runtime_opts,
     :model,
     :thinking_level,
     :configured_system_prompt,
@@ -349,7 +348,7 @@ defmodule Condukt.Session do
         cwd = Keyword.fetch!(opts, :cwd)
         id = Keyword.get(opts, :id) || SessionID.generate()
 
-        with {:runtime, {:ok, {runtime, runtime_opts}}} <- {:runtime, resolve_runtime(opts[:runtime])},
+        with {:runtime, {:ok, runtime}} <- {:runtime, resolve_runtime(opts[:runtime])},
              {:sandbox, {:ok, sandbox}} <- {:sandbox, resolve_sandbox(opts[:sandbox], cwd, id)},
              {:secrets, {:ok, secrets}} <- {:secrets, Secrets.resolve(opts[:secrets])},
              {:mcp, {:ok, mcp_registry}} <-
@@ -367,7 +366,6 @@ defmodule Condukt.Session do
               pid: self(),
               agent_module: agent_module,
               runtime: runtime,
-              runtime_opts: runtime_opts,
               model: restore_value(opts, :model, snapshot && snapshot.model),
               thinking_level: restore_value(opts, :thinking_level, snapshot && snapshot.thinking_level),
               configured_system_prompt: configured_system_prompt,
@@ -609,7 +607,7 @@ defmodule Condukt.Session do
   # Agent Loop Implementation
   # ============================================================================
 
-  defp do_run(%{runtime: Native} = state, prompt, opts) do
+  defp do_run(%{runtime: {Native, _}} = state, prompt, opts) do
     do_native_run(state, prompt, opts)
   end
 
@@ -638,9 +636,10 @@ defmodule Condukt.Session do
   defp do_runtime_run(state, prompt, opts) do
     user_message = Message.user(prompt, opts[:images] || [])
     messages = state.messages ++ [user_message]
+    {runtime_mod, _runtime_opts} = state.runtime
 
     Telemetry.span(:agent, %{agent: state.agent_module, session_id: state.id}, fn ->
-      case state.runtime.run(prompt, runtime_context(state), opts) do
+      case runtime_mod.run(prompt, runtime_context(state), opts) do
         {:ok, result} ->
           {response, result_messages, assigns} = normalize_runtime_result(result, state.assigns)
           final_messages = messages ++ result_messages
@@ -653,6 +652,8 @@ defmodule Condukt.Session do
   end
 
   defp runtime_context(state) do
+    {_runtime_mod, runtime_opts} = state.runtime
+
     %{
       agent: state.pid,
       agent_module: state.agent_module,
@@ -662,7 +663,7 @@ defmodule Condukt.Session do
       secrets: state.secrets,
       system_prompt: state.system_prompt,
       project_context: state.project_context,
-      runtime_opts: state.runtime_opts,
+      runtime_opts: runtime_opts,
       assigns: state.assigns,
       user_state: state.user_state
     }
@@ -680,12 +681,13 @@ defmodule Condukt.Session do
     {response, messages, next_assigns}
   end
 
-  defp do_stream(%{runtime: Native} = state, prompt, opts, emit, abort_ref) do
+  defp do_stream(%{runtime: {Native, _}} = state, prompt, opts, emit, abort_ref) do
     do_native_stream(state, prompt, opts, emit, abort_ref)
   end
 
   defp do_stream(state, _prompt, _opts, emit, _abort_ref) do
-    reason = {:streaming_not_supported_by_runtime, state.runtime}
+    {runtime_mod, _runtime_opts} = state.runtime
+    reason = {:streaming_not_supported_by_runtime, runtime_mod}
     emit.({:error, reason})
     {:error, reason}
   end
