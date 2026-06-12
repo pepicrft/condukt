@@ -267,30 +267,61 @@ jobs:
           set -euo pipefail
           : "${HEX_API_KEY:?HEX_API_KEY secret is required}"
 
+          release_version="${{ needs.plan.outputs.next_version }}"
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main:refs/remotes/origin/main --tags
+
+          existing_tag_commit="$(git rev-list -n 1 "$release_version" 2>/dev/null || true)"
+          if [ -n "$existing_tag_commit" ]; then
+            echo "Release tag $release_version already exists; reusing $existing_tag_commit"
+            echo "release_commit=$existing_tag_commit" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          origin_main_subject="$(git log -1 --format=%s origin/main)"
+          if [ "$origin_main_subject" = "[Release] Condukt $release_version" ]; then
+            release_commit="$(git rev-parse origin/main)"
+            git tag -a "$release_version" "$release_commit" -m "$release_version"
+            git push origin "$release_version"
+            echo "release_commit=$release_commit" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           git add mix.exs CHANGELOG.md \
             "checksum-Elixir.Condukt.Bashkit.NIF.exs" \
             "checksum-Elixir.Condukt.Microsandbox.NIF.exs"
-          git commit -m "[Release] Condukt ${{ needs.plan.outputs.next_version }}"
-          git tag -a "${{ needs.plan.outputs.next_version }}" -m "${{ needs.plan.outputs.next_version }}"
+          git commit -m "[Release] Condukt $release_version"
+          git tag -a "$release_version" -m "$release_version"
 
-          mix hex.publish package --yes
+          hex_status="$(curl -sS -o /dev/null -w "%{http_code}" "https://hex.pm/api/packages/condukt/releases/$release_version")"
+          case "$hex_status" in
+            200)
+              echo "Hex package condukt $release_version already exists; skipping package publish"
+              ;;
+            404)
+              mix hex.publish package --yes
+              ;;
+            *)
+              echo "Unexpected Hex.pm response while checking condukt $release_version: $hex_status" >&2
+              exit 1
+              ;;
+          esac
 
           git push origin HEAD:main
-          git push origin "${{ needs.plan.outputs.next_version }}"
+          git push origin "$release_version"
 
           echo "release_commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Publish documentation to HexDocs
         env:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+          CONDUKT_BASHKIT_DISABLE: "1"
+          CONDUKT_MICROSANDBOX_DISABLE: "1"
           MIX_ENV: dev
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y libcap-ng-dev
           : "${HEX_API_KEY:?HEX_API_KEY secret is required}"
 
           mix deps.get
@@ -301,15 +332,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          release_version="${{ needs.plan.outputs.next_version }}"
           mapfile -t nif_files < <(find nif-artifacts -type f -name '*.tar.gz' | sort)
 
-          gh release create "${{ needs.plan.outputs.next_version }}" \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "${{ steps.publish.outputs.release_commit }}" \
-            --title "${{ needs.plan.outputs.next_version }}" \
-            --latest \
-            --notes-file RELEASE_NOTES.md \
-            "${nif_files[@]}"
+          if gh release view "$release_version" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$release_version" "${nif_files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$release_version" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "${{ steps.publish.outputs.release_commit }}" \
+              --title "$release_version" \
+              --latest \
+              --notes-file RELEASE_NOTES.md \
+              "${nif_files[@]}"
+          fi
 
   # ============================================================================
   # publish_egress_image

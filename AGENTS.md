@@ -158,6 +158,9 @@
   when the target is supported.
 - The release publish job runs with `MIX_ENV=prod` so Hex package
   validation and publishing exercise the precompiled NIF path.
+- The release HexDocs step uses `CONDUKT_BASHKIT_DISABLE=1` and
+  `CONDUKT_MICROSANDBOX_DISABLE=1` so docs compile against Elixir stubs
+  instead of invoking Rust.
 - Releases must publish precompiled artifacts for every target listed in
   `lib/condukt/bashkit/nif.ex` and `lib/condukt/microsandbox/nif.ex`,
   plus checksum files named `checksum-Elixir.Condukt.Bashkit.NIF.exs`

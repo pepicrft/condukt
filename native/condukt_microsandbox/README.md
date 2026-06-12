@@ -10,6 +10,8 @@ Condukt can run a session inside a microVM through
 This crate follows the same release model as `condukt_bashkit`: supported
 targets are published as precompiled NIF artifacts on GitHub releases, while
 `MIX_ENV=dev` and `MIX_ENV=test` build from source in the Condukt repo.
+Set `CONDUKT_MICROSANDBOX_DISABLE=1` when a task only needs the Elixir modules
+to compile and must not invoke the Rust toolchain.
 
 Microsandbox itself is host-platform dependent. Condukt currently exposes this
 backend on:
