@@ -1,6 +1,19 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [1.7.0] - 2026-06-12
+
+### Bug Fixes
+
+- detect plain one-shot agent modules
+
+
+
+### Features
+
+- retry transient provider failures
+
+
 ## [1.6.2] - 2026-05-28
 
 ### Bug Fixes

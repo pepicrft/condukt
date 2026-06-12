@@ -1,12 +1,12 @@
 %{
-  "condukt_bashkit-v1.6.2-nif-2.16-x86_64-pc-windows-msvc.dll.tar.gz" => "sha256:e6e78ba0f75a549de32d107063ad9d30b5cada1cc56cf67e46b49aa90f70ceac",
-  "condukt_bashkit-v1.6.2-nif-2.17-x86_64-pc-windows-msvc.dll.tar.gz" => "sha256:b83886cad9f3f3b0918c2da6a0367b4ddbb77f8b58caf3783c85eb9f22a5ca64",
-  "libcondukt_bashkit-v1.6.2-nif-2.16-aarch64-apple-darwin.so.tar.gz" => "sha256:b6e3d549bb0c84e30442c96f539c494971da14935f9b96d84350c8340ca65961",
-  "libcondukt_bashkit-v1.6.2-nif-2.16-aarch64-unknown-linux-gnu.so.tar.gz" => "sha256:fe00be965becaa934b01fa77e9691771a197d17dc53456cad20a6e6da8b8bfae",
-  "libcondukt_bashkit-v1.6.2-nif-2.16-x86_64-apple-darwin.so.tar.gz" => "sha256:ce9d98d70faa3779e59adf85659fbfd99a7fed9eafa9fd3c5c2b1d527ab267b5",
-  "libcondukt_bashkit-v1.6.2-nif-2.16-x86_64-unknown-linux-gnu.so.tar.gz" => "sha256:a0043f997a93c1031e1dd42e0bdd2ecc51bf0ee32e83a97be063d2fc1bb5b853",
-  "libcondukt_bashkit-v1.6.2-nif-2.17-aarch64-apple-darwin.so.tar.gz" => "sha256:dde607c3018475b4f14ff1cec8491780e7b8d0205741cc64bc4d29ac7c9481e4",
-  "libcondukt_bashkit-v1.6.2-nif-2.17-aarch64-unknown-linux-gnu.so.tar.gz" => "sha256:afc39e4aaf6431561d804cdb6af49c78d6a278cb67de99a5ffe906ffc7352959",
-  "libcondukt_bashkit-v1.6.2-nif-2.17-x86_64-apple-darwin.so.tar.gz" => "sha256:967798849807b01519e5b87afb97e9bc3a7fe448859c1c335b862dc2666e1a02",
-  "libcondukt_bashkit-v1.6.2-nif-2.17-x86_64-unknown-linux-gnu.so.tar.gz" => "sha256:ea5ce42690b6d8bcb261fd518ae92e1aeea992ee37bf594ced49db700f846c20"
+  "condukt_bashkit-v1.7.0-nif-2.16-x86_64-pc-windows-msvc.dll.tar.gz" => "sha256:cd883b892d7dc8a43381b905acf487520e0d6f66041bdebbd6829eb1ccfab8c3",
+  "condukt_bashkit-v1.7.0-nif-2.17-x86_64-pc-windows-msvc.dll.tar.gz" => "sha256:0835d790b56c148fb459f5f2f010d9ad802c426df3c550634bf702d35a13a4a8",
+  "libcondukt_bashkit-v1.7.0-nif-2.16-aarch64-apple-darwin.so.tar.gz" => "sha256:a0b3f46cf96d9d657752ae5bf13223cf5383681e16a71619e9ac30481f5e9466",
+  "libcondukt_bashkit-v1.7.0-nif-2.16-aarch64-unknown-linux-gnu.so.tar.gz" => "sha256:57d1337e44f5f24e583d10151ef8f8d2a705c97c14b82ad0474689df0de873fa",
+  "libcondukt_bashkit-v1.7.0-nif-2.16-x86_64-apple-darwin.so.tar.gz" => "sha256:9fefcc752f050c01e2149973574fd04aeffc1573da302d719a192612a1938224",
+  "libcondukt_bashkit-v1.7.0-nif-2.16-x86_64-unknown-linux-gnu.so.tar.gz" => "sha256:52e2e0d2647309b9c847ea4e75fc3852b85ec77ddd6b25efb0641023c67f05c0",
+  "libcondukt_bashkit-v1.7.0-nif-2.17-aarch64-apple-darwin.so.tar.gz" => "sha256:7e8998c4f7f1a173a2cf222d622fcb89d95d83ee7eb1e356b893e3da9441bffa",
+  "libcondukt_bashkit-v1.7.0-nif-2.17-aarch64-unknown-linux-gnu.so.tar.gz" => "sha256:bce0091f57dd84d8c94d0ae00ee58a08afc34f31641b2e7e7105ea216f9de15d",
+  "libcondukt_bashkit-v1.7.0-nif-2.17-x86_64-apple-darwin.so.tar.gz" => "sha256:fe811c88a5c94fde96d8aad4e737c4d4fb83b293e8bebea11008dbbb964dca1a",
+  "libcondukt_bashkit-v1.7.0-nif-2.17-x86_64-unknown-linux-gnu.so.tar.gz" => "sha256:3416717dfec556a15e57808acb7f8e6437acc6a00fdc90ccef3b979d775e44ae"
 }
