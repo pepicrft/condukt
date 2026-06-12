@@ -24,7 +24,21 @@ defmodule Condukt.Session do
   use GenServer
 
   alias Condukt.AgentRuntimes.Native
-  alias Condukt.{Compactor, Context, Message, Redactor, Sandbox, Secrets, SessionID, SessionStore, Telemetry, Tool}
+
+  alias Condukt.{
+    Compactor,
+    Context,
+    Message,
+    Redactor,
+    Retry,
+    Sandbox,
+    Secrets,
+    SessionID,
+    SessionStore,
+    Telemetry,
+    Tool
+  }
+
   alias Condukt.MCP
   alias Condukt.SessionStore.Snapshot
   alias Condukt.Tool.Inline
@@ -42,7 +56,6 @@ defmodule Condukt.Session do
     :pid,
     :agent_module,
     :runtime,
-    :runtime_opts,
     :model,
     :thinking_level,
     :configured_system_prompt,
@@ -60,6 +73,7 @@ defmodule Condukt.Session do
     :store_id,
     :compactor,
     :redactor,
+    :retry,
     :project_context,
     :user_state,
     messages: [],
@@ -126,6 +140,7 @@ defmodule Condukt.Session do
       |> put_configured_opt(config, :session_store)
       |> put_configured_opt(config, :compactor)
       |> put_configured_opt(config, :redactor)
+      |> put_configured_opt(config, :retry)
 
     case link_mode do
       :link -> GenServer.start_link(__MODULE__, agent_opts, gen_opts)
@@ -333,7 +348,7 @@ defmodule Condukt.Session do
         cwd = Keyword.fetch!(opts, :cwd)
         id = Keyword.get(opts, :id) || SessionID.generate()
 
-        with {:runtime, {:ok, {runtime, runtime_opts}}} <- {:runtime, resolve_runtime(opts[:runtime])},
+        with {:runtime, {:ok, runtime}} <- {:runtime, resolve_runtime(opts[:runtime])},
              {:sandbox, {:ok, sandbox}} <- {:sandbox, resolve_sandbox(opts[:sandbox], cwd, id)},
              {:secrets, {:ok, secrets}} <- {:secrets, Secrets.resolve(opts[:secrets])},
              {:mcp, {:ok, mcp_registry}} <-
@@ -351,7 +366,6 @@ defmodule Condukt.Session do
               pid: self(),
               agent_module: agent_module,
               runtime: runtime,
-              runtime_opts: runtime_opts,
               model: restore_value(opts, :model, snapshot && snapshot.model),
               thinking_level: restore_value(opts, :thinking_level, snapshot && snapshot.thinking_level),
               configured_system_prompt: configured_system_prompt,
@@ -369,6 +383,7 @@ defmodule Condukt.Session do
               store_id: if(Keyword.has_key?(opts, :id), do: id),
               compactor: opts[:compactor],
               redactor: opts[:redactor],
+              retry: Retry.normalize(opts[:retry]),
               project_context: project_context,
               user_state: user_state,
               assigns: Keyword.get(opts, :assigns, %{})
@@ -592,7 +607,7 @@ defmodule Condukt.Session do
   # Agent Loop Implementation
   # ============================================================================
 
-  defp do_run(%{runtime: Native} = state, prompt, opts) do
+  defp do_run(%{runtime: {Native, _}} = state, prompt, opts) do
     do_native_run(state, prompt, opts)
   end
 
@@ -621,9 +636,10 @@ defmodule Condukt.Session do
   defp do_runtime_run(state, prompt, opts) do
     user_message = Message.user(prompt, opts[:images] || [])
     messages = state.messages ++ [user_message]
+    {runtime_mod, _runtime_opts} = state.runtime
 
     Telemetry.span(:agent, %{agent: state.agent_module, session_id: state.id}, fn ->
-      case state.runtime.run(prompt, runtime_context(state), opts) do
+      case runtime_mod.run(prompt, runtime_context(state), opts) do
         {:ok, result} ->
           {response, result_messages, assigns} = normalize_runtime_result(result, state.assigns)
           final_messages = messages ++ result_messages
@@ -636,6 +652,8 @@ defmodule Condukt.Session do
   end
 
   defp runtime_context(state) do
+    {_runtime_mod, runtime_opts} = state.runtime
+
     %{
       agent: state.pid,
       agent_module: state.agent_module,
@@ -645,7 +663,7 @@ defmodule Condukt.Session do
       secrets: state.secrets,
       system_prompt: state.system_prompt,
       project_context: state.project_context,
-      runtime_opts: state.runtime_opts,
+      runtime_opts: runtime_opts,
       assigns: state.assigns,
       user_state: state.user_state
     }
@@ -663,12 +681,13 @@ defmodule Condukt.Session do
     {response, messages, next_assigns}
   end
 
-  defp do_stream(%{runtime: Native} = state, prompt, opts, emit, abort_ref) do
+  defp do_stream(%{runtime: {Native, _}} = state, prompt, opts, emit, abort_ref) do
     do_native_stream(state, prompt, opts, emit, abort_ref)
   end
 
   defp do_stream(state, _prompt, _opts, emit, _abort_ref) do
-    reason = {:streaming_not_supported_by_runtime, state.runtime}
+    {runtime_mod, _runtime_opts} = state.runtime
+    reason = {:streaming_not_supported_by_runtime, runtime_mod}
     emit.({:error, reason})
     {:error, reason}
   end
@@ -703,7 +722,13 @@ defmodule Condukt.Session do
       Telemetry.span(
         :llm_turn,
         llm_turn_metadata(state, messages, turn, false),
-        fn -> ReqLLM.generate_text(state.model, context, llm_opts) end,
+        fn ->
+          Retry.with_retry(
+            state.retry,
+            fn -> false end,
+            fn -> ReqLLM.generate_text(state.model, context, llm_opts) end
+          )
+        end,
         &llm_turn_stop_metadata/1
       )
 
@@ -768,19 +793,21 @@ defmodule Condukt.Session do
     tools = build_req_llm_tools(state.tools, state)
     llm_opts = build_llm_opts(state, tools)
 
+    emitted_counter = :counters.new(1, [:atomics])
+    emitted? = fn -> :counters.get(emitted_counter, 1) > 0 end
+
+    tracked_emit = fn event ->
+      :counters.add(emitted_counter, 1, 1)
+      emit.(event)
+    end
+
+    attempt = fn -> run_stream_attempt(state.model, context, llm_opts, tracked_emit) end
+
     result =
       Telemetry.span(
         :llm_turn,
         llm_turn_metadata(state, messages, turn, true),
-        fn ->
-          with {:ok, stream_response} <- ReqLLM.stream_text(state.model, context, llm_opts) do
-            ReqLLM.StreamResponse.process_stream(
-              stream_response,
-              on_result: fn chunk -> emit.({:text, chunk}) end,
-              on_thinking: fn chunk -> emit.({:thinking, chunk}) end
-            )
-          end
-        end,
+        fn -> Retry.with_retry(state.retry, emitted?, attempt) end,
         &llm_turn_stop_metadata/1
       )
 
@@ -809,6 +836,16 @@ defmodule Condukt.Session do
 
       false ->
         {:ok, messages, text, state.assigns}
+    end
+  end
+
+  defp run_stream_attempt(model, context, llm_opts, tracked_emit) do
+    with {:ok, stream_response} <- ReqLLM.stream_text(model, context, llm_opts) do
+      ReqLLM.StreamResponse.process_stream(
+        stream_response,
+        on_result: fn chunk -> tracked_emit.({:text, chunk}) end,
+        on_thinking: fn chunk -> tracked_emit.({:thinking, chunk}) end
+      )
     end
   end
 

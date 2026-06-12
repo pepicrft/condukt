@@ -235,6 +235,13 @@ defmodule Condukt do
       - `:session_store` - Session store module or `{module, opts}` tuple
       - `:compactor` - Compactor module or `{module, opts}` tuple
         (see `Condukt.Compactor`)
+      - `:retry` - Retry policy for provider calls. Defaults to
+        `Condukt.Retry.default/0` (3 attempts, exponential backoff on
+        transient HTTP errors). Pass `false` to disable, a keyword list
+        to override fields, or a `%Condukt.Retry{}` struct. Streaming
+        calls are only retried while no event has been emitted to the
+        caller, so partial output is never duplicated. See
+        `Condukt.Retry` for details.
       - `:name` - GenServer registration name
 
       Plus all standard GenServer options.
