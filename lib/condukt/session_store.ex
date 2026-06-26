@@ -5,6 +5,10 @@ defmodule Condukt.SessionStore do
   Session stores receive the current session snapshot and decide how to
   persist it. Condukt ships with memory and disk-backed implementations,
   and callers can provide their own store modules.
+
+  `Condukt.Session` passes `:agent_module`, `:cwd`, an optional `:id`, an
+  optional stable `:key`, and any configured `:session_store_opts` to each
+  callback.
   """
 
   @callback load(keyword()) :: {:ok, term()} | :not_found | {:error, term()}

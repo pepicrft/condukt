@@ -233,6 +233,8 @@ defmodule Condukt do
         and the discovered tools are merged into the agent's tool list
         under their `<server>.<tool>` ids. See `Condukt.MCP`.
       - `:session_store` - Session store module or `{module, opts}` tuple
+      - `:session_store_key` - Stable key passed to session stores as `:key`
+      - `:session_store_opts` - Extra keyword options passed to session stores
       - `:compactor` - Compactor module or `{module, opts}` tuple
         (see `Condukt.Compactor`)
       - `:retry` - Retry policy for provider calls. Defaults to
@@ -381,7 +383,8 @@ defmodule Condukt do
   `:max_turns`, `:images`) plus the session options accepted by an agent's
   `start_link/1` (`:model`, `:system_prompt`, `:api_key`, `:base_url`,
   `:thinking_level`, `:tools`, `:sandbox`, `:cwd`, `:session_store`,
-  `:subagents`, `:compactor`, `:redactor`, `:load_project_instructions`).
+  `:session_store_key`, `:session_store_opts`, `:subagents`, `:compactor`,
+  `:redactor`, `:load_project_instructions`).
   `:load_project_instructions` defaults to `false` for anonymous runs and to
   `true` for module-defined one-shot runs.
   """
