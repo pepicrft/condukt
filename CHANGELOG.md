@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [1.8.0] - 2026-08-11
+
+### Features
+
+- Support stable session store keys
+
+
 ## [1.7.0] - 2026-06-12
 
 ### Bug Fixes
