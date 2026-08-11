@@ -2,6 +2,7 @@ defmodule Condukt.SessionTest do
   use ExUnit.Case, async: true
 
   alias Condukt.Message
+  alias Condukt.SessionStore.Memory
   alias Condukt.SessionStore.Snapshot
   alias Condukt.Test.LLMProvider
   alias ReqLLM.ToolCall
@@ -23,6 +24,8 @@ defmodule Condukt.SessionTest do
 
     @impl true
     def load(opts) do
+      maybe_send_store_opts(opts, :load)
+
       case Keyword.get(opts, :snapshot) do
         nil -> :not_found
         snapshot -> {:ok, snapshot}
@@ -31,14 +34,23 @@ defmodule Condukt.SessionTest do
 
     @impl true
     def save(snapshot, opts) do
+      maybe_send_store_opts(opts, :save)
       send(Keyword.fetch!(opts, :test_pid), {:saved_snapshot, snapshot})
       :ok
     end
 
     @impl true
     def clear(opts) do
+      maybe_send_store_opts(opts, :clear)
       send(Keyword.fetch!(opts, :test_pid), :cleared_snapshot)
       :ok
+    end
+
+    defp maybe_send_store_opts(opts, action) do
+      case Keyword.get(opts, :opts_pid) do
+        nil -> :ok
+        pid -> send(pid, {:session_store_opts, action, Keyword.delete(opts, :opts_pid)})
+      end
     end
   end
 
@@ -739,6 +751,67 @@ defmodule Condukt.SessionTest do
     GenServer.stop(pid)
   end
 
+  test "passes session store key and configured opts to callbacks" do
+    key = {:telegram_chat, 123}
+
+    {:ok, pid} =
+      ConfigAgent.start_link(
+        session_store: {RecordingStore, test_pid: self(), opts_pid: self()},
+        session_store_key: key,
+        session_store_opts: [caller: self(), key: :ignored],
+        load_project_instructions: false
+      )
+
+    assert_receive {:session_store_opts, :load, load_opts}
+    assert_store_opts(load_opts, key)
+
+    assert :ok = Condukt.compact(pid)
+    assert_receive {:session_store_opts, :save, save_opts}
+    assert_store_opts(save_opts, key)
+
+    assert :ok = Condukt.clear(pid)
+    assert_receive {:session_store_opts, :clear, clear_opts}
+    assert_store_opts(clear_opts, key)
+
+    GenServer.stop(pid)
+  end
+
+  test "memory store restores snapshots by session_store_key independent of session id" do
+    key = {:conversation, make_ref()}
+    stored_message = Message.user("persist this conversation")
+
+    assert Memory.load(key: key) == :not_found
+
+    {:ok, first_pid} =
+      ConfigAgent.start_link(
+        id: "first-session",
+        session_store: Memory,
+        session_store_key: key,
+        load_project_instructions: false
+      )
+
+    :sys.replace_state(first_pid, fn state ->
+      %{state | messages: [stored_message]}
+    end)
+
+    assert :ok = Condukt.compact(first_pid)
+    GenServer.stop(first_pid)
+
+    {:ok, second_pid} =
+      ConfigAgent.start_link(
+        id: "second-session",
+        session_store: Memory,
+        session_store_key: key,
+        load_project_instructions: false
+      )
+
+    assert Condukt.history(second_pid) == [stored_message]
+    assert :ok = Condukt.clear(second_pid)
+    assert Memory.load(key: key) == :not_found
+
+    GenServer.stop(second_pid)
+  end
+
   defmodule LastOneCompactor do
     @behaviour Condukt.Compactor
 
@@ -913,5 +986,12 @@ defmodule Condukt.SessionTest do
     assert state.project_context == %{agents_md: nil, skills: [], prompt: nil}
 
     GenServer.stop(pid)
+  end
+
+  defp assert_store_opts(opts, key) do
+    assert Keyword.fetch!(opts, :agent_module) == ConfigAgent
+    assert is_binary(Keyword.fetch!(opts, :cwd))
+    assert Keyword.fetch!(opts, :caller) == self()
+    assert Keyword.fetch!(opts, :key) == key
   end
 end

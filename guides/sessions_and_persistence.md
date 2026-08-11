@@ -16,8 +16,8 @@ snapshot and restore them.
 # Restore within the current VM
 {:ok, agent} =
   MyApp.CodingAgent.start_link(
-    session_store:
-      {Condukt.SessionStore.Memory, key: {:coding_agent, "/tmp/project"}}
+    session_store: Condukt.SessionStore.Memory,
+    session_store_key: {:coding_agent, "/tmp/project"}
   )
 
 # Persist to disk across restarts
@@ -37,6 +37,26 @@ snapshot and restore them.
 When a store is configured, Condukt loads the snapshot at `start_link/1` and
 saves a fresh snapshot after every completed turn.
 
+## Store keys and options
+
+Condukt passes `:agent_module`, `:cwd`, an optional `:id`, an optional `:key`,
+and any `:session_store_opts` to every store callback. Use
+`:session_store_key` when persistence should follow an application domain key
+instead of the generated session identifier:
+
+```elixir
+{:ok, agent} =
+  MyApp.CodingAgent.start_link(
+    session_store: MyApp.RedisStore,
+    session_store_key: "telegram-chat:123",
+    session_store_opts: [redix: MyApp.Redix]
+  )
+```
+
+Stores receive that key as `opts[:key]`. If `:session_store` is passed as a
+`{module, opts}` tuple, those tuple options are merged last and can override
+the defaults for that store.
+
 ## What a snapshot contains
 
 `Condukt.SessionStore.Snapshot` captures the parts of the session that need
@@ -54,7 +74,9 @@ defmodule MyApp.RedisStore do
 
   @impl true
   def load(opts) do
-    case Redix.command(MyApp.Redix, ["GET", key(opts)]) do
+    redix = Keyword.fetch!(opts, :redix)
+
+    case Redix.command(redix, ["GET", key(opts)]) do
       {:ok, nil} -> :not_found
       {:ok, blob} -> {:ok, :erlang.binary_to_term(blob)}
       {:error, reason} -> {:error, reason}
@@ -63,13 +85,15 @@ defmodule MyApp.RedisStore do
 
   @impl true
   def save(snapshot, opts) do
-    Redix.command(MyApp.Redix, ["SET", key(opts), :erlang.term_to_binary(snapshot)])
+    redix = Keyword.fetch!(opts, :redix)
+    Redix.command(redix, ["SET", key(opts), :erlang.term_to_binary(snapshot)])
     :ok
   end
 
   @impl true
   def clear(opts) do
-    Redix.command(MyApp.Redix, ["DEL", key(opts)])
+    redix = Keyword.fetch!(opts, :redix)
+    Redix.command(redix, ["DEL", key(opts)])
     :ok
   end
 
@@ -81,11 +105,14 @@ Then plug it into the agent:
 
 ```elixir
 MyApp.CodingAgent.start_link(
-  session_store: {MyApp.RedisStore, key: "user:42"}
+  session_store: MyApp.RedisStore,
+  session_store_key: "user:42",
+  session_store_opts: [redix: MyApp.Redix]
 )
 ```
 
 ## Clearing history
 
 `Condukt.clear/1` resets the conversation. If a session store is configured,
-the next save will overwrite the persisted snapshot with the empty state.
+Condukt also calls the store's `clear/1` callback so persisted state is
+removed.

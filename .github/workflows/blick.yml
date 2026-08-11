@@ -51,13 +51,41 @@ jobs:
           mise use -g opencode
 
       - name: Run blick review
+        id: review
         env:
           FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: blick review --base "origin/${{ github.event.pull_request.base.ref }}" --json --stream
+        shell: bash
+        run: |
+          echo "succeeded=false" >> "$GITHUB_OUTPUT"
+
+          for attempt in 1 2 3; do
+            log_file="$(mktemp)"
+
+            set +e
+            blick review --base "origin/${{ github.event.pull_request.base.ref }}" --json --stream 2>&1 | tee "$log_file"
+            status="${PIPESTATUS[0]}"
+            set -e
+
+            if [ "$status" -eq 0 ]; then
+              echo "succeeded=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            if ! grep -q '"name": "UnknownError"' "$log_file" || ! grep -q "Unexpected server error" "$log_file"; then
+              exit "$status"
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "::warning::blick review skipped after three provider server errors."
+              exit 0
+            fi
+
+            sleep "$((attempt * 10))"
+          done
 
       - name: Publish review
-        if: success()
+        if: steps.review.outputs.succeeded == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: blick publish

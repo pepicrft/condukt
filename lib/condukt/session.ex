@@ -70,7 +70,7 @@ defmodule Condukt.Session do
     :api_key,
     :base_url,
     :session_store,
-    :store_id,
+    :session_store_opts,
     :compactor,
     :redactor,
     :retry,
@@ -138,6 +138,8 @@ defmodule Condukt.Session do
       |> put_configured_opt(config, :sandbox, fn -> agent_sandbox(agent_module) end)
       |> put_configured_opt(config, :secrets, fn -> agent_secrets(agent_module) end)
       |> put_configured_opt(config, :session_store)
+      |> put_configured_opt(config, :session_store_key)
+      |> put_configured_opt(config, :session_store_opts, fn -> [] end)
       |> put_configured_opt(config, :compactor)
       |> put_configured_opt(config, :redactor)
       |> put_configured_opt(config, :retry)
@@ -380,7 +382,7 @@ defmodule Condukt.Session do
               api_key: opts[:api_key],
               base_url: opts[:base_url],
               session_store: session_store,
-              store_id: if(Keyword.has_key?(opts, :id), do: id),
+              session_store_opts: session_store_opts(opts),
               compactor: opts[:compactor],
               redactor: opts[:redactor],
               retry: Retry.normalize(opts[:retry]),
@@ -1309,24 +1311,29 @@ defmodule Condukt.Session do
   end
 
   defp session_store_opts(opts) when is_list(opts) do
-    base = [
-      agent_module: Keyword.get(opts, :agent_module),
-      cwd: Keyword.get(opts, :cwd)
-    ]
+    store_opts = Keyword.get(opts, :session_store_opts, []) || []
 
-    if Keyword.has_key?(opts, :id),
-      do: Keyword.put(base, :id, Keyword.get(opts, :id)),
-      else: base
+    store_opts
+    |> Keyword.put(:agent_module, Keyword.get(opts, :agent_module))
+    |> Keyword.put(:cwd, Keyword.get(opts, :cwd))
+    |> maybe_put_store_id(Keyword.get(opts, :id), Keyword.has_key?(opts, :id))
+    |> maybe_put_store_key(Keyword.get(opts, :session_store_key))
   end
 
+  defp session_store_opts(%__MODULE__{session_store_opts: opts}) when is_list(opts), do: opts
+
   defp session_store_opts(%__MODULE__{} = state) do
-    base = [
+    [
       agent_module: state.agent_module,
       cwd: state.cwd
     ]
-
-    if state.store_id, do: Keyword.put(base, :id, state.store_id), else: base
   end
+
+  defp maybe_put_store_id(opts, id, true), do: Keyword.put(opts, :id, id)
+  defp maybe_put_store_id(opts, _id, false), do: opts
+
+  defp maybe_put_store_key(opts, nil), do: opts
+  defp maybe_put_store_key(opts, key), do: Keyword.put(opts, :key, key)
 
   defp maybe_compact(%__MODULE__{compactor: nil} = state), do: state
 
