@@ -555,7 +555,6 @@ noora-card[data-part="terminal"]::part(body) {
 [data-part="products"] {
   margin: 96px auto;
   max-width: 1120px;
-  padding: 0 24px;
 }
 
 [data-part="products-copy"] {
@@ -823,6 +822,15 @@ condukt-install-command {
 
   [data-part="form-context"] {
     flex-basis: 100%;
+  }
+
+  [data-part="products"] {
+    margin: 68px auto;
+    padding: 0 6px;
+  }
+
+  [data-part="products-grid"] {
+    grid-template-columns: 1fr;
   }
 
   [data-part="install"] {
