@@ -1,0 +1,31 @@
+[package]
+name = "condukt"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "condukt"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+agent-client-protocol = "2.0"
+base64.workspace = true
+clap.workspace = true
+crossterm.workspace = true
+fuzzy-matcher.workspace = true
+getrandom.workspace = true
+open.workspace = true
+condukt-inference.workspace = true
+condukt-openrouter.workspace = true
+condukt-protocol.workspace = true
+condukt-session.workspace = true
+condukt-tools.workspace = true
+ratatui.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+syntect.workspace = true
+tokio.workspace = true
+ureq = { workspace = true, features = ["json"] }
+unicode-width.workspace = true

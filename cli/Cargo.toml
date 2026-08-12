@@ -1,0 +1,46 @@
+[workspace]
+members = [
+  "crates/condukt",
+  "crates/condukt-inference",
+  "crates/condukt-openrouter",
+  "crates/condukt-protocol",
+  "crates/condukt-session",
+  "crates/condukt-tools",
+  "crates/condukt-wasm",
+]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+version = "0.1.0"
+name = "condukt"
+
+[workspace.dependencies]
+anyhow = "1.0"
+base64 = "0.22"
+clap = { version = "4.5", features = ["derive"] }
+crossterm = "0.28"
+directories = "5.0"
+fuzzy-matcher = "0.3"
+fs2 = "0.4"
+getrandom = "0.4"
+libc = "0.2"
+open = "5"
+ratatui = "0.29"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+syntect = { version = "5.3", default-features = false, features = ["default-fancy", "default-syntaxes", "default-themes"] }
+thiserror = "2.0"
+tokio = { version = "1.48", features = ["macros", "rt-multi-thread"] }
+ureq = { version = "3.0", features = ["json"] }
+wasm-bindgen = "0.2"
+unicode-width = "0.2"
+
+condukt-protocol = { path = "crates/condukt-protocol" }
+condukt-inference = { path = "crates/condukt-inference" }
+condukt-openrouter = { path = "crates/condukt-openrouter" }
+condukt-session = { path = "crates/condukt-session" }
+condukt-tools = { path = "crates/condukt-tools" }
+condukt-wasm = { path = "crates/condukt-wasm" }
