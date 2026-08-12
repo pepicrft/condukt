@@ -1,11 +1,11 @@
 # Unification plan: Plasma + Condukt into one repo, one brand
 
 This is the working plan for the merge. The strategy notes in
-`~/Downloads/plasma.md` explain the *why*; this document covers the *what* and
-the *in what order*.
+`~/Downloads/plasma.md` explain the *why*; this document covered the *what*
+and the *in what order* while the merge was in flight, and now records the
+decisions that shaped the result.
 
-Status: **draft, pending sign-off**. No code moves happen until the open
-questions below are resolved.
+Status: **executed**. All six phases below landed on `feat/condukt-merge`.
 
 ---
 
