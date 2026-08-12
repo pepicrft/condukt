@@ -552,19 +552,31 @@ noora-card[data-part="terminal"]::part(body) {
   scroll-margin-top: 96px;
 }
 
-[data-part="surfaces"] {
+[data-part="products"] {
   margin: 96px auto;
   max-width: 1120px;
   padding: 0 24px;
 }
 
-[data-part="surfaces-grid"] {
-  display: grid;
-  gap: 24px;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+[data-part="products-copy"] {
+  margin: 0 0 32px;
+  max-width: 640px;
 }
 
-[data-part="surface"] {
+[data-part="products-copy"] h2 {
+  font-size: clamp(30px, 4vw, 44px);
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+  margin: 0;
+}
+
+[data-part="products-grid"] {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+}
+
+[data-part="product"] {
   background: var(--paper-soft);
   border: 1px solid var(--line);
   border-radius: 18px;
@@ -575,32 +587,32 @@ noora-card[data-part="terminal"]::part(body) {
   padding: 28px;
 }
 
-[data-part="surface"] noora-icon {
+[data-part="product"] noora-icon {
   --noora-icon-size: 28px;
   --noora-icon-color: var(--purple-deep);
 }
 
-[data-part="surface"] h2 {
+[data-part="product"] h3 {
   font-size: 22px;
   letter-spacing: -0.025em;
   line-height: 1.15;
   margin: 0;
 }
 
-[data-part="surface"] p {
+[data-part="product"] p {
   color: var(--ink-soft);
   flex: 1;
   line-height: 1.6;
   margin: 0;
 }
 
-[data-part="surface"] a {
+[data-part="product"] a {
   color: var(--purple-deep);
   font-weight: 600;
   text-decoration: none;
 }
 
-[data-part="surface"] a:hover {
+[data-part="product"] a:hover {
   text-decoration: underline;
 }
 

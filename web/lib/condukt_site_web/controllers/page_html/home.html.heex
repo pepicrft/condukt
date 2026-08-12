@@ -3,28 +3,26 @@
     <header data-part="hero">
       <div data-part="hero-content">
         <noora-badge appearance="light-fill" color="primary" size="large" dot>
-          Elixir library · Terminal CLI · Browser agent · MIT licensed
+          Coding agent · Framework · MIT licensed
         </noora-badge>
 
         <h1>One agent.<br /><span>Every surface.</span></h1>
         <p>
-          Condukt is a cross-platform agent framework and coding agent. Its conversation and agent
-          loop run on every surface, while each application supplies inference and only the tools
-          that make sense there.
+          Condukt is a coding agent for the terminal and a framework for building
+          agent runtimes. The same portable agent loop powers the CLI, the
+          Elixir library, and the WebAssembly package that ships to browsers.
         </p>
 
         <div data-part="hero-actions">
-          <noora-button variant="primary" size="large" href="#terminal">
-            Try Condukt in your browser
+          <noora-button variant="primary" size="large" href="#install">
+            Install the coding agent
           </noora-button>
           <noora-button
             variant="secondary"
             size="large"
-            href="https://github.com/tuist/condukt"
-            target="_blank"
-            rel="noreferrer"
+            href={~p"/docs"}
           >
-            View on GitHub
+            Read the framework docs
           </noora-button>
         </div>
       </div>
@@ -50,42 +48,33 @@
     >
     </condukt-browser-agent>
 
-    <section id="surfaces" data-part="surfaces">
-      <div data-part="surfaces-grid">
-        <article data-part="surface">
-          <noora-icon name="devices_code" label="Library"></noora-icon>
-          <h2>Elixir library</h2>
+    <section id="products" data-part="products">
+      <div data-part="products-copy">
+        <p data-part="eyebrow">Two ways to use it</p>
+        <h2>Run the agent, or build your own.</h2>
+      </div>
+
+      <div data-part="products-grid">
+        <article data-part="product">
+          <noora-icon name="device_desktop" label="Coding agent"></noora-icon>
+          <h3>Coding agent</h3>
           <p>
-            <code>use Condukt</code> brings agents, tools, sub-agents, MCP, sandboxes, network
-            policy, redaction, compaction, and HTTP routes inside any OTP application.
-            Sessions are supervised <code>GenServer</code>s that survive crashes, restart from
-            snapshots, and stream every model and tool event to a Phoenix LiveView.
+            A single Rust binary that puts a coding agent in your shell, with a
+            TUI for conversations and <code>condukt exec</code>
+            for one-off tasks in scripts and CI.
           </p>
-          <a href={~p"/docs"}>Read the library docs</a>
+          <a href="#install">Install the coding agent</a>
         </article>
 
-        <article data-part="surface">
-          <noora-icon name="terminal" label="Terminal"></noora-icon>
-          <h2>Terminal CLI</h2>
+        <article data-part="product">
+          <noora-icon name="devices_code" label="Framework"></noora-icon>
+          <h3>Framework</h3>
           <p>
-            A single Rust binary that puts a coding agent in your shell. The TUI keeps
-            the conversation visible, the slash menu exposes the same workflows as the
-            command line, and <code>condukt exec</code> drives one task from a script
-            or build job.
+            Build your own agent on the same loop: an Elixir library for OTP
+            applications, Rust crates, and the <code>@tuist/condukt</code>
+            WebAssembly package for browsers.
           </p>
-          <a href="#install">Install the CLI</a>
-        </article>
-
-        <article data-part="surface">
-          <noora-icon name="globe" label="Browser"></noora-icon>
-          <h2>Browser package</h2>
-          <p>
-            The portable session runs in <a href="https://webassembly.org">WebAssembly</a>
-            and ships as <code>@tuist/condukt</code>. The page supplies inference and
-            the complete tool registry, so a public page only inherits the capabilities
-            the application explicitly exposes.
-          </p>
-          <a href={~p"/docs/guide/browser"}>Browser quickstart</a>
+          <a href={~p"/docs"}>Read the framework docs</a>
         </article>
       </div>
     </section>
