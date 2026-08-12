@@ -37,6 +37,8 @@ defmodule ConduktSiteWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    get "/blog", BlogController, :index
+    get "/blog/:slug", BlogController, :show
     get "/docs", DocsController, :index
     get "/docs-markdown/*path", DocsMarkdownController, :show
     get "/docs/*path", DocsController, :show

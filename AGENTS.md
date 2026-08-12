@@ -164,6 +164,23 @@
   and `checksum-Elixir.Condukt.Microsandbox.NIF.exs` in the package
   source. See `.github/workflows/release.yml` for the build matrix.
 
+## Terminal CLI (`cli/`)
+
+The terminal coding agent is a Rust workspace under `cli/`. The binary is `condukt`; the workspace members are `condukt`, `condukt-inference`, `condukt-openrouter`, `condukt-protocol`, `condukt-session`, `condukt-tools`, and `condukt-wasm`.
+
+- Build: `cd cli && cargo build --all-targets`. `cargo test --all-targets`, `cargo clippy --all-targets --all-features -- --deny warnings`, and `cargo fmt --all -- --check` are all required to be green.
+- Toolchain: Rust 1.91 (pinned in `cli/rust-toolchain.toml` and `mise.toml`). The CLI is a separate workspace from `native/`; the two share no crates or lockfile.
+- Auth: the CLI uses OpenRouter as its only inference provider today. Credentials are stored under `$XDG_CONFIG_HOME/condukt` (or `~/.config/condukt`) and can be overridden through `CONDUKT_OPENROUTER_API_KEY` and `CONDUKT_CREDENTIAL_DIR`. Import Pi credentials with `condukt import-pi-credentials`; set `CONDUKT_PI_AUTH_FILE` to override the source path.
+- Wire protocol: the Rust CLI and the Elixir library share the same provider-neutral `Message` and `ToolDefinition` shape (`condukt-protocol`). The hosted `RemoteSession` driver is a follow-up; the CLI defaults to a local driver in-process.
+- CI: `.github/workflows/condukt-cli.yml` runs build, test, clippy, fmt, and the WebAssembly package build on every PR that touches `cli/` or `packages/condukt/`.
+
+## Browser package (`packages/condukt/`)
+
+The published npm package `@tuist/condukt` is generated from the `condukt-wasm` Rust crate. The package directory holds the TypeScript types, the JavaScript entry point, and the Node tests; the generated `plasma_wasm` artifacts are produced by `wasm-pack` and copied in by the CI workflow and the Dockerfile.
+
+- Build: `wasm-pack build cli/crates/condukt-wasm --target web --out-dir packages/condukt/generated --release`, then run `node --test test/*.test.mjs` from `packages/condukt/`.
+- The Phoenix web app serves the generated files from `priv/static/condukt/`. The page imports `/condukt/index.js` to obtain `createAgent` and `createHttpInference`.
+
 ## Git
 
 - After every change, create a git commit and push it to the current branch.
@@ -186,17 +203,17 @@
   processes, unique temporary paths, and local options so affected tests can run
   with `async: true`.
 
-## Marketing site (`website/`)
+## Marketing site (`web/`)
 
-The marketing site lives under `website/` and is built with [Eleventy](https://www.11ty.dev/).
+The marketing site, public docs, and browser inference endpoint live under `web/` as a Phoenix application named `condukt_site` (modules under `ConduktSite.*`). It serves the install story, hosts the documentation pages, and proxies the browser-side agent through a same-origin `/api/completions` endpoint.
 
-- Source: `website/src/` (templates use Nunjucks, layouts in `website/src/_includes/layouts/`).
-- Package manager: [aube](https://github.com/endevco/aube), pinned in `mise.toml`. Use `aube ci`, `aube install`, `aube add <pkg>`, `aube run <script>` (or `aubr <script>`). Do not invoke `npm`/`pnpm`/`yarn` directly.
-- Build: `cd website && aube ci && aube run build` — outputs to `website/_site`.
-- Local preview: `cd website && aube run dev`.
-- Deployment: pushes to `main` that touch `website/**` deploy to the Cloudflare Pages project `condukt-website` via `.github/workflows/website.yml`. The job uses `cloudflare/wrangler-action` (`wrangler pages deploy`) and reads `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` from repo secrets. The custom domain `condukt.tuist.dev` is bound to that Pages project in the Cloudflare dashboard.
-- Pages config: `website/wrangler.toml` declares the project name and `pages_build_output_dir`.
-- Toolchain: Node and aube are pinned in `mise.toml`; bump there rather than ad-hoc.
+- Source: `web/lib/`, `web/priv/`, `web/assets/`, `web/config/`, `web/test/`. Docs source files live under `web/priv/docs/{guide,reference}/`. Blog posts live under `web/priv/blog/posts/`.
+- Package manager: [Hex](https://hex.pm/) for Elixir dependencies; `npm` is not used in the web app.
+- Build: `cd web && mix deps.get && mix assets.deploy && mix release`.
+- Local preview: `cd web && mix setup && mix phx.server`. The server prints a worktree-specific address; each Git worktree receives a stable suffix from 100 through 999 and uses port `4000 + suffix` plus a database named `condukt_site_dev_SUFFIX`. Tests use `4002 + suffix` and `condukt_site_test_SUFFIX`. Set `CONDUKT_SITE_DEV_INSTANCE` to an unused suffix when an explicit value is useful.
+- Deployment: pushes to `main` that touch `web/**` publish a Docker image to `ghcr.io/tuist/condukt-site` with immutable commit and `latest` tags via `.github/workflows/condukt-web.yml`. The Dockerfile at `web/Dockerfile` builds the `condukt_site` Phoenix release, the WASM module from `cli/crates/condukt-wasm`, and the `@tuist/condukt` browser package into the served static assets.
+- WASM artifacts: the release image bundles `priv/static/condukt/generated/condukt_wasm_bg.wasm` plus the `condukt-wasm` JavaScript glue. The web page imports them as `/condukt/index.js` and `/condukt/generated/condukt_wasm.js`. The esbuild config treats `/condukt/*` as external.
+- The web app does not depend on the `condukt` Elixir library. It is a marketing, docs, and browser inference surface only. The hosted Condukt service is not in scope.
 
 ## Documentation (`guides/`)
 

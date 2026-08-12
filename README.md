@@ -12,15 +12,27 @@
   <a href="https://github.com/tuist/condukt/commits/main"><img src="https://img.shields.io/github/last-commit/tuist/condukt.svg" alt="Last commit" /></a>
 </p>
 
-Condukt is an Elixir library for building reliable AI agents.
+Condukt is a cross-platform agent framework and coding agent.
 
-Use Condukt when agents should live inside your OTP system. It provides the
-agent runtime, tool system, sandboxing model, project instructions, provider
-support, structured output, redaction, secrets, streaming, and telemetry.
+It ships as three surfaces from one repository:
 
-## Installation
+- An **Elixir library** for OTP-native agents with sub-agents, MCP, sandboxes,
+  network policy, redaction, compaction, and HTTP routes.
+- A **terminal CLI** that runs the same agent loop in Rust with a ratatui TUI,
+  slash commands, an ACP backend, and headless `exec` for scripts and CI.
+- A **browser package** (`@tuist/condukt`) that ships the portable session as
+  WebAssembly so any page can host an agent that only inherits the tools it
+  explicitly registers.
 
-Add Condukt to your Elixir application:
+A marketing and documentation site lives under [`web/`](web/) and serves both
+the install story and the public docs. The same `Message` history and
+`ToolDefinition` shape crosses every surface, so the same conversation can move
+between them when a host chooses to do so.
+
+## Library
+
+Use Condukt when agents should live inside your OTP system. Add it to
+`mix.exs`:
 
 ```elixir
 def deps do
@@ -29,12 +41,6 @@ def deps do
   ]
 end
 ```
-
-## A Small Tour
-
-This example shows the common shape: define an agent, grant tools, delegate to
-a sub-agent, expose a typed operation, run one-shot tasks, and stream a
-persistent session.
 
 ```elixir
 defmodule MyApp.ProjectAgent do
@@ -49,28 +55,7 @@ defmodule MyApp.ProjectAgent do
   end
 
   @impl true
-  def tools do
-    Condukt.Tools.coding_tools() ++
-      [{Condukt.Tools.Command, command: "git"}]
-  end
-
-  @impl true
-  def subagents do
-    [
-      reviewer: [
-        system_prompt: "Review changes and return concise blockers first.",
-        tools: Condukt.Tools.read_only_tools(),
-        output: %{
-          type: "object",
-          properties: %{
-            summary: %{type: "string"},
-            blockers: %{type: "array", items: %{type: "string"}}
-          },
-          required: ["summary", "blockers"]
-        }
-      ]
-    ]
-  end
+  def tools, do: Condukt.Tools.coding_tools()
 
   operation :release_notes,
     input: %{
@@ -88,79 +73,91 @@ defmodule MyApp.ProjectAgent do
     },
     instructions: "Draft release notes from the git history and project files."
 end
+```
 
-api_key = System.fetch_env!("ANTHROPIC_API_KEY")
+Read the [library documentation on HexDocs](https://hexdocs.pm/condukt/overview.html).
 
-{:ok, %{summary: summary}} =
-  Condukt.run(MyApp.ProjectAgent, "Summarize README.md in one paragraph.",
-    api_key: api_key,
-    cwd: ".",
-    input: %{path: "README.md"},
-    input_schema: %{
-      type: "object",
-      properties: %{path: %{type: "string"}},
-      required: ["path"]
-    },
-    output: %{
-      type: "object",
-      properties: %{summary: %{type: "string"}},
-      required: ["summary"]
-    }
-  )
+## CLI
 
-{:ok, notes} =
-  MyApp.ProjectAgent.release_notes(%{version: "1.3.0"},
-    api_key: api_key
-  )
+Install the terminal coding agent globally with [mise](https://mise.jdx.dev/):
 
-{:ok, agent} =
-  MyApp.ProjectAgent.start_link(
-    api_key: api_key,
-    cwd: ".",
-    redactor: Condukt.Redactors.Regex,
-    compactor: {Condukt.Compactor.Sliding, keep: 40}
-  )
+```sh
+mise use -g github:tuist/condukt
+```
 
-agent
-|> Condukt.stream("Review the last commit and delegate if useful.")
-|> Stream.each(fn
-  {:text, chunk} -> IO.write(chunk)
-  {:tool_call, name, _id, _args} -> IO.puts("\nUsing #{name}")
-  :done -> IO.puts("\nDone")
-  _event -> :ok
-end)
-|> Stream.run()
+Run `condukt`, then type `/connect` and follow the sign-in flow. Once
+connected, type a request and press Enter. Use `/` to browse the available
+commands. If you already signed in to Pi with OpenRouter, import its access
+credential without printing it:
+
+```sh
+condukt import-pi-credentials
+```
+
+For scripts and continuous integration, run one task without the terminal
+interface:
+
+```sh
+condukt exec "Run the test suite and summarize any failures"
+```
+
+`condukt -p "..."` is a shorthand, and a prompt can also arrive on standard
+input. The command uses the saved OpenRouter credential, or
+`CONDUKT_OPENROUTER_API_KEY` when set. Pass `--verbose` to show tool activity
+on standard error and `--json` for a machine-readable final response.
+
+## Browser
+
+Add the npm package to a JavaScript or TypeScript application:
+
+```sh
+npm install @tuist/condukt
+```
+
+```js
+import {createAgent, createHttpInference} from "@tuist/condukt"
+
+const agent = await createAgent({
+  inference: createHttpInference({model: "openrouter/auto"}),
+  tools: [{
+    name: "read_page",
+    description: "Read the public content on this page",
+    parameters: {type: "object", properties: {}},
+    execute: () => document.querySelector("main").innerText,
+  }],
+})
+```
+
+The page supplies both the inference configuration and the tool allowlist. The
+public Condukt site demonstrates the same package against a Phoenix endpoint
+that signs developers in with OpenRouter and proxies the completion request.
+
+## Repository layout
+
+```
+condukt/
+├── lib/                  # Elixir library
+├── native/               # Rust NIFs (bashkit, microsandbox, egress)
+├── guides/               # ExDoc guides for HexDocs
+├── cli/                  # Rust workspace for the terminal CLI
+│   └── crates/
+│       ├── condukt/         # binary
+│       ├── condukt-inference/
+│       ├── condukt-openrouter/
+│       ├── condukt-protocol/
+│       ├── condukt-session/
+│       ├── condukt-tools/
+│       └── condukt-wasm/
+├── web/                  # Phoenix marketing, docs, and browser endpoint
+├── packages/condukt/     # @tuist/condukt npm package
+└── .github/workflows/    # CI for library, CLI, and web
 ```
 
 ## Documentation
 
-Start here:
-
-- [Overview](https://hexdocs.pm/condukt/overview.html)
-- [Installation](https://hexdocs.pm/condukt/installation.html)
-- [Getting Started](https://hexdocs.pm/condukt/getting_started.html)
-- [Providers](https://hexdocs.pm/condukt/providers.html)
-
-Build agents:
-
-- [Agents](https://hexdocs.pm/condukt/agents.html)
-- [One-Shot Runs](https://hexdocs.pm/condukt/one_shot_runs.html)
-- [Tools](https://hexdocs.pm/condukt/tools.html)
-- [Sub-agents](https://hexdocs.pm/condukt/subagents.html)
-- [Operations](https://hexdocs.pm/condukt/Condukt.Operation.html)
-- [Streaming and Events](https://hexdocs.pm/condukt/streaming_and_events.html)
-- [Sessions and Persistence](https://hexdocs.pm/condukt/sessions_and_persistence.html)
-- [Compaction](https://hexdocs.pm/condukt/compaction.html)
-
-Run production integrations:
-
-- [MCP](https://hexdocs.pm/condukt/mcp.html)
-- [HTTP Routes](https://hexdocs.pm/condukt/http_routes.html)
-- [Sandbox](https://hexdocs.pm/condukt/sandbox.html)
-- [Secrets](https://hexdocs.pm/condukt/secrets.html)
-- [Redaction](https://hexdocs.pm/condukt/redaction.html)
-- [Project Instructions](https://hexdocs.pm/condukt/project_instructions.html)
-- [Telemetry](https://hexdocs.pm/condukt/telemetry.html)
+Start with the [library docs on HexDocs](https://hexdocs.pm/condukt/overview.html),
+then follow [the site docs](https://condukt.tuist.dev/docs) for the CLI and
+browser surfaces.
 
 ## License
 

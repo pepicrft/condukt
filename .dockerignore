@@ -1,0 +1,13 @@
+.git
+.github
+.superconductor
+artifacts
+dist
+target
+cli/target
+web/_build
+web/deps
+packages/condukt/generated
+web/priv/static/assets
+web/priv/static/cache_manifest.json
+web/priv/static/condukt

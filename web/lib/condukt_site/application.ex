@@ -12,6 +12,7 @@ defmodule ConduktSite.Application do
         repo_children() ++
         [
           ConduktSiteWeb.Docs.Cache,
+          ConduktSiteWeb.Blog.Cache,
           {DNSCluster, query: Application.get_env(:condukt_site, :dns_cluster_query) || :ignore},
           {Phoenix.PubSub, name: ConduktSite.PubSub},
           ConduktSiteWeb.Endpoint

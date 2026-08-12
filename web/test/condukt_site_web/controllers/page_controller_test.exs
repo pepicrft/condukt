@@ -6,7 +6,7 @@ defmodule ConduktSiteWeb.PageControllerTest do
     body = html_response(conn, 200)
     assert body =~ "One agent."
     assert body =~ "Every surface."
-    assert body =~ "Open-source coding agent · MIT licensed"
+    assert body =~ "Elixir library · Terminal CLI · Browser agent · MIT licensed"
     assert body =~ ~s(<noora-icon name="brand_github")
     assert body =~ ~s(href="/docs">Docs</a>)
     assert body =~ "condukt-browser-agent"

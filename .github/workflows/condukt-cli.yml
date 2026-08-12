@@ -1,0 +1,116 @@
+name: Condukt CLI
+
+on:
+  pull_request:
+    paths:
+      - "cli/**"
+      - "packages/condukt/**"
+      - "mise.toml"
+      - ".github/workflows/condukt-cli.yml"
+  push:
+    branches: [main]
+    paths:
+      - "cli/**"
+      - "packages/condukt/**"
+      - "mise.toml"
+      - ".github/workflows/condukt-cli.yml"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: short
+
+jobs:
+  build:
+    name: Build (no warnings)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: cli-build
+      - name: cargo build
+        run: cargo build --verbose --all-targets
+        env:
+          RUSTFLAGS: -D warnings
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: cli-test
+      - name: cargo test
+        run: cargo test --verbose --all-targets
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: cli-clippy
+      - name: cargo clippy
+        run: cargo clippy --all-targets --all-features -- --deny warnings
+
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: cargo fmt
+        run: cargo fmt --all -- --check
+
+  wasm-package:
+    name: WebAssembly package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
+        with:
+          install_args: "rust node cargo:wasm-pack"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          shared-key: cli-wasm
+      - name: Add WebAssembly target
+        run: rustup target add wasm32-unknown-unknown
+      - name: Build package
+        working-directory: packages/condukt
+        run: |
+          mkdir -p generated
+          wasm-pack build --release --target web --out-dir generated ../../cli/crates/condukt-wasm
+      - name: Replace generated files
+        working-directory: packages/condukt
+        run: |
+          rm -rf generated
+          cp -R ../../cli/crates/condukt-wasm/pkg generated
+      - name: Exercise package in Node.js
+        working-directory: packages/condukt
+        run: node --test test/*.test.mjs

@@ -552,6 +552,58 @@ noora-card[data-part="terminal"]::part(body) {
   scroll-margin-top: 96px;
 }
 
+[data-part="surfaces"] {
+  margin: 96px auto;
+  max-width: 1120px;
+  padding: 0 24px;
+}
+
+[data-part="surfaces-grid"] {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+[data-part="surface"] {
+  background: var(--paper-soft);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 28px;
+}
+
+[data-part="surface"] noora-icon {
+  --noora-icon-size: 28px;
+  --noora-icon-color: var(--purple-deep);
+}
+
+[data-part="surface"] h2 {
+  font-size: 22px;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  margin: 0;
+}
+
+[data-part="surface"] p {
+  color: var(--ink-soft);
+  flex: 1;
+  line-height: 1.6;
+  margin: 0;
+}
+
+[data-part="surface"] a {
+  color: var(--purple-deep);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+[data-part="surface"] a:hover {
+  text-decoration: underline;
+}
+
 [data-part="eyebrow"] {
   color: var(--purple-deep);
   font-size: 12px;

@@ -24,6 +24,7 @@ defmodule ConduktSiteWeb.Layouts do
 
           <nav data-part="site-navigation" aria-label="Primary navigation">
             <a data-part="navigation-link" href="#install">Install</a>
+            <a data-part="navigation-link" href={~p"/blog"}>Blog</a>
             <a data-part="navigation-link" href={~p"/docs"}>Docs</a>
             <a
               data-part="navigation-icon"

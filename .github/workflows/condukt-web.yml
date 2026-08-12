@@ -1,0 +1,87 @@
+name: Condukt web
+
+on:
+  pull_request:
+    paths:
+      - "cli/**"
+      - "web/**"
+      - "packages/condukt/**"
+      - "mise.toml"
+      - ".github/workflows/condukt-web.yml"
+  push:
+    branches: [main]
+    paths:
+      - "cli/**"
+      - "web/**"
+      - "packages/condukt/**"
+      - "mise.toml"
+      - ".github/workflows/condukt-web.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
+        with:
+          install_args: "rust node elixir erlang cargo:wasm-pack"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          shared-key: web-test
+      - name: Add WebAssembly target
+        run: rustup target add wasm32-unknown-unknown
+      - name: Install dependencies
+        run: mix deps.get --check-locked
+      - name: Test
+        run: mix test
+
+  release-image:
+    name: Release image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: ./web/Dockerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ghcr.io/tuist/condukt-site:sha-${{ github.sha }}
+            ghcr.io/tuist/condukt-site:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

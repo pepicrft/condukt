@@ -1,0 +1,20 @@
+<Layouts.app flash={@flash}>
+  <article data-part="blog-post">
+    <header data-part="blog-post-header">
+      <p data-part="blog-post-meta">
+        <span :if={@post.date}>{Calendar.strftime(@post.date, "%B %-d, %Y")}</span>
+        <span :if={@post.author}>· {@post.author}</span>
+      </p>
+      <h1>{@post.title}</h1>
+      <p :if={@post.description} data-part="blog-post-description">
+        {@post.description}
+      </p>
+    </header>
+
+    <div data-prose>{raw(@post.html)}</div>
+
+    <footer data-part="blog-post-footer">
+      <a href={~p"/blog"}>← Back to all posts</a>
+    </footer>
+  </article>
+</Layouts.app>
