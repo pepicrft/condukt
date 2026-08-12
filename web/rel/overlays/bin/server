@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+cd "$(dirname "$0")"
+
+if [ -n "${DATABASE_URL:-}" ]; then
+  ./migrate
+fi
+
+exec ./condukt_site start

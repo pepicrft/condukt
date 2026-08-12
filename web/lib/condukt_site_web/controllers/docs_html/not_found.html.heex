@@ -1,0 +1,12 @@
+<.docs_layout
+  current_slug={@current_slug}
+  tab={@tab}
+  headings={@headings}
+  markdown={@markdown}
+>
+  <article data-prose>
+    <h1>Page not found</h1>
+    <p>There is no documentation page at <code>{@current_slug}</code>.</p>
+    <p><a href={~p"/docs"}>Return to the documentation home.</a></p>
+  </article>
+</.docs_layout>

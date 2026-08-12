@@ -1,0 +1,32 @@
+<.docs_layout
+  current_slug={@current_slug}
+  tab={@tab}
+  headings={@headings}
+  markdown={@markdown}
+>
+  <div id="docs-overview">
+    <section data-part="docs-overview-hero">
+      <h1>What do you want to do with Condukt?</h1>
+      <p>
+        Follow the coding-agent journey to use Condukt in your projects, or follow the framework
+        journey to build an agent on its portable internals.
+      </p>
+    </section>
+
+    <div data-part="docs-persona-cards">
+      <a :for={card <- persona_cards()} href={card.href} data-part="docs-persona-card">
+        <div data-part="docs-persona-card-header">
+          <span data-part="docs-persona-card-eyebrow">{card.eyebrow}</span>
+          <span data-part="docs-persona-card-title">{card.title}</span>
+        </div>
+        <div data-part="docs-persona-card-body">
+          <p>{card.description}</p>
+          <ol>
+            <li :for={step <- card.steps}>{step}</li>
+          </ol>
+          <span data-part="docs-persona-card-cta">{card.cta} →</span>
+        </div>
+      </a>
+    </div>
+  </div>
+</.docs_layout>

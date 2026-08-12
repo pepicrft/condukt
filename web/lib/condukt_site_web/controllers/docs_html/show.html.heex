@@ -1,0 +1,27 @@
+<.docs_layout
+  current_slug={@current_slug}
+  tab={@tab}
+  headings={@headings}
+  markdown={@markdown}
+>
+  <article data-prose>{raw(@page.html)}</article>
+
+  <footer id="docs-page-footer">
+    <div data-part="docs-markdown-link">
+      <span>View</span>
+      <a href={docs_markdown_path(@current_slug)}>as Markdown</a>
+    </div>
+    <div data-part="docs-page-actions">
+      <noora-button
+        variant="secondary"
+        size="large"
+        href={docs_edit_path(@page.source_path)}
+        target="_blank"
+        rel="noreferrer"
+      >
+        <noora-icon name="pencil" label=""></noora-icon>
+        Edit this page
+      </noora-button>
+    </div>
+  </footer>
+</.docs_layout>

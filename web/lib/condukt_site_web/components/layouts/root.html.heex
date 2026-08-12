@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <meta
+      name="description"
+      content="Condukt is a portable agent runtime with inference and tools supplied by each host."
+    />
+    <meta name="theme-color" content="#ebe7ff" />
+    <title>
+      {if assigns[:page_title], do: "#{assigns[:page_title]} · Condukt", else: "Condukt"}
+    </title>
+    <link rel="icon" href={~p"/favicon.ico"} />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@tuist/noora@0.86.0/priv/static/tokens.css"
+      integrity="sha384-lrL+mByysSKFHLAJIOPcsN3sG85JCaLl9NjMDRAXtcox8TiVpk6+6xbJtljX+jK8"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <script
+      type="module"
+      src="https://cdn.jsdelivr.net/npm/@tuist/noora@0.86.0/priv/static/noora-web-components.js"
+      integrity="sha384-Bh5v5tOligzRcj5lSaylOQfOrIj0Yniwk1Y99S9BlevMFIz7dff2ntuqKyQ/3Nr4"
+      crossorigin="anonymous"
+    >
+    </script>
+    <script type="module" src={~p"/assets/js/app.js"}>
+    </script>
+  </head>
+  <body data-surface={if assigns[:docs], do: "docs", else: "marketing"}>
+    {@inner_content}
+  </body>
+</html>

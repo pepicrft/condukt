@@ -1,0 +1,65 @@
+<Layouts.app flash={@flash}>
+  <section data-part="home">
+    <header data-part="hero">
+      <div data-part="hero-content">
+        <noora-badge appearance="light-fill" color="primary" size="large" dot>
+          Open-source coding agent · MIT licensed
+        </noora-badge>
+
+        <h1>One agent.<br /><span>Every surface.</span></h1>
+        <p>
+          Condukt is a cross-platform agent framework and coding agent. Its conversation and agent
+          loop run on every surface, while each application supplies inference and only the tools
+          that make sense there.
+        </p>
+
+        <div data-part="hero-actions">
+          <noora-button variant="primary" size="large" href="#terminal">
+            Try Condukt in your browser
+          </noora-button>
+          <noora-button
+            variant="secondary"
+            size="large"
+            href="https://github.com/tuist/condukt"
+            target="_blank"
+            rel="noreferrer"
+          >
+            View on GitHub
+          </noora-button>
+        </div>
+      </div>
+
+      <div data-part="hero-visual" aria-hidden="true">
+        <span data-part="hero-mark">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </div>
+    </header>
+
+    <condukt-browser-agent
+      id="terminal"
+      connected={@connected}
+      provider="OpenRouter"
+      model={@inference_model}
+      inference-endpoint="/api/completions"
+      connect-url={~p"/auth/openrouter?#{%{return_to: "/#terminal"}}"}
+      disconnect-url={~p"/auth/openrouter"}
+      csrf-token={get_csrf_token()}
+    >
+    </condukt-browser-agent>
+
+    <section id="install" data-part="install">
+      <div data-part="install-copy">
+        <p data-part="eyebrow">Install</p>
+        <h2>Take Condukt to the terminal.</h2>
+        <p>
+          Install the coding agent globally with mise, then run <code>condukt</code>
+          from any project.
+        </p>
+      </div>
+      <condukt-install-command command="mise use -g github:tuist/condukt"></condukt-install-command>
+    </section>
+  </section>
+</Layouts.app>
