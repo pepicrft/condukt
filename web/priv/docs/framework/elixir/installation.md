@@ -17,4 +17,4 @@ mix deps.get
 ```
 
 Condukt is designed to live inside your own OTP supervision tree. Continue with
-[Getting Started](getting_started.md) to define your first agent.
+[Getting Started](getting-started.md) to define your first agent.

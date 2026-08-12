@@ -1,6 +1,6 @@
-# How Condukt works
+# Architecture
 
-Condukt separates the portable agent state machine from the capabilities owned by an application. The same state machine powers the terminal CLI, the browser package, and any other host.
+Condukt separates the agent state machine from the capabilities owned by an application. The same separation holds in both implementations: the [Elixir library](/framework/elixir) on the BEAM, and the Rust crates behind the terminal coding agent and the browser package.
 
 ## The host boundary
 
@@ -38,4 +38,4 @@ This boundary prevents a browser build from inheriting terminal authority merely
 
 Completion requests contain messages and tool definitions. Provider adapters translate that shape into the service-specific request and response formats. This keeps provider authentication and transport outside the core session.
 
-See the [host interface reference](/reference/host-interface) for the exact boundary.
+For the exact boundary, see the [host interface reference](/framework/rust/host-interface) in Rust, or [agents](/framework/elixir/agents) and [tools](/framework/elixir/tools) in Elixir, where the library drives the loop for you inside a supervised process.

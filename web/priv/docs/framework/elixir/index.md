@@ -1,4 +1,4 @@
-# Overview
+# Elixir library
 
 Condukt is an Elixir library for building reliable AI agents.
 
@@ -32,4 +32,17 @@ using idiomatic Elixir patterns.
 * Multi-provider LLM support through ReqLLM
 * Pluggable redaction, session secrets, compaction, persistence, and telemetry
 
-Start with [Installation](installation.md) and [Getting Started](getting_started.md).
+## Where to start
+
+| You want to | Read |
+| --- | --- |
+| Add the library to a project | [Installation](installation.md) |
+| Define and run your first agent | [Getting Started](getting-started.md) |
+| Give an agent capabilities | [Tools](tools.md) and [Sandbox](sandbox.md) |
+| Delegate work to child agents | [Sub-agents](subagents.md) |
+| Run an agent as an endpoint | [HTTP Routes](http-routes.md) |
+| Keep a conversation alive over time | [Sessions and Persistence](sessions-and-persistence.md) |
+
+The same agent model exists in Rust for native hosts and browsers. This library
+is the fuller implementation; the Rust crates are the portable core the terminal
+coding agent and the WebAssembly package are built on.

@@ -42,8 +42,8 @@ defmodule ConduktSiteWeb.Docs.Markdown do
              render: [unsafe: false]
            ] ++ @syntax_highlight
 
-  @spec render(String.t()) :: t()
-  def render(markdown) do
+  @spec render(String.t(), String.t()) :: t()
+  def render(markdown, base_slug \\ "/docs") do
     source = strip_frontmatter(markdown)
     rendered = MDEx.to_html!(source, @options)
     tree = Floki.parse_fragment!(rendered)
@@ -53,7 +53,10 @@ defmodule ConduktSiteWeb.Docs.Markdown do
       title: extract_title(tree),
       headings: extract_headings(tree),
       html:
-        rendered |> HTML.wrap_code_blocks() |> HTML.add_heading_anchors() |> HTML.rewrite_links(),
+        rendered
+        |> HTML.wrap_code_blocks()
+        |> HTML.add_heading_anchors()
+        |> HTML.rewrite_links(base_slug),
       markdown: source
     }
   end

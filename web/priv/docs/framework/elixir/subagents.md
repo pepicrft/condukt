@@ -194,7 +194,7 @@ and MCP servers behave the same way: a child does not see MCP servers
 declared on the parent. Declare them per role:
 
 - Named sub-agent modules expose their own `mcp_servers/0` callback. See
-  `guides/mcp.md`.
+  [MCP](mcp.md).
 - Anonymous sub-agents can opt in inline with `:mcp_servers` in the role
   opts:
 

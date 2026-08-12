@@ -264,7 +264,7 @@ For a running agent process, the `Condukt` module also forwards these calls to
 * `Condukt.steer/2` injects a message mid run, skipping remaining tool calls
 * `Condukt.follow_up/2` queues a message to be delivered after the current run
 
-See the [One-Shot Runs guide](one_shot_runs.md) for prompt-first one-shot runs
+See the [One-Shot Runs guide](one-shot-runs.md) for prompt-first one-shot runs
 without an agent module.
 
 ## Handling events in the agent module

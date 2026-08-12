@@ -95,6 +95,11 @@ body[data-surface="docs"] condukt-docs-shell {
   padding: var(--noora-spacing-1);
 }
 
+[data-part="docs-tabs"][data-empty] {
+  background: transparent;
+  box-shadow: none;
+}
+
 [data-part="docs-tab"] {
   border-radius: var(--noora-radius-3);
   padding: var(--noora-spacing-3) var(--noora-spacing-5);

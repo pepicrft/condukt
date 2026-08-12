@@ -30,7 +30,7 @@
   `:workspace_source` git repository when the image includes `git`.
 - `Condukt.Tools.Command` is the explicit exception: it runs a host-allowlisted
   executable directly, by design, and is not sandbox-routed.
-- See `guides/sandbox.md` for behaviour shape and how to add custom sandboxes.
+- See `web/priv/docs/framework/elixir/sandbox.md` for behaviour shape and how to add custom sandboxes.
 
 ## Network Policy
 
@@ -69,7 +69,7 @@
   PR by `.github/workflows/condukt-egress.yml`. Workspace MITM trust
   is injected by the pod spec with no image preparation (Java
   keystores excepted).
-- See `guides/network_policy.md` for topology, the policy/decider
+- See `web/priv/docs/framework/elixir/network-policy.md` for topology, the policy/decider
   model, context shape, telemetry, trust-injection details, and
   limitations. Keep deep architecture there, not here.
 
@@ -77,7 +77,7 @@
 
 - Condukt connects to external Model Context Protocol servers as a
   client, exposing each server's tools to agents under `<server>.<tool>`
-  ids. See `guides/mcp.md` for transports and auth shapes.
+  ids. See `web/priv/docs/framework/elixir/mcp.md` for transports and auth shapes.
 - Three transports are supported: `stdio` (subprocess + newline JSON-RPC),
   `http_sse` (legacy 2024-11 HTTP+SSE), and `streamable_http` (2025-03-26).
   No MCP server mode in v1.
@@ -120,7 +120,7 @@
 - Child sessions inherit the parent `:sandbox`, `:cwd`, `:model`,
   `:thinking_level`, `:api_key`, `:base_url`, and resolved `:secrets` unless
   those values are overridden in the role registration opts.
-- See `guides/subagents.md` for declaration, inheritance, and supervision
+- See `web/priv/docs/framework/elixir/subagents.md` for declaration, inheritance, and supervision
   details.
 
 ## Agent runtimes
@@ -140,7 +140,7 @@
   native tool-loop callbacks as native-only unless a runtime adapter documents
   an explicit mapping. Use `system_prompt/0` for durable guidance to
   runtime-backed agents; Condukt passes the composed prompt to the runtime.
-- See `guides/agents.md` for runtime boundary and callback implications.
+- See `web/priv/docs/framework/elixir/agents.md` for runtime boundary and callback implications.
 
 ## Native NIFs
 
@@ -207,7 +207,7 @@ The published npm package `@tuist/condukt` is generated from the `condukt-wasm` 
 
 The marketing site, public docs, and browser inference endpoint live under `web/` as a Phoenix application named `condukt_site` (modules under `ConduktSite.*`). It serves the install story, hosts the documentation pages, and proxies the browser-side agent through a same-origin `/api/completions` endpoint.
 
-- Source: `web/lib/`, `web/priv/`, `web/assets/`, `web/config/`, `web/test/`. Docs source files live under `web/priv/docs/{guide,reference}/`. Blog posts live under `web/priv/blog/posts/`.
+- Source: `web/lib/`, `web/priv/`, `web/assets/`, `web/config/`, `web/test/`. Docs source files live under `web/priv/docs/{cli,framework}/`. Blog posts live under `web/priv/blog/posts/`.
 - Package manager: [Hex](https://hex.pm/) for Elixir dependencies; `npm` is not used in the web app.
 - Build: `cd web && mix deps.get && mix assets.deploy && mix release`.
 - Local preview: `cd web && mix setup && mix phx.server`. The server prints a worktree-specific address; each Git worktree receives a stable suffix from 100 through 999 and uses port `4000 + suffix` plus a database named `condukt_site_dev_SUFFIX`. Tests use `4002 + suffix` and `condukt_site_test_SUFFIX`. Set `CONDUKT_SITE_DEV_INSTANCE` to an unused suffix when an explicit value is useful.
@@ -215,14 +215,18 @@ The marketing site, public docs, and browser inference endpoint live under `web/
 - WASM artifacts: the release image bundles `priv/static/condukt/generated/condukt_wasm_bg.wasm` plus the `condukt-wasm` JavaScript glue. The web page imports them as `/condukt/index.js` and `/condukt/generated/condukt_wasm.js`. The esbuild config treats `/condukt/*` as external.
 - The web app does not depend on the `condukt` Elixir library. It is a marketing, docs, and browser inference surface only. The hosted Condukt service is not in scope.
 
-## Documentation (`guides/`)
+## Documentation (`web/priv/docs/`)
 
-Per-feature ExDoc pages live under `guides/` and are wired into `mix.exs` via `extras` and `groups_for_extras`. They are published to HexDocs alongside the API reference.
+All prose documentation has a single source under `web/priv/docs/`, served by the Phoenix site and, for the Elixir pages, published to HexDocs by ExDoc. There is no `guides/` directory.
 
-- When adding, removing, or meaningfully changing a feature (tools, sessions, compaction, redaction, providers, telemetry, project instructions, streaming, etc.), update the corresponding page under `guides/` in the same change.
-- When introducing a new top-level feature, add a new guide page and register it in both `extras` and `groups_for_extras` in `mix.exs`.
-- Avoid em dashes in guide prose (use colons, commas, or periods).
-- Verify with `mix docs` before committing.
+- `web/priv/docs/cli/`: the terminal coding agent journey ("Use Condukt").
+- `web/priv/docs/framework/`: the framework journey ("Build agents"), with `elixir/` for the Hex library and `rust/` for the crates and the browser package.
+- The Elixir pages under `web/priv/docs/framework/elixir/` are also the ExDoc extras. They are listed in `mix.exs` under `extras` and `groups_for_extras`, and the root mix `package` includes that directory.
+- Cross-link rules: pages that are ExDoc extras link to their siblings with relative Markdown paths (`tools.md`, `sandbox.md#custom`) so both surfaces resolve them. Site-only pages link with root-relative paths (`/framework/rust/browser`), which the site rewrites to `/docs/...`.
+- When adding, removing, or meaningfully changing a feature (tools, sessions, compaction, redaction, providers, telemetry, project instructions, streaming, etc.), update the corresponding page in the same change.
+- When adding a page, register it in `web/lib/condukt_site_web/docs/navigation.ex`, and, for an Elixir page, in both `extras` and `groups_for_extras` in `mix.exs`. `mix test` in `web/` fails on navigation entries and internal links that point at missing pages.
+- Avoid em dashes in documentation prose (use colons, commas, or periods).
+- Verify with `mix docs` at the repository root and `mix test` in `web/` before committing.
 
 ## Keeping this file up to date
 

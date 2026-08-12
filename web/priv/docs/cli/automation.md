@@ -26,6 +26,6 @@ Use `--color never` when logs must not contain terminal color sequences. Add `--
 
 For unattended tasks, set `CONDUKT_OPENROUTER_API_KEY` in the job environment. Avoid placing credentials directly in command history or configuration committed with the project.
 
-Use `CONDUKT_CREDENTIAL_DIR` when parallel jobs need isolated, lock-protected credential storage. Learn more in [providers and credentials](/guide/credentials).
+Use `CONDUKT_CREDENTIAL_DIR` when parallel jobs need isolated, lock-protected credential storage. Learn more in [providers and credentials](/cli/credentials).
 
-See the [command-line reference](/reference/command-line) for all execution options.
+See the [command-line reference](/cli/command-line) for all execution options.

@@ -26,4 +26,4 @@ The editor launches the process and communicates through standard input and outp
 
 The editor presents the conversation, but the Condukt process still owns its local workspace tools. Start it only for projects where those capabilities are appropriate.
 
-See [providers and credentials](/guide/credentials) for credential storage and unattended environments. See the [command-line reference](/reference/command-line) for the exact command.
+See [providers and credentials](/cli/credentials) for credential storage and unattended environments. See the [command-line reference](/cli/command-line) for the exact command.

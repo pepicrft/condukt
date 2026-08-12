@@ -96,7 +96,7 @@ Common options to `start_link/1`:
 * `:api_key` overrides `config :condukt, :api_key`
 * `:model` accepts the ReqLLM `provider:model` format
 * `:cwd` sets the working directory used by file and shell tools
-* `:session_store` enables conversation persistence (see [Sessions and Persistence](sessions_and_persistence.md))
+* `:session_store` enables conversation persistence (see [Sessions and Persistence](sessions-and-persistence.md))
 * `:compactor` keeps context bounded over long runs (see [Compaction](compaction.md))
 * `:redactor` strips secrets from outbound messages (see [Redaction](redaction.md))
 
@@ -123,7 +123,7 @@ end)
 |> Stream.run()
 ```
 
-The full event vocabulary is described in [Streaming and Events](streaming_and_events.md).
+The full event vocabulary is described in [Streaming and Events](streaming-and-events.md).
 
 ## Add it to a supervision tree
 

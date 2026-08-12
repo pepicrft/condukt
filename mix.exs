@@ -80,54 +80,54 @@ defmodule Condukt.MixProject do
     [
       main: "overview",
       extras: [
-        "guides/overview.md": [title: "Overview"],
-        "guides/installation.md": [title: "Installation"],
-        "guides/getting_started.md": [title: "Getting Started"],
-        "guides/agents.md": [title: "Agents"],
-        "guides/one_shot_runs.md": [title: "One-Shot Runs"],
-        "guides/tools.md": [title: "Tools"],
-        "guides/subagents.md": [title: "Sub-agents"],
-        "guides/mcp.md": [title: "MCP"],
-        "guides/http_routes.md": [title: "HTTP Routes"],
-        "guides/sandbox.md": [title: "Sandbox"],
-        "guides/network_policy.md": [title: "Network Policy"],
-        "guides/streaming_and_events.md": [title: "Streaming and Events"],
-        "guides/sessions_and_persistence.md": [title: "Sessions and Persistence"],
-        "guides/compaction.md": [title: "Compaction"],
-        "guides/redaction.md": [title: "Redaction"],
-        "guides/secrets.md": [title: "Secrets"],
-        "guides/project_instructions.md": [title: "Project Instructions"],
-        "guides/telemetry.md": [title: "Telemetry"],
-        "guides/providers.md": [title: "Providers"],
+        "web/priv/docs/framework/elixir/index.md": [title: "Overview", filename: "overview"],
+        "web/priv/docs/framework/elixir/installation.md": [title: "Installation"],
+        "web/priv/docs/framework/elixir/getting-started.md": [title: "Getting Started"],
+        "web/priv/docs/framework/elixir/agents.md": [title: "Agents"],
+        "web/priv/docs/framework/elixir/one-shot-runs.md": [title: "One-Shot Runs"],
+        "web/priv/docs/framework/elixir/tools.md": [title: "Tools"],
+        "web/priv/docs/framework/elixir/subagents.md": [title: "Sub-agents"],
+        "web/priv/docs/framework/elixir/mcp.md": [title: "MCP"],
+        "web/priv/docs/framework/elixir/http-routes.md": [title: "HTTP Routes"],
+        "web/priv/docs/framework/elixir/sandbox.md": [title: "Sandbox"],
+        "web/priv/docs/framework/elixir/network-policy.md": [title: "Network Policy"],
+        "web/priv/docs/framework/elixir/streaming-and-events.md": [title: "Streaming and Events"],
+        "web/priv/docs/framework/elixir/sessions-and-persistence.md": [title: "Sessions and Persistence"],
+        "web/priv/docs/framework/elixir/compaction.md": [title: "Compaction"],
+        "web/priv/docs/framework/elixir/redaction.md": [title: "Redaction"],
+        "web/priv/docs/framework/elixir/secrets.md": [title: "Secrets"],
+        "web/priv/docs/framework/elixir/project-instructions.md": [title: "Project Instructions"],
+        "web/priv/docs/framework/elixir/telemetry.md": [title: "Telemetry"],
+        "web/priv/docs/framework/elixir/providers.md": [title: "Providers"],
         "CHANGELOG.md": [title: "Changelog"]
       ],
       groups_for_extras: [
         Introduction: [
-          "guides/overview.md",
-          "guides/installation.md",
-          "guides/getting_started.md"
+          "web/priv/docs/framework/elixir/index.md",
+          "web/priv/docs/framework/elixir/installation.md",
+          "web/priv/docs/framework/elixir/getting-started.md"
         ],
         Agents: [
-          "guides/agents.md",
-          "guides/one_shot_runs.md",
-          "guides/tools.md",
-          "guides/subagents.md"
+          "web/priv/docs/framework/elixir/agents.md",
+          "web/priv/docs/framework/elixir/one-shot-runs.md",
+          "web/priv/docs/framework/elixir/tools.md",
+          "web/priv/docs/framework/elixir/subagents.md"
         ],
         Integrations: [
-          "guides/mcp.md",
-          "guides/http_routes.md"
+          "web/priv/docs/framework/elixir/mcp.md",
+          "web/priv/docs/framework/elixir/http-routes.md"
         ],
         Guides: [
-          "guides/sandbox.md",
-          "guides/network_policy.md",
-          "guides/streaming_and_events.md",
-          "guides/sessions_and_persistence.md",
-          "guides/compaction.md",
-          "guides/redaction.md",
-          "guides/secrets.md",
-          "guides/project_instructions.md",
-          "guides/telemetry.md",
-          "guides/providers.md"
+          "web/priv/docs/framework/elixir/sandbox.md",
+          "web/priv/docs/framework/elixir/network-policy.md",
+          "web/priv/docs/framework/elixir/streaming-and-events.md",
+          "web/priv/docs/framework/elixir/sessions-and-persistence.md",
+          "web/priv/docs/framework/elixir/compaction.md",
+          "web/priv/docs/framework/elixir/redaction.md",
+          "web/priv/docs/framework/elixir/secrets.md",
+          "web/priv/docs/framework/elixir/project-instructions.md",
+          "web/priv/docs/framework/elixir/telemetry.md",
+          "web/priv/docs/framework/elixir/providers.md"
         ],
         Reference: [
           "CHANGELOG.md"
@@ -219,7 +219,7 @@ defmodule Condukt.MixProject do
         "GitHub" => @source_url
       },
       files:
-        ~w(lib guides priv/ca-certificates native/condukt_bashkit/Cargo.toml native/condukt_bashkit/Cargo.lock native/condukt_bashkit/src native/condukt_bashkit/.cargo native/condukt_bashkit/rust-toolchain.toml native/condukt_bashkit/README.md native/condukt_microsandbox/Cargo.toml native/condukt_microsandbox/Cargo.lock native/condukt_microsandbox/src native/condukt_microsandbox/rust-toolchain.toml native/condukt_microsandbox/README.md checksum-Elixir.Condukt.Bashkit.NIF.exs checksum-Elixir.Condukt.Microsandbox.NIF.exs .formatter.exs mix.exs README.md CHANGELOG.md LICENSE MIT.md)
+        ~w(lib web/priv/docs/framework/elixir priv/ca-certificates native/condukt_bashkit/Cargo.toml native/condukt_bashkit/Cargo.lock native/condukt_bashkit/src native/condukt_bashkit/.cargo native/condukt_bashkit/rust-toolchain.toml native/condukt_bashkit/README.md native/condukt_microsandbox/Cargo.toml native/condukt_microsandbox/Cargo.lock native/condukt_microsandbox/src native/condukt_microsandbox/rust-toolchain.toml native/condukt_microsandbox/README.md checksum-Elixir.Condukt.Bashkit.NIF.exs checksum-Elixir.Condukt.Microsandbox.NIF.exs .formatter.exs mix.exs README.md CHANGELOG.md LICENSE MIT.md)
     ]
   end
 

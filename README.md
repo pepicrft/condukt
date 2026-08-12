@@ -138,7 +138,6 @@ that signs developers in with OpenRouter and proxies the completion request.
 condukt/
 ├── lib/                  # Elixir library
 ├── native/               # Rust NIFs (bashkit, microsandbox, egress)
-├── guides/               # ExDoc guides for HexDocs
 ├── cli/                  # Rust workspace for the terminal CLI
 │   └── crates/
 │       ├── condukt/         # binary
@@ -148,16 +147,19 @@ condukt/
 │       ├── condukt-session/
 │       ├── condukt-tools/
 │       └── condukt-wasm/
-├── web/                  # Phoenix marketing, docs, and browser endpoint
+├── web/                  # Phoenix marketing site, documentation source, browser endpoint
+│   └── priv/docs/           # single source for docs and the ExDoc extras
 ├── packages/condukt/     # @tuist/condukt npm package
 └── .github/workflows/    # CI for library, CLI, and web
 ```
 
 ## Documentation
 
-Start with the [library docs on HexDocs](https://hexdocs.pm/condukt/overview.html),
-then follow [the site docs](https://condukt.tuist.dev/docs) for the CLI and
-browser surfaces.
+All documentation lives in `web/priv/docs`. Read it on
+[the site](https://condukt.tuist.dev/docs), which covers the coding agent, the
+Elixir library, and the Rust and browser surfaces. The Elixir pages are also
+published to [HexDocs](https://hexdocs.pm/condukt/overview.html) alongside the
+API reference.
 
 ## License
 

@@ -37,4 +37,4 @@ Use `CONDUKT_CREDENTIAL_DIR` to give a test harness or parallel job an isolated 
 
 Credentials follow the [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/latest/). Condukt uses `$XDG_CONFIG_HOME/condukt` when configured and otherwise falls back to `~/.config/condukt`.
 
-See [automation](/guide/automation) for non-interactive tasks and the [command-line reference](/reference/command-line) for credential commands.
+See [automation](/cli/automation) for non-interactive tasks and the [command-line reference](/cli/command-line) for credential commands.

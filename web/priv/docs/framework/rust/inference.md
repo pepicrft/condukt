@@ -35,4 +35,4 @@ Authentication is host-driven because different surfaces have different browser,
 
 The host owns the model name. A terminal application may choose a stable default, while an embedding application can select a model for its own latency, capability, or cost requirements.
 
-Continue with [defining tools](/reference/tools) or the lower-level [host interface](/reference/host-interface).
+Continue with [defining tools](/framework/rust/tools) or the lower-level [host interface](/framework/rust/host-interface).

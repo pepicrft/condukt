@@ -57,4 +57,4 @@ Browser tools are ordinary asynchronous functions. Treat the registry as an auth
 
 A browser host does not receive filesystem or shell tools unless the application explicitly builds and registers equivalent capabilities.
 
-Next, learn how to [provide inference](/guide/inference), [define explicit tools](/reference/tools), or inspect the complete [browser package reference](/reference/browser-package).
+Next, learn how to [provide inference](/framework/rust/inference), [define explicit tools](/framework/rust/tools), or inspect the complete [browser package reference](/framework/rust/browser-package).

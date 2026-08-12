@@ -39,6 +39,6 @@ Find the failing test, explain the root cause, and propose the smallest safe fix
 
 ## Continue elsewhere
 
-Use [editor integration](/guide/editor) when another application should present the conversation. Use [automation](/guide/automation) when you need one non-interactive task.
+Use [editor integration](/cli/editor) when another application should present the conversation. Use [automation](/cli/automation) when you need one non-interactive task.
 
-See the [command-line reference](/reference/command-line) for every terminal option.
+See the [command-line reference](/cli/command-line) for every terminal option.

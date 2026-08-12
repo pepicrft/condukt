@@ -47,7 +47,7 @@ Add `--verbose` to print tool activity to standard error. Add `--json` for a mac
 
 ## Choose your next workflow
 
-- Continue in the [interactive terminal](/guide/terminal).
-- Connect Condukt to a [compatible editor](/guide/editor).
-- Run repeatable tasks through [automation](/guide/automation).
-- Review [providers and credentials](/guide/credentials) before using Condukt unattended.
+- Continue in the [interactive terminal](/cli/terminal).
+- Connect Condukt to a [compatible editor](/cli/editor).
+- Run repeatable tasks through [automation](/cli/automation).
+- Review [providers and credentials](/cli/credentials) before using Condukt unattended.

@@ -18,7 +18,7 @@ defmodule Condukt.Sandbox.NetworkPolicy.K8s do
     * Starting and stopping the BEAM-side control reader that decodes
       NDJSON events from the sidecar
 
-  See `guides/net.md` for the full picture.
+  See `web/priv/docs/framework/elixir/network-policy.md` for the full picture.
   """
 
   alias Condukt.Sandbox.NetworkPolicy

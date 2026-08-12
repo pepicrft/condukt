@@ -20,7 +20,6 @@ product surfaces (library, CLI, web), one wire protocol in the middle.
 condukt/
 ├── lib/                          # Elixir library (unchanged)
 ├── test/                         # Elixir tests (unchanged)
-├── guides/                       # ExDoc guides for HexDocs (unchanged)
 ├── native/                       # Existing NIFs (unchanged)
 │   ├── condukt_bashkit/
 │   ├── condukt_egress/
@@ -167,19 +166,13 @@ surfaces:
 Condukt's existing `index.njk` features section is a useful source for the
 library copy. The plasma `home.html.heex` is the visual base.
 
-**The `guides/` directory.** ExDoc generates HTML from these and publishes
-them to HexDocs. They must stay in `guides/`. The Phoenix site already has
-its own `priv/docs/{guide,reference}/` tree with overlapping topics
-(`installation`, `tools`, `agents`, `network_policy`, `compaction`, etc.). The
-right outcome is:
-
-- `guides/*.md` keeps the ExDoc role: it is the API reference for HexDocs.
-- `web/priv/docs/{guide,reference}/*.md` is the human-facing site docs.
-
-When the same topic appears in both, the site copy is the source of truth
-(tone, ordering, examples), and the ExDoc version stays a tight reference.
-The reconciliation pass rewrites whichever side is weaker. This is a
-content pass, not a code pass, and it touches ~30 markdown files.
+**The `guides/` directory.** The plan assumed the ExDoc guides would stay in
+`guides/` next to a separate site tree. The reconciliation pass went further:
+`guides/` is gone, and every page now lives once under `web/priv/docs/`. The
+site serves the whole tree, and `mix.exs` points its ExDoc `extras` at
+`web/priv/docs/framework/elixir/*.md`, so HexDocs and the site render the same
+files. The site tree is organized by journey (`cli/`, `framework/elixir/`,
+`framework/rust/`) rather than by genre (`guide/`, `reference/`).
 
 **Blog.** Condukt's blog at `website/src/blog/posts/` (Eleventy) has 4 posts
 that predate the CLI. The Phoenix site has no blog. Two options:

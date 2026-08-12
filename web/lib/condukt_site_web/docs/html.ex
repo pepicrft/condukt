@@ -3,6 +3,8 @@ defmodule ConduktSiteWeb.Docs.HTML do
 
   @code_block_regex ~r/<pre[^>]*><code(?:[^>]*class="language-([^"]+)")?[^>]*>(.*?)<\/code><\/pre>/s
   @heading_regex ~r/<h([2-4]) id="([^"]*)">(.*?)<a[^>]*class="anchor"[^>]*><\/a><\/h\1>/s
+  @site_link_regex ~r/href="(\/(?:cli|framework)(?:\/[^"]*)?)"/
+  @relative_link_regex ~r/href="([a-z0-9-]+)\.md(#[^"]*)?"/
 
   @spec wrap_code_blocks(String.t()) :: String.t()
   def wrap_code_blocks(html) do
@@ -27,10 +29,27 @@ defmodule ConduktSiteWeb.Docs.HTML do
     end)
   end
 
-  @spec rewrite_links(String.t()) :: String.t()
-  def rewrite_links(html) do
-    Regex.replace(~r/href="(\/(?:guide|reference)(?:\/[^"]*)?)"/, html, ~s(href="/docs\\1"))
+  @doc """
+  Resolves documentation links to site paths.
+
+  Site-authored pages link to other sections with root-relative paths such as
+  `/framework/elixir`. Pages that are also published as ExDoc extras link to
+  their siblings with relative Markdown paths such as `tools.md`, which resolve
+  against the directory the page lives in.
+  """
+  @spec rewrite_links(String.t(), String.t()) :: String.t()
+  def rewrite_links(html, base_slug) do
+    html
+    |> then(&Regex.replace(@site_link_regex, &1, ~s(href="/docs\\1")))
+    |> then(
+      &Regex.replace(@relative_link_regex, &1, fn _full, page, fragment ->
+        ~s(href="#{sibling_slug(base_slug, page)}#{fragment}")
+      end)
+    )
   end
+
+  defp sibling_slug(base_slug, "index"), do: base_slug
+  defp sibling_slug(base_slug, page), do: "#{base_slug}/#{page}"
 
   defp copy_source(code) do
     code

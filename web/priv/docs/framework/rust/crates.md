@@ -30,8 +30,8 @@ Use it as an architectural example when building another application, but keep h
 
 ## Choose a starting point
 
-- Use `@tuist/condukt` and the [browser quickstart](/guide/browser) for a web application.
-- Use `condukt_session::HostSession` and the [host interface](/reference/host-interface) for a custom asynchronous host.
+- Use `@tuist/condukt` and the [browser quickstart](/framework/rust/browser) for a web application.
+- Use `condukt_session::HostSession` and the [host interface](/framework/rust/host-interface) for a custom asynchronous host.
 - Use `condukt_session::Session` with an `InferenceProvider` and `ToolDispatcher` for a synchronous native host.
 
-Review [how Condukt works](/guide/how-condukt-works) before coupling a new host to a lower-level crate.
+Review [how Condukt works](/framework/architecture) before coupling a new host to a lower-level crate.

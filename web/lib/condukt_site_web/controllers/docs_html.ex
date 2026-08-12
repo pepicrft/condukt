@@ -12,27 +12,28 @@ defmodule ConduktSiteWeb.DocsHTML do
       %{
         eyebrow: "Coding agent",
         title: "Use Condukt",
-        description: "Install Condukt and put its terminal coding agent to work in your projects.",
+        description:
+          "Install Condukt and put its terminal coding agent to work in your projects.",
         steps: [
           "Install and connect",
           "Choose a terminal or editor workflow",
           "Automate repeatable tasks"
         ],
         cta: "Start using Condukt",
-        href: "/docs/guide"
+        href: "/docs/cli"
       },
       %{
         eyebrow: "Agent framework",
         title: "Build your own agent",
         description:
-          "Reuse Condukt's state machine while your application owns inference, tools, and presentation.",
+          "Build an agent on Condukt's own primitives, in Elixir on the BEAM or in Rust and the browser.",
         steps: [
-          "Understand the host boundary",
-          "Provide inference and explicit tools",
-          "Embed in a browser or native host"
+          "Learn the agent loop and the host boundary",
+          "Build an OTP agent with the Elixir library",
+          "Embed the portable session in a browser or native host"
         ],
         cta: "Start building an agent",
-        href: "/docs/reference"
+        href: "/docs/framework"
       }
     ]
   end

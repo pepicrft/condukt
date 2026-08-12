@@ -51,4 +51,4 @@ Treat model-produced arguments as untrusted input:
 
 When driving the lower-level host session, return exactly one output for every requested tool call and preserve each call identifier. Condukt rejects mismatched or duplicate results so the conversation remains recoverable.
 
-Continue with the [host interface](/reference/host-interface) or inspect the higher-level [browser package](/reference/browser-package).
+Continue with the [host interface](/framework/rust/host-interface) or inspect the higher-level [browser package](/framework/rust/browser-package).

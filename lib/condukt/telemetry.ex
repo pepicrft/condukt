@@ -11,7 +11,7 @@ defmodule Condukt.Telemetry do
   that spin one up) carries a `:session_id` field in metadata. Sessions
   generate a UUIDv7 on start unless the caller supplies an `:id` option;
   downstream consumers can use it to correlate every event for a single run
-  in their observability stack. See `guides/telemetry.md` for details.
+  in their observability stack. See `web/priv/docs/framework/elixir/telemetry.md` for details.
 
   ### Agent Events
 

@@ -16,13 +16,13 @@ defmodule ConduktSiteWeb.Docs.Cache do
   def start_link(opts),
     do: GenServer.start_link(__MODULE__, :ok, Keyword.put(opts, :name, __MODULE__))
 
-  @spec get(Path.t()) :: Markdown.t()
-  def get(file) do
+  @spec get(Path.t(), String.t()) :: Markdown.t()
+  def get(file, base_slug) do
     modified_at = modified_at(file)
 
     case :ets.lookup(@table, file) do
       [{^file, ^modified_at, page}] -> page
-      _ -> GenServer.call(__MODULE__, {:render, file, modified_at})
+      _ -> GenServer.call(__MODULE__, {:render, file, base_slug, modified_at})
     end
   end
 
@@ -33,14 +33,14 @@ defmodule ConduktSiteWeb.Docs.Cache do
   end
 
   @impl true
-  def handle_call({:render, file, modified_at}, _from, state) do
+  def handle_call({:render, file, base_slug, modified_at}, _from, state) do
     page =
       case :ets.lookup(@table, file) do
         [{^file, ^modified_at, page}] ->
           page
 
         _ ->
-          page = file |> File.read!() |> Markdown.render()
+          page = file |> File.read!() |> Markdown.render(base_slug)
           :ets.insert(@table, {file, modified_at, page})
           page
       end

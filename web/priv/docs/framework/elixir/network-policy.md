@@ -341,7 +341,7 @@ namespace. A policy that uses a `:decide` rule also needs
   verbs: ["create"]
 ```
 
-See `guides/sandbox.md` for the base RBAC bundle.
+See [Sandbox](sandbox.md) for the base RBAC bundle.
 
 ## Images
 

@@ -21,14 +21,8 @@ defmodule ConduktSiteWeb.Docs.Navigation do
   alias __MODULE__.{Group, Item}
 
   @spec tab_for_slug(String.t()) :: :home | :use_condukt | :build_agents
-  def tab_for_slug("/docs/reference/command-line"), do: :use_condukt
-
-  def tab_for_slug("/docs/guide/" <> page)
-      when page in ["how-condukt-works", "browser", "inference"],
-      do: :build_agents
-
-  def tab_for_slug("/docs/reference" <> _), do: :build_agents
-  def tab_for_slug("/docs/guide" <> _), do: :use_condukt
+  def tab_for_slug("/docs/cli" <> _), do: :use_condukt
+  def tab_for_slug("/docs/framework" <> _), do: :build_agents
   def tab_for_slug(_), do: :home
 
   @spec tree_for_tab(:home | :use_condukt | :build_agents) :: [Group.t()]
@@ -40,20 +34,21 @@ defmodule ConduktSiteWeb.Docs.Navigation do
     [
       %Group{
         label: "Use Condukt",
-        icon: "devices_code",
+        icon: "device_desktop",
         items: [
-          %Item{label: "Coding agent overview", slug: "/docs/guide"},
-          %Item{label: "Install and connect", slug: "/docs/guide/getting-started"},
-          %Item{label: "Terminal coding agent", slug: "/docs/guide/terminal"}
+          %Item{label: "Coding agent overview", slug: "/docs/cli"},
+          %Item{label: "Install and connect", slug: "/docs/cli/getting-started"},
+          %Item{label: "Terminal coding agent", slug: "/docs/cli/terminal"}
         ]
       },
       %Group{
         label: "Build agents",
         icon: "subtask",
         items: [
-          %Item{label: "Framework overview", slug: "/docs/reference"},
-          %Item{label: "Architecture", slug: "/docs/guide/how-condukt-works"},
-          %Item{label: "Browser quickstart", slug: "/docs/guide/browser"}
+          %Item{label: "Framework overview", slug: "/docs/framework"},
+          %Item{label: "Architecture", slug: "/docs/framework/architecture"},
+          %Item{label: "Elixir library", slug: "/docs/framework/elixir"},
+          %Item{label: "Rust and browser", slug: "/docs/framework/rust"}
         ]
       }
     ]
@@ -65,31 +60,31 @@ defmodule ConduktSiteWeb.Docs.Navigation do
         label: "Start here",
         icon: "book_2",
         items: [
-          %Item{label: "Overview", slug: "/docs/guide"},
-          %Item{label: "Install and connect", slug: "/docs/guide/getting-started"}
+          %Item{label: "Overview", slug: "/docs/cli"},
+          %Item{label: "Install and connect", slug: "/docs/cli/getting-started"}
         ]
       },
       %Group{
         label: "Work with Condukt",
-        icon: "devices_code",
+        icon: "device_desktop",
         items: [
-          %Item{label: "Terminal coding agent", slug: "/docs/guide/terminal"},
-          %Item{label: "Editor integration", slug: "/docs/guide/editor"},
-          %Item{label: "Automation", slug: "/docs/guide/automation"}
+          %Item{label: "Terminal coding agent", slug: "/docs/cli/terminal"},
+          %Item{label: "Editor integration", slug: "/docs/cli/editor"},
+          %Item{label: "Automation", slug: "/docs/cli/automation"}
         ]
       },
       %Group{
         label: "Configuration",
         icon: "settings",
         items: [
-          %Item{label: "Providers and credentials", slug: "/docs/guide/credentials"}
+          %Item{label: "Providers and credentials", slug: "/docs/cli/credentials"}
         ]
       },
       %Group{
         label: "Reference",
         icon: "list_tree",
         items: [
-          %Item{label: "Command-line reference", slug: "/docs/reference/command-line"}
+          %Item{label: "Command-line reference", slug: "/docs/cli/command-line"}
         ]
       }
     ]
@@ -101,26 +96,73 @@ defmodule ConduktSiteWeb.Docs.Navigation do
         label: "Start here",
         icon: "book_2",
         items: [
-          %Item{label: "Overview", slug: "/docs/reference"},
-          %Item{label: "Architecture", slug: "/docs/guide/how-condukt-works"},
-          %Item{label: "Browser quickstart", slug: "/docs/guide/browser"}
+          %Item{label: "Framework overview", slug: "/docs/framework"},
+          %Item{label: "Architecture", slug: "/docs/framework/architecture"}
         ]
       },
       %Group{
-        label: "Build a host",
-        icon: "subtask",
+        label: "Elixir library",
+        icon: "atom",
         items: [
-          %Item{label: "Provide inference", slug: "/docs/guide/inference"},
-          %Item{label: "Define tools", slug: "/docs/reference/tools"},
-          %Item{label: "Drive the agent loop", slug: "/docs/reference/host-interface"}
+          %Item{label: "Overview", slug: "/docs/framework/elixir"},
+          %Item{label: "Installation", slug: "/docs/framework/elixir/installation"},
+          %Item{label: "Getting started", slug: "/docs/framework/elixir/getting-started"},
+          %Item{label: "Agents", slug: "/docs/framework/elixir/agents"},
+          %Item{label: "One-shot runs", slug: "/docs/framework/elixir/one-shot-runs"},
+          %Item{label: "Tools", slug: "/docs/framework/elixir/tools"},
+          %Item{label: "Sub-agents", slug: "/docs/framework/elixir/subagents"}
         ]
       },
       %Group{
-        label: "Internals",
+        label: "Elixir integrations",
+        icon: "api",
+        items: [
+          %Item{label: "Providers", slug: "/docs/framework/elixir/providers"},
+          %Item{label: "MCP servers", slug: "/docs/framework/elixir/mcp"},
+          %Item{label: "HTTP routes", slug: "/docs/framework/elixir/http-routes"}
+        ]
+      },
+      %Group{
+        label: "Elixir isolation",
+        icon: "lock",
+        items: [
+          %Item{label: "Sandboxes", slug: "/docs/framework/elixir/sandbox"},
+          %Item{label: "Network policy", slug: "/docs/framework/elixir/network-policy"},
+          %Item{label: "Secrets", slug: "/docs/framework/elixir/secrets"},
+          %Item{label: "Redaction", slug: "/docs/framework/elixir/redaction"}
+        ]
+      },
+      %Group{
+        label: "Elixir runtime",
+        icon: "server",
+        items: [
+          %Item{
+            label: "Sessions and persistence",
+            slug: "/docs/framework/elixir/sessions-and-persistence"
+          },
+          %Item{
+            label: "Streaming and events",
+            slug: "/docs/framework/elixir/streaming-and-events"
+          },
+          %Item{label: "Compaction", slug: "/docs/framework/elixir/compaction"},
+          %Item{
+            label: "Project instructions",
+            slug: "/docs/framework/elixir/project-instructions"
+          },
+          %Item{label: "Telemetry", slug: "/docs/framework/elixir/telemetry"}
+        ]
+      },
+      %Group{
+        label: "Rust and browser",
         icon: "devices_browser",
         items: [
-          %Item{label: "Browser package", slug: "/docs/reference/browser-package"},
-          %Item{label: "Rust crate architecture", slug: "/docs/reference/internals"}
+          %Item{label: "Overview", slug: "/docs/framework/rust"},
+          %Item{label: "Browser quickstart", slug: "/docs/framework/rust/browser"},
+          %Item{label: "Provide inference", slug: "/docs/framework/rust/inference"},
+          %Item{label: "Define tools", slug: "/docs/framework/rust/tools"},
+          %Item{label: "Host interface", slug: "/docs/framework/rust/host-interface"},
+          %Item{label: "Browser package", slug: "/docs/framework/rust/browser-package"},
+          %Item{label: "Crate architecture", slug: "/docs/framework/rust/crates"}
         ]
       }
     ]
