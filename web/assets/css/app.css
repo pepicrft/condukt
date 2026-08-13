@@ -91,6 +91,23 @@ code {
   font-family: var(--mono);
 }
 
+/* Noora's inline code snippet, matching the one the documentation prose uses. */
+[data-part="product"] p code,
+[data-part="install-copy"] p code,
+[data-part="hero-content"] p code,
+[data-part="blog-list-description"] code {
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  background: var(--noora-surface-background-secondary);
+  border-radius: var(--noora-radius-2);
+  box-shadow: var(--noora-light-border-default);
+  color: var(--noora-surface-label-primary);
+  font: var(--noora-font-weight-regular) var(--noora-font-code-large);
+  overflow-wrap: anywhere;
+  padding: var(--noora-spacing-1);
+  white-space: normal;
+}
+
 [data-part="site-shell"] {
   min-height: 100vh;
 }
@@ -700,6 +717,140 @@ condukt-install-command {
   font-family: var(--mono);
   font-size: 14px;
   font-weight: 700;
+}
+
+[data-part="blog"] {
+  margin: 72px auto 96px;
+  max-width: 760px;
+}
+
+[data-part="blog-header"] h1 {
+  font-size: clamp(34px, 5vw, 52px);
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+  margin: 0;
+}
+
+[data-part="blog-header"] > p:last-child {
+  color: var(--ink-soft);
+  line-height: 1.65;
+  margin: 18px 0 0;
+  max-width: 62ch;
+}
+
+[data-part="blog-list"] {
+  display: grid;
+  gap: 12px;
+  list-style: none;
+  margin: 48px 0 0;
+  padding: 0;
+}
+
+[data-part="blog-list-item"] > a {
+  background: var(--paper-soft);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow-border);
+  color: inherit;
+  display: block;
+  padding: 24px 28px;
+  text-decoration: none;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+[data-part="blog-list-item"] > a:hover {
+  border-color: color-mix(in oklch, var(--purple) 32%, var(--line));
+  transform: translateY(-1px);
+}
+
+[data-part="blog-list-item"] h2 {
+  font-size: 21px;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  margin: 8px 0 0;
+}
+
+[data-part="blog-list-item"] > a:hover h2 {
+  color: var(--purple-deep);
+}
+
+[data-part="blog-list-date"] {
+  color: var(--purple-deep);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+[data-part="blog-list-description"] {
+  color: var(--ink-soft);
+  line-height: 1.6;
+  margin: 10px 0 0;
+}
+
+[data-part="blog-list-author"] {
+  color: var(--ink-soft);
+  font-size: 13px;
+  margin: 14px 0 0;
+}
+
+[data-part="blog-post"] {
+  display: block;
+  margin: 72px auto 96px;
+  max-width: 760px;
+}
+
+[data-part="blog-post-header"] {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 28px;
+}
+
+[data-part="blog-post-header"] h1 {
+  font-size: clamp(32px, 4.5vw, 46px);
+  letter-spacing: -0.045em;
+  line-height: 1.08;
+  margin: 12px 0 0;
+}
+
+[data-part="blog-post-meta"] {
+  color: var(--purple-deep);
+  display: flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 6px;
+  letter-spacing: 0.08em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+[data-part="blog-post-description"] {
+  color: var(--ink-soft);
+  font-size: 18px;
+  line-height: 1.6;
+  margin: 16px 0 0;
+}
+
+[data-part="blog-post"] [data-prose] {
+  margin-top: 40px;
+}
+
+[data-part="blog-post-footer"] {
+  border-top: 1px solid var(--line);
+  margin-top: 56px;
+  padding-top: 24px;
+}
+
+[data-part="blog-post-footer"] a {
+  color: var(--purple-deep);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+[data-part="blog-post-footer"] a:hover {
+  text-decoration: underline;
 }
 
 [data-part="site-footer"] {
