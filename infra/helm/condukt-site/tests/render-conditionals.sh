@@ -35,17 +35,22 @@ if [[ -n "$rendered_manifest" ]]; then
 else
   render >"$tmpdir/default.yaml"
 fi
-grep -q '^[[:space:]]*imagePullSecrets:' "$tmpdir/default.yaml"
 grep -q 'host: condukt.tuist.dev' "$tmpdir/default.yaml"
 grep -q 'path: /ready' "$tmpdir/default.yaml"
+grep -q 'cert-manager.io/cluster-issuer: "letsencrypt-cloudflare"' "$tmpdir/default.yaml"
+grep -q 'external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"' "$tmpdir/default.yaml"
 
-render --set-string image.pullSecretName= >"$tmpdir/no-image-pull-secret.yaml"
-if grep -q '^[[:space:]]*imagePullSecrets:' "$tmpdir/no-image-pull-secret.yaml"; then
-  echo "imagePullSecrets rendered when image.pullSecretName was empty" >&2
+# The package is public, so nothing should ask the kubelet for credentials
+# unless a pull secret is configured on purpose.
+if grep -q '^[[:space:]]*imagePullSecrets:' "$tmpdir/default.yaml"; then
+  echo "imagePullSecrets rendered while image.pullSecretName was empty" >&2
   exit 1
 fi
 
-render --set externalSecrets.enabled=true --set externalSecrets.pullSecret.enabled=true >"$tmpdir/external-secrets-enabled-pull-secret-enabled.yaml"
+render --set-string image.pullSecretName=ghcr-pull >"$tmpdir/image-pull-secret.yaml"
+grep -q '^[[:space:]]*imagePullSecrets:' "$tmpdir/image-pull-secret.yaml"
+
+render --set externalSecrets.enabled=true --set externalSecrets.pullSecret.enabled=true --set-string image.pullSecretName=ghcr-pull >"$tmpdir/external-secrets-enabled-pull-secret-enabled.yaml"
 expect_resource_count "$tmpdir/external-secrets-enabled-pull-secret-enabled.yaml" ExternalSecret 2
 
 render --set externalSecrets.enabled=true --set externalSecrets.pullSecret.enabled=false >"$tmpdir/external-secrets-enabled-pull-secret-disabled.yaml"

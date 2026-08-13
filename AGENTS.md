@@ -221,9 +221,11 @@ The marketing site, public docs, and browser inference endpoint live under `web/
 The site runs on Kubernetes and is served at https://condukt.tuist.dev.
 
 - `infra/helm/condukt-site/`: the Helm chart (Deployment, Service, Ingress with cert-manager TLS, ExternalSecrets, optional HPA, PDB, and CloudNativePG cluster). `infra/helm/condukt-site/tests/render-conditionals.sh` asserts the conditional paths render; CI lints and runs it on every pull request.
-- `infra/k8s/`: cluster-scoped pieces applied by hand once, plus `onboarding.md`, the runbook for namespace, RBAC, 1Password items, and the DNS controller.
-- DNS is reconciled, not hand-managed: external-dns watches the Ingress and keeps the `condukt.tuist.dev` Cloudflare record pointing at the ingress-nginx LoadBalancer. Its filter is the fully qualified name, so the controller cannot touch other `tuist.dev` records.
-- `SECRET_KEY_BASE` is the only required secret and comes from 1Password through the `onepassword` ClusterSecretStore. OpenRouter sign-in is PKCE, so no provider credential lives in the cluster.
+- `infra/k8s/ci-service-account.yaml`: the `condukt-production` namespace and the RBAC for the GitHub Actions deployer, applied by hand once. `infra/k8s/onboarding.md` is the runbook.
+- The site is a tenant of the shared `tuist-k8s-production` cluster, not a cluster of its own, in the same way `once-production` is.
+- DNS is reconciled, not hand-managed, and not by anything in this repository: `platform-external-dns` already watches ingresses cluster-wide for `tuist.dev` with `policy=sync`. Creating the Ingress creates the record. Never install a second external-dns for this domain.
+- TLS uses the existing `letsencrypt-cloudflare` ClusterIssuer, which solves DNS-01, so the record can stay Cloudflare-proxied.
+- `SECRET_KEY_BASE` is the only required secret. The `onepassword` ClusterSecretStore is pinned to the `tuist-k8s-production` vault, so chart secrets resolve there; the deploy kubeconfig lives in `condukt-k8s-production` and is read by the 1Password CLI in CI. OpenRouter sign-in is PKCE, so no provider credential lives in the cluster.
 - The site has no database. `postgres.enabled` is `false` and the app starts its Repo only when `DATABASE_URL` is set; enabling the value provisions the cluster and wires the URL in.
 - Verify chart changes with `helm lint infra/helm/condukt-site` and `./infra/helm/condukt-site/tests/render-conditionals.sh` before committing.
 

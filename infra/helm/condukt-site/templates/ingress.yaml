@@ -7,6 +7,9 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer | quote }}
     nginx.ingress.kubernetes.io/proxy-body-size: 25m
+    {{- if .Values.ingress.cloudflareProxied }}
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+    {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   tls:
