@@ -211,9 +211,21 @@ The marketing site, public docs, and browser inference endpoint live under `web/
 - Package manager: [Hex](https://hex.pm/) for Elixir dependencies; `npm` is not used in the web app.
 - Build: `cd web && mix deps.get && mix assets.deploy && mix release`.
 - Local preview: `cd web && mix setup && mix phx.server`. The server prints a worktree-specific address; each Git worktree receives a stable suffix from 100 through 999 and uses port `4000 + suffix` plus a database named `condukt_site_dev_SUFFIX`. Tests use `4002 + suffix` and `condukt_site_test_SUFFIX`. Set `CONDUKT_SITE_DEV_INSTANCE` to an unused suffix when an explicit value is useful.
-- Deployment: pushes to `main` that touch `web/**` publish a Docker image to `ghcr.io/tuist/condukt-site` with immutable commit and `latest` tags via `.github/workflows/condukt-web.yml`. The Dockerfile at `web/Dockerfile` builds the `condukt_site` Phoenix release, the WASM module from `cli/crates/condukt-wasm`, and the `@tuist/condukt` browser package into the served static assets.
+- Deployment: pushes to `main` that touch `web/**`, `cli/**`, `packages/condukt/**`, or `infra/**` publish a Docker image to `ghcr.io/tuist/condukt-site` and then run `helm upgrade --install` against the production cluster, all in `.github/workflows/condukt-web.yml`. The Dockerfile at `web/Dockerfile` builds the `condukt_site` Phoenix release, the WASM module from `cli/crates/condukt-wasm`, and the `@tuist/condukt` browser package into the served static assets.
+- The site answers `GET /ready` with `ok`. The Kubernetes probes depend on it, so keep the route out of the browser pipeline and free of external dependencies.
 - WASM artifacts: the release image bundles `priv/static/condukt/generated/condukt_wasm_bg.wasm` plus the `condukt-wasm` JavaScript glue. The web page imports them as `/condukt/index.js` and `/condukt/generated/condukt_wasm.js`. The esbuild config treats `/condukt/*` as external.
 - The web app does not depend on the `condukt` Elixir library. It is a marketing, docs, and browser inference surface only. The hosted Condukt service is not in scope.
+
+## Cluster deployment (`infra/`)
+
+The site runs on Kubernetes and is served at https://condukt.tuist.dev.
+
+- `infra/helm/condukt-site/`: the Helm chart (Deployment, Service, Ingress with cert-manager TLS, ExternalSecrets, optional HPA, PDB, and CloudNativePG cluster). `infra/helm/condukt-site/tests/render-conditionals.sh` asserts the conditional paths render; CI lints and runs it on every pull request.
+- `infra/k8s/`: cluster-scoped pieces applied by hand once, plus `onboarding.md`, the runbook for namespace, RBAC, 1Password items, and the DNS controller.
+- DNS is reconciled, not hand-managed: external-dns watches the Ingress and keeps the `condukt.tuist.dev` Cloudflare record pointing at the ingress-nginx LoadBalancer. Its filter is the fully qualified name, so the controller cannot touch other `tuist.dev` records.
+- `SECRET_KEY_BASE` is the only required secret and comes from 1Password through the `onepassword` ClusterSecretStore. OpenRouter sign-in is PKCE, so no provider credential lives in the cluster.
+- The site has no database. `postgres.enabled` is `false` and the app starts its Repo only when `DATABASE_URL` is set; enabling the value provisions the cluster and wires the URL in.
+- Verify chart changes with `helm lint infra/helm/condukt-site` and `./infra/helm/condukt-site/tests/render-conditionals.sh` before committing.
 
 ## Documentation (`web/priv/docs/`)
 

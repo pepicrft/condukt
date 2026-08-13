@@ -34,6 +34,10 @@ defmodule ConduktSiteWeb.Router do
   end
 
   scope "/", ConduktSiteWeb do
+    get "/ready", HealthController, :ready
+  end
+
+  scope "/", ConduktSiteWeb do
     pipe_through :browser
 
     get "/", PageController, :home

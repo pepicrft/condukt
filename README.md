@@ -150,6 +150,7 @@ condukt/
 ├── web/                  # Phoenix marketing site, documentation source, browser endpoint
 │   └── priv/docs/           # single source for docs and the ExDoc extras
 ├── packages/condukt/     # @tuist/condukt npm package
+├── infra/                # Helm chart and cluster configuration for the site
 └── .github/workflows/    # CI for library, CLI, and web
 ```
 
