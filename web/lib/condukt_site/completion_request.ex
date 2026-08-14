@@ -48,9 +48,8 @@ defmodule ConduktSite.CompletionRequest do
   defp validate_message(%{"role" => role} = message)
        when role in ["system", "user", "assistant", "tool"] do
     with :ok <- optional_string(message["content"], "message content", @max_content_bytes),
-         :ok <- validate_tool_call_id(role, message["toolCallId"]),
-         :ok <- validate_tool_calls(message["toolCalls"]) do
-      :ok
+         :ok <- validate_tool_call_id(role, message["toolCallId"]) do
+      validate_tool_calls(message["toolCalls"])
     end
   end
 
@@ -78,9 +77,8 @@ defmodule ConduktSite.CompletionRequest do
 
   defp validate_tool_call(%{"id" => id, "name" => name, "arguments" => arguments}) do
     with :ok <- required_string(id, "tool call id", @max_identifier_bytes),
-         :ok <- required_string(name, "tool call name", @max_identifier_bytes),
-         :ok <- optional_string(arguments, "tool call arguments", @max_content_bytes) do
-      :ok
+         :ok <- required_string(name, "tool call name", @max_identifier_bytes) do
+      optional_string(arguments, "tool call arguments", @max_content_bytes)
     end
   end
 
@@ -98,9 +96,8 @@ defmodule ConduktSite.CompletionRequest do
 
   defp validate_tool(%{"name" => name, "parameters" => parameters} = tool)
        when is_map(parameters) do
-    with :ok <- required_string(name, "tool name", @max_identifier_bytes),
-         :ok <- optional_string(tool["description"], "tool description", @max_content_bytes) do
-      :ok
+    with :ok <- required_string(name, "tool name", @max_identifier_bytes) do
+      optional_string(tool["description"], "tool description", @max_content_bytes)
     end
   end
 

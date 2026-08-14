@@ -9,8 +9,14 @@
       ],
       checks: %{
         extra: [
-          {Condukt.Credo.Check.Readability.NoNestedModules, []},
-          {Condukt.Credo.Check.Readability.NoTypespecs, []},
+          # Credo's default `files.included` lists "web/", so the nested
+          # `condukt_site` Phoenix app is analysed by this config too. These
+          # two are house rules for the library's own source, not for a
+          # generated Phoenix app that documents its public functions with
+          # typespecs, so they stop at the library boundary. NoRescue is a
+          # correctness rule from AGENTS.md and applies everywhere.
+          {Condukt.Credo.Check.Readability.NoNestedModules, files: %{excluded: ["web/"]}},
+          {Condukt.Credo.Check.Readability.NoTypespecs, files: %{excluded: ["web/"]}},
           {Condukt.Credo.Check.Readability.NoRescue, []}
         ]
       }

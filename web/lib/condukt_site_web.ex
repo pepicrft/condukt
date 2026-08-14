@@ -82,8 +82,8 @@ defmodule ConduktSiteWeb do
       import ConduktSiteWeb.CoreComponents
 
       # Common modules used in templates
-      alias Phoenix.LiveView.JS
       alias ConduktSiteWeb.Layouts
+      alias Phoenix.LiveView.JS
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())
