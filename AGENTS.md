@@ -178,7 +178,7 @@ The terminal coding agent is a Rust workspace under `cli/`. The binary is `condu
 
 The published npm package `@tuist/condukt` is generated from the `condukt-wasm` Rust crate. The package directory holds the TypeScript types, the JavaScript entry point, and the Node tests; the generated `condukt_wasm` artifacts are produced by `wasm-pack` and copied in by the CI workflow and the Dockerfile.
 
-- Build: `wasm-pack build cli/crates/condukt-wasm --target web --out-dir packages/condukt/generated --release`, then run `node --test test/*.test.mjs` from `packages/condukt/`.
+- Build: `wasm-pack build cli/crates/condukt-wasm --target web --out-dir "$PWD/packages/condukt/generated" --out-name condukt_wasm --release`, then run `node --test test/*.test.mjs` from `packages/condukt/`. The out-dir must be absolute: `wasm-pack` resolves a relative one against the crate directory, not the working directory.
 - The Phoenix web app serves the generated files from `priv/static/condukt/`. The page imports `/condukt/index.js` to obtain `createAgent` and `createHttpInference`.
 
 ## Git

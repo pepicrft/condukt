@@ -101,16 +101,18 @@ jobs:
           shared-key: cli-wasm
       - name: Add WebAssembly target
         run: rustup target add wasm32-unknown-unknown
+      # wasm-pack resolves --out-dir relative to the crate, not the working
+      # directory, so the path is absolute and the artifacts land straight in
+      # the package. --out-name matches web/Dockerfile so both surfaces emit
+      # the same condukt_wasm.js the package entry point imports.
       - name: Build package
-        working-directory: packages/condukt
         run: |
-          mkdir -p generated
-          wasm-pack build --release --target web --out-dir generated ../../cli/crates/condukt-wasm
-      - name: Replace generated files
-        working-directory: packages/condukt
-        run: |
-          rm -rf generated
-          cp -R ../../cli/crates/condukt-wasm/pkg generated
+          rm -rf packages/condukt/generated
+          wasm-pack build cli/crates/condukt-wasm \
+            --target web \
+            --out-dir "$GITHUB_WORKSPACE/packages/condukt/generated" \
+            --out-name condukt_wasm \
+            --release
       - name: Exercise package in Node.js
         working-directory: packages/condukt
         run: node --test test/*.test.mjs
