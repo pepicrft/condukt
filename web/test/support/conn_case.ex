@@ -17,6 +17,8 @@ defmodule ConduktSiteWeb.ConnCase do
 
   use ExUnit.CaseTemplate
 
+  alias Ecto.Adapters.SQL.Sandbox
+
   using do
     quote do
       # The default endpoint for testing
@@ -32,8 +34,8 @@ defmodule ConduktSiteWeb.ConnCase do
   end
 
   setup tags do
-    owner = Ecto.Adapters.SQL.Sandbox.start_owner!(ConduktSite.Repo, shared: not tags[:async])
-    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(owner) end)
+    owner = Sandbox.start_owner!(ConduktSite.Repo, shared: not tags[:async])
+    on_exit(fn -> Sandbox.stop_owner(owner) end)
 
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
