@@ -10,7 +10,7 @@ fullnameOverride: "condukt-site"
 host: condukt.tuist.dev
 
 image:
-  repository: ghcr.io/tuist/condukt-site
+  repository: ghcr.io/tuist/condukt
   tag: ""
   pullPolicy: IfNotPresent
   # Empty by default: the package is public, like ghcr.io/tuist/once-web, so

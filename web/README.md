@@ -33,7 +33,7 @@ on jsDelivr with subresource integrity hashes.
 ## Production image
 
 Condukt is packaged as a conventional Phoenix release. Pull requests build the production image,
-and a merge to `main` publishes it to `ghcr.io/tuist/condukt-site` with immutable commit and
+and a merge to `main` publishes it to `ghcr.io/tuist/condukt` with immutable commit and
 `latest` tags. The repository deliberately does not add a proxy Worker or couple the application
 to a hosting provider.
 

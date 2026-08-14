@@ -60,7 +60,7 @@ CA as the admin kubeconfig, and upload it to 1Password as the document above.
 
 ## Container image
 
-`ghcr.io/tuist/condukt-site` must be public, like `ghcr.io/tuist/once-web`, so
+`ghcr.io/tuist/condukt` must be public, like `ghcr.io/tuist/once-web`, so
 the kubelet pulls it anonymously. Check the package visibility after the first
 push to `main`. If it has to stay private, create a `condukt-ghcr-pull` item in
 `tuist-k8s-production` holding a `.dockerconfigjson` document, then set

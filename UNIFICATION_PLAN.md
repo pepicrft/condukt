@@ -76,7 +76,7 @@ NIF build and the CLI's release build don't fight each other.
 | `PLASMA_*` env vars          | `CONDUKT_*`                 |
 | `~/.config/plasma`           | `~/.config/condukt`         |
 | `mise use -g github:tuist/plasma`  | `mise use -g github:tuist/condukt` |
-| `ghcr.io/tuist/plasma-site`  | `ghcr.io/tuist/condukt-site`|
+| `ghcr.io/tuist/plasma-site`  | `ghcr.io/tuist/condukt`|
 
 ---
 
@@ -142,7 +142,7 @@ asserts on it, so a stray `plasma` is caught.
 - Add `condukt` as a dep of the web app (or document why it isn't) and wire
   `Condukt.Plug` if the web app needs to expose agents — see open Q 3.
 - Add `.github/workflows/condukt-web.yml` mirroring plasma's `web.yml` Docker
-  publish path, renaming the image to `ghcr.io/tuist/condukt-site`.
+  publish path, renaming the image to `ghcr.io/tuist/condukt`.
 - Update `web/Dockerfile` to also build the `cli/` workspace if the image is
   going to ship the CLI binary.
 - Update `web/README.md` to reflect the new names and the new repo location.
