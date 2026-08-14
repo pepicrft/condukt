@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [1.9.0] - 2026-08-14
+
+### Features
+
+- merge plasma into condukt under a single brand
+
+
 ## [1.8.0] - 2026-08-11
 
 ### Features
