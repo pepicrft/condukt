@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+#MISE description="Build the Condukt WebAssembly package and stage it for the web application"
+set -euo pipefail
+
+repository_root="$(git rev-parse --show-toplevel)"
+cli_root="${repository_root}/cli"
+package_root="${repository_root}/packages/condukt"
+web_static_root="${repository_root}/web/priv/static/condukt"
+
+wasm-pack build "${cli_root}/crates/condukt-wasm" \
+  --target web \
+  --out-dir "${package_root}/generated" \
+  --out-name condukt_wasm \
+  --release
+
+mkdir -p "${web_static_root}/generated"
+cp "${package_root}/index.js" "${web_static_root}/index.js"
+cp "${package_root}/generated/condukt_wasm.js" "${web_static_root}/generated/condukt_wasm.js"
+cp "${package_root}/generated/condukt_wasm_bg.wasm" "${web_static_root}/generated/condukt_wasm_bg.wasm"
