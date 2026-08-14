@@ -1,0 +1,6 @@
+apiVersion: v2
+name: condukt-site
+description: Condukt Phoenix marketing, documentation, and browser inference site.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

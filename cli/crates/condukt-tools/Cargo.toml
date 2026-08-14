@@ -1,0 +1,10 @@
+[package]
+name = "condukt-tools"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+condukt-inference.workspace = true
+serde_json.workspace = true
+libc.workspace = true

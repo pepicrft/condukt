@@ -1,0 +1,195 @@
+name: Condukt web
+
+on:
+  pull_request:
+    paths:
+      - "cli/**"
+      - "web/**"
+      - "packages/condukt/**"
+      - "infra/**"
+      - "mise.toml"
+      - ".github/workflows/condukt-web.yml"
+  push:
+    branches: [main]
+    paths:
+      - "cli/**"
+      - "web/**"
+      - "packages/condukt/**"
+      - "infra/**"
+      - "mise.toml"
+      - ".github/workflows/condukt-web.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  HELM_CHART_PATH: infra/helm/condukt-site
+  HELM_RELEASE_NAME: condukt-site
+  NAMESPACE: condukt-production
+  # Kubeconfig for the cluster the site is deployed into. Change these two
+  # values, not the chart, if the site moves to another cluster.
+  KUBECONFIG_ITEM: "kubeconfig: condukt-production"
+  KUBECONFIG_VAULT: condukt-k8s-production
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
+        with:
+          install_args: "rust node elixir erlang cargo:wasm-pack"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          shared-key: web-test
+      - name: Add WebAssembly target
+        run: rustup target add wasm32-unknown-unknown
+      - name: Install dependencies
+        run: mix deps.get --check-locked
+      - name: Test
+        run: mix test
+
+  release-image:
+    name: Release image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: ./web/Dockerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ghcr.io/tuist/condukt:sha-${{ github.sha }}
+            ghcr.io/tuist/condukt:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  chart:
+    name: Render chart
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
+        with:
+          install_args: "helm@3.21.0"
+      - name: Lint chart
+        run: helm lint "$HELM_CHART_PATH"
+      - name: Render conditionals
+        run: ./infra/helm/condukt-site/tests/render-conditionals.sh
+
+  deploy:
+    name: Deploy
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [test, release-image, chart]
+    runs-on: ubuntu-24.04
+    environment:
+      name: production
+      url: https://condukt.tuist.dev
+    timeout-minutes: 20
+    env:
+      KUBECONFIG: ${{ github.workspace }}/.kube/config
+      IMAGE_TAG: sha-${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
+        with:
+          install_args: "helm@3.21.0 kubectl@1.34.6 jq@1.8.1"
+          cache: "false"
+      - uses: 1password/install-cli-action@8d006a0d0a4fd505af7f7ce589e7f768385ff5e4 # v1
+      - name: Load kubeconfig from 1Password
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+        run: |
+          mkdir -p "$(dirname "$KUBECONFIG")"
+          op document get "$KUBECONFIG_ITEM" --vault "$KUBECONFIG_VAULT" --output "$KUBECONFIG"
+          chmod 600 "$KUBECONFIG"
+      - name: Verify cluster reachability
+        run: |
+          set -euo pipefail
+          API="$(kubectl config view --minify --raw -o jsonpath='{.clusters[0].cluster.server}')"
+          echo "Reaching apiserver at $API"
+          kubectl --request-timeout=10s get --raw /version >/dev/null
+      - name: Recover stuck release
+        run: |
+          status=$(helm status "$HELM_RELEASE_NAME" -n "$NAMESPACE" -o json 2>/dev/null \
+            | jq -r '.info.status // empty' || true)
+          echo "Current release status: ${status:-<none>}"
+          case "$status" in
+            pending-install)
+              echo "Release stuck in pending-install; uninstalling."
+              helm uninstall "$HELM_RELEASE_NAME" -n "$NAMESPACE" --wait || true
+              ;;
+            pending-upgrade|pending-rollback)
+              echo "Release stuck in $status; rolling back to last deployed revision."
+              helm rollback "$HELM_RELEASE_NAME" -n "$NAMESPACE" --wait --timeout 5m || true
+              ;;
+          esac
+      - name: helm upgrade --install
+        run: |
+          helm upgrade --install "$HELM_RELEASE_NAME" "$HELM_CHART_PATH" \
+            --namespace "$NAMESPACE" --create-namespace \
+            --set image.tag="$IMAGE_TAG" \
+            --rollback-on-failure --timeout 15m --wait
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          set +e
+          echo "::group::helm history"
+          helm history "$HELM_RELEASE_NAME" -n "$NAMESPACE" --max 10 || true
+          echo "::endgroup::"
+          echo "::group::pods"
+          kubectl -n "$NAMESPACE" get pods -o wide || true
+          echo "::endgroup::"
+          echo "::group::events"
+          kubectl -n "$NAMESPACE" get events --sort-by=.lastTimestamp 2>&1 | tail -100 || true
+          echo "::endgroup::"
+          echo "::group::deployment and pods"
+          kubectl -n "$NAMESPACE" describe deploy/condukt-site || true
+          for pod in $(kubectl -n "$NAMESPACE" get pods -l app.kubernetes.io/name=condukt-site -o name 2>/dev/null); do
+            kubectl -n "$NAMESPACE" describe "$pod" || true
+            kubectl -n "$NAMESPACE" logs "$pod" --all-containers --tail=500 || true
+            kubectl -n "$NAMESPACE" logs "$pod" --all-containers --previous --tail=500 || true
+          done
+          echo "::endgroup::"
+          echo "::group::external secrets"
+          kubectl -n "$NAMESPACE" get externalsecret 2>&1 || true
+          kubectl -n "$NAMESPACE" describe externalsecret 2>&1 || true
+          echo "::endgroup::"
+      - name: Smoke test
+        run: |
+          kubectl -n "$NAMESPACE" rollout status deploy/condukt-site --timeout=10m
+          kubectl -n "$NAMESPACE" run smoke-$RANDOM --rm -i --restart=Never --image=curlimages/curl \
+            --command -- curl -fsS "http://condukt-site/ready"

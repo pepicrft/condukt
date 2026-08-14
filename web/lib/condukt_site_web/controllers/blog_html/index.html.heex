@@ -1,0 +1,25 @@
+<Layouts.app flash={@flash}>
+  <section data-part="blog">
+    <header data-part="blog-header">
+      <p data-part="eyebrow">Blog</p>
+      <h1>Notes from the Condukt team</h1>
+      <p>
+        Long-form writing on agent runtimes, sandboxes, network policy, and the architecture
+        choices behind Condukt.
+      </p>
+    </header>
+
+    <ul data-part="blog-list">
+      <li :for={post <- @posts} data-part="blog-list-item">
+        <a href={~p"/blog/#{post.slug}"}>
+          <p data-part="blog-list-date">
+            {post.date && Calendar.strftime(post.date, "%B %-d, %Y")}
+          </p>
+          <h2>{post.title}</h2>
+          <p data-part="blog-list-description">{post.description}</p>
+          <p :if={post.author} data-part="blog-list-author">{post.author}</p>
+        </a>
+      </li>
+    </ul>
+  </section>
+</Layouts.app>

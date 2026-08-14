@@ -99,7 +99,7 @@ defmodule Condukt.Sandbox.Kubernetes do
       resources: ["pods/exec"]
       verbs: ["create"]
 
-  See `guides/sandbox.md` for a full sample `Role` + `RoleBinding`.
+  See `web/priv/docs/framework/elixir/sandbox.md` for a full sample `Role` + `RoleBinding`.
 
   ## Limitations
 

@@ -1,0 +1,95 @@
+<Layouts.app flash={@flash}>
+  <section data-part="home">
+    <header data-part="hero">
+      <div data-part="hero-content">
+        <noora-badge appearance="light-fill" color="primary" size="large" dot>
+          Coding agent · Framework · MIT licensed
+        </noora-badge>
+
+        <h1>One agent.<br /><span>Every surface.</span></h1>
+        <p>
+          Condukt is a coding agent for the terminal and a framework for building
+          agent runtimes. The same portable agent loop powers the CLI, the
+          Elixir library, and the WebAssembly package that ships to browsers.
+        </p>
+
+        <div data-part="hero-actions">
+          <noora-button variant="primary" size="large" href="#install">
+            Install the coding agent
+          </noora-button>
+          <noora-button
+            variant="secondary"
+            size="large"
+            href={~p"/docs/framework"}
+          >
+            Read the framework docs
+          </noora-button>
+        </div>
+      </div>
+
+      <div data-part="hero-visual" aria-hidden="true">
+        <span data-part="hero-mark">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </div>
+    </header>
+
+    <condukt-browser-agent
+      id="terminal"
+      connected={@connected}
+      provider="OpenRouter"
+      model={@inference_model}
+      inference-endpoint="/api/completions"
+      connect-url={~p"/auth/openrouter?#{%{return_to: "/#terminal"}}"}
+      disconnect-url={~p"/auth/openrouter"}
+      csrf-token={get_csrf_token()}
+    >
+    </condukt-browser-agent>
+
+    <section id="products" data-part="products">
+      <div data-part="products-copy">
+        <p data-part="eyebrow">Two ways to use it</p>
+        <h2>Run the agent, or build your own.</h2>
+      </div>
+
+      <div data-part="products-grid">
+        <article data-part="product">
+          <noora-icon name="device_desktop" label="Coding agent"></noora-icon>
+          <h3>Coding agent</h3>
+          <p>
+            A single Rust binary that puts a coding agent in your shell, with a
+            TUI for conversations and <code>condukt exec</code>
+            for one-off tasks in scripts and CI.
+          </p>
+          <a href="#install">Install the coding agent</a>
+        </article>
+
+        <article data-part="product">
+          <noora-icon name="devices_code" label="Framework"></noora-icon>
+          <h3>Framework</h3>
+          <p>
+            Build your own agent on the same loop: an Elixir library for OTP
+            applications, Rust crates, and the <code>@tuist/condukt</code>
+            WebAssembly package for browsers.
+          </p>
+          <a href={~p"/docs/framework"}>Read the framework docs</a>
+        </article>
+      </div>
+    </section>
+
+    <section id="install" data-part="install">
+      <div data-part="install-copy">
+        <p data-part="eyebrow">Install</p>
+        <h2>Take Condukt to the terminal.</h2>
+        <p>
+          Install the coding agent globally with mise, then run <code>condukt</code>
+          from any project.
+        </p>
+      </div>
+      <condukt-install-command command="mise use -g github:tuist/condukt">
+      </condukt-install-command>
+    </section>
+  </section>
+</Layouts.app>

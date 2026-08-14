@@ -1,0 +1,117 @@
+{{- $appSecret := include "condukt-site.appSecretName" . -}}
+{{- $pgSecret := include "condukt-site.postgresAppSecret" . -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "condukt-site.fullname" . }}
+  labels:
+    {{- include "condukt-site.webLabels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "condukt-site.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        {{- include "condukt-site.webSelectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "condukt-site.fullname" . }}
+      {{- if .Values.image.pullSecretName }}
+      imagePullSecrets:
+        - name: {{ .Values.image.pullSecretName }}
+      {{- end }}
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: condukt-site
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.postgres.enabled }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              export DATABASE_URL="ecto://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE}"
+              exec /app/bin/condukt_site start
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+          env:
+            - name: PHX_HOST
+              value: {{ .Values.host | quote }}
+            - name: PHX_SERVER
+              value: "true"
+            - name: PORT
+              value: {{ .Values.service.targetPort | quote }}
+            {{- range $k, $v := .Values.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+            {{- if .Values.postgres.enabled }}
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $pgSecret }}
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $pgSecret }}
+                  key: password
+            - name: PGHOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $pgSecret }}
+                  key: host
+            - name: PGPORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $pgSecret }}
+                  key: port
+            - name: PGDATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $pgSecret }}
+                  key: dbname
+            {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ $appSecret }}
+          startupProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: {{ .Values.probes.startup.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.startup.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.startup.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.startup.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.readiness.failureThreshold }}
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.liveness.failureThreshold }}
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 10"]
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

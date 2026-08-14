@@ -1,0 +1,113 @@
+# Production values for the Condukt site Helm chart.
+#
+# This chart assumes the cluster has cert-manager, ingress-nginx,
+# external-dns, and external-secrets-operator with a 1Password
+# ClusterSecretStore named `onepassword`.
+
+nameOverride: ""
+fullnameOverride: "condukt-site"
+
+host: condukt.tuist.dev
+
+image:
+  repository: ghcr.io/tuist/condukt
+  tag: ""
+  pullPolicy: IfNotPresent
+  # Empty by default: the package is public, like ghcr.io/tuist/once-web, so
+  # the cluster pulls it anonymously. Set this together with
+  # externalSecrets.pullSecret.enabled if it is ever made private.
+  pullSecretName: ""
+
+# Single replica: the site serves marketing pages, documentation, and a thin
+# OpenRouter proxy, none of which hold state that a second pod would help with.
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+# Disabled: there is no load to autoscale for, and the site shares a cluster
+# whose capacity is sized for other workloads.
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 75
+
+# Disabled: with one replica, a minAvailable of 1 blocks node drains instead of
+# protecting availability.
+pdb:
+  enabled: false
+  minAvailable: 1
+
+service:
+  port: 80
+  targetPort: 4000
+
+ingress:
+  className: nginx
+  # The cluster already runs this issuer for other tuist.dev hosts, for example
+  # registry.tuist.dev. It solves DNS-01 through Cloudflare, so it works while
+  # the record is proxied.
+  clusterIssuer: letsencrypt-cloudflare
+  # platform-external-dns reads this annotation when it creates the record.
+  cloudflareProxied: true
+
+# Extra environment variables passed to the container, for example
+# OPENROUTER_MODEL to override the model offered by the browser agent.
+env: {}
+
+probes:
+  readiness:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  liveness:
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 3
+    failureThreshold: 3
+  startup:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 30
+
+externalSecrets:
+  enabled: true
+  refreshInterval: 1h
+  # The `onepassword` ClusterSecretStore is pinned to the
+  # `tuist-k8s-production` vault, so every item below is resolved there.
+  # Pointing at another vault needs a second ClusterSecretStore.
+  storeRef:
+    name: onepassword
+    kind: ClusterSecretStore
+  items:
+    SECRET_KEY_BASE:
+      remoteRef: "condukt-secret-key-base/password"
+  pullSecret:
+    enabled: false
+    item: "condukt-ghcr-pull"
+    field: "notesPlain"
+
+postgres:
+  # Disabled: the site has no migrations and starts its Repo only when
+  # DATABASE_URL is present, so it runs without a database today. Enabling this
+  # provisions a CloudNativePG cluster and wires DATABASE_URL into the pod.
+  enabled: false
+  instances: 1
+  storageSize: 10Gi
+  storageClass: hcloud-volumes
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.0
+  database: condukt_site
+  owner: condukt_site
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
