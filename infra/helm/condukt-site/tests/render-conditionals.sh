@@ -7,7 +7,7 @@ tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
 
 render() {
-  helm template condukt-site "$chart_path" --namespace condukt-production "$@"
+  "${HELM:-helm}" template condukt-site "$chart_path" --namespace condukt-production "$@"
 }
 
 resource_count() {
