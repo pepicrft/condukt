@@ -2,7 +2,7 @@
 #
 # The build context is the repository root. The image produces a release of
 # the Phoenix web app at web/ together with the WASM package produced from
-# the Rust workspace at cli/.
+# the Rust workspace at packages/condukt/.
 
 FROM docker.io/library/rust:1.91-slim-bookworm AS wasm-builder
 
@@ -14,8 +14,8 @@ RUN rustup target add wasm32-unknown-unknown \
     && cargo install wasm-pack --version 0.13.1 --locked
 
 WORKDIR /src
-COPY cli/Cargo.toml cli/Cargo.lock ./
-COPY cli/crates ./crates
+COPY packages/condukt/Cargo.toml packages/condukt/Cargo.lock ./
+COPY packages/condukt/crates ./crates
 
 RUN wasm-pack build crates/condukt-wasm \
     --target web \

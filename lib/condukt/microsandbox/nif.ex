@@ -1,19 +1,36 @@
 defmodule Condukt.Microsandbox.NIF do
   @moduledoc false
+  # Low-level NIF binding to the microsandbox crate. Callers should use
+  # `Condukt.Sandbox.Microsandbox` rather than this module.
+  #
+  # When `CONDUKT_MICROSANDBOX_DISABLE=1` is set at compile time the module is
+  # generated as plain Elixir stubs, exactly as `CONDUKT_MICROSANDBOX_BUILD`
+  # forces the opposite. Releases that bundle the library into a portable
+  # binary need this: burrito's linux wrapper runs a musl runtime, and the
+  # precompiled artifacts for this crate are glibc-linked, so a bundled `.so`
+  # could not be loaded there. Embedded code loading means every module in a
+  # release is loaded at boot, so an unloadable NIF is a boot failure rather
+  # than a lazily surfaced one.
 
   @microsandbox_supported_target (
                                    arch =
                                      :erlang.system_info(:system_architecture) |> List.to_string()
 
-                                   case :os.type() do
-                                     {:unix, :darwin} ->
+                                   disabled? =
+                                     System.get_env("CONDUKT_MICROSANDBOX_DISABLE") in ["1", "true"]
+
+                                   cond do
+                                     disabled? ->
+                                       false
+
+                                     match?({:unix, :darwin}, :os.type()) ->
                                        String.starts_with?(arch, "aarch64")
 
-                                     {:unix, :linux} ->
+                                     match?({:unix, :linux}, :os.type()) ->
                                        String.starts_with?(arch, "aarch64") or
                                          String.starts_with?(arch, "x86_64")
 
-                                     _ ->
+                                     true ->
                                        false
                                    end
                                  )
