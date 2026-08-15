@@ -204,12 +204,6 @@ jobs:
       # to bundle the musl renderer. Empty elsewhere, where the host triple is
       # already the right one.
       TARGET_ABI: ${{ matrix.abi }}
-      # The terminal agent works in the user's real workspace and never starts
-      # the virtual or microVM sandboxes. Their NIFs have no musl artifacts, and
-      # a release loads every module at boot, so bundling them would turn the
-      # linux binary into a boot failure rather than an unused capability.
-      CONDUKT_BASHKIT_DISABLE: "1"
-      CONDUKT_MICROSANDBOX_DISABLE: "1"
 
     strategy:
       fail-fast: false

@@ -27,12 +27,6 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: short
-  # The terminal agent never uses the virtual or microVM sandboxes: it works in
-  # the user's real workspace. Compiling both NIFs as stubs keeps the CI image
-  # free of their native dependencies and matches how the released binary is
-  # built, where a glibc library could not load under burrito's musl runtime.
-  CONDUKT_BASHKIT_DISABLE: "1"
-  CONDUKT_MICROSANDBOX_DISABLE: "1"
 
 jobs:
   cli:

@@ -1,6 +1,23 @@
 defmodule Condukt.CLI.MixProject do
   use Mix.Project
 
+  # The terminal agent works in the user's real workspace through
+  # `Condukt.Sandbox.Local` and never starts the virtual or microVM sandboxes,
+  # so their native libraries are dead weight here. The library force-builds
+  # them from source in `:dev` and `:test`, which is the right default when the
+  # library is what you are working on, but this project is a consumer of it:
+  # without this, a first `mix compile` would spend minutes building two Rust
+  # crates the agent never calls.
+  #
+  # It is also a correctness requirement rather than a convenience. Neither
+  # crate publishes a musl artifact, burrito's linux wrapper runs a musl
+  # runtime, and a release loads every module at boot, so a linux binary that
+  # bundled them would fail to start rather than merely carry something unused.
+  # Setting them here keeps a local build, continuous integration, and the
+  # released binary on exactly the same code.
+  System.put_env("CONDUKT_BASHKIT_DISABLE", "1")
+  System.put_env("CONDUKT_MICROSANDBOX_DISABLE", "1")
+
   # The terminal agent ships on the library's release train, so the version is
   # read from the root project rather than duplicated here. `scripts/version.exs
   # set` only rewrites the root `mix.exs`; reading it keeps both in lockstep
