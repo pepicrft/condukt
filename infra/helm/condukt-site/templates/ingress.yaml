@@ -5,7 +5,11 @@ metadata:
   labels:
     {{- include "condukt-site.labels" . | nindent 4 }}
   annotations:
+    {{- if .Values.ingress.issuer }}
+    cert-manager.io/issuer: {{ .Values.ingress.issuer | quote }}
+    {{- else }}
     cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer | quote }}
+    {{- end }}
     nginx.ingress.kubernetes.io/proxy-body-size: 25m
     {{- if .Values.ingress.cloudflareProxied }}
     external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"

@@ -157,7 +157,7 @@ condukt/
 ## Documentation
 
 All documentation lives in `web/priv/docs`. Read it on
-[the site](https://condukt.tuist.dev/docs), which covers the coding agent, the
+[the site](https://condukt.dev/docs), which covers the coding agent, the
 Elixir library, and the Rust and browser surfaces. The Elixir pages are also
 published to [HexDocs](https://hexdocs.pm/condukt/overview.html) alongside the
 API reference.

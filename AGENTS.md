@@ -218,13 +218,13 @@ The marketing site, public docs, and browser inference endpoint live under `web/
 
 ## Cluster deployment (`infra/`)
 
-The site runs on Kubernetes and is served at https://condukt.tuist.dev.
+The site runs on Kubernetes and is served at https://condukt.dev.
 
 - `infra/helm/condukt-site/`: the Helm chart (Deployment, Service, Ingress with cert-manager TLS, ExternalSecrets, optional HPA, PDB, and CloudNativePG cluster). `infra/helm/condukt-site/tests/render-conditionals.sh` asserts the conditional paths render; CI lints and runs it on every pull request.
 - `infra/k8s/ci-service-account.yaml`: the `condukt-production` namespace and the RBAC for the GitHub Actions deployer, applied by hand once. `infra/k8s/onboarding.md` is the runbook.
 - The site is a tenant of the shared `tuist-k8s-production` cluster, not a cluster of its own, in the same way `once-production` is.
-- DNS is reconciled, not hand-managed, and not by anything in this repository: `platform-external-dns` already watches ingresses cluster-wide for `tuist.dev` with `policy=sync`. Creating the Ingress creates the record. Never install a second external-dns for this domain.
-- TLS uses the existing `letsencrypt-cloudflare` ClusterIssuer, which solves DNS-01, so the record can stay Cloudflare-proxied.
+- DNS is hand-managed. `condukt.dev` is its own Cloudflare zone, and `platform-external-dns` filters on `tuist.dev`, so it never sees this host and creating the Ingress does not create the record. The apex A record points at the shared ingress LoadBalancer (`91.98.14.217`), DNS only, matching `buildonce.dev`. Do not widen that controller's domain filter or add a second one for `tuist.dev`; it runs `policy=sync` and owns that zone.
+- TLS comes from a namespaced `Issuer` (`letsencrypt-condukt`) that the chart ships, solving DNS-01 with a Cloudflare token scoped to `condukt.dev` and synced by ESO from `cloudflare-condukt-dns`. The shared `letsencrypt-cloudflare` ClusterIssuer only holds a `tuist.dev` token and cannot issue for this host; clearing `ingress.issuer` falls back to it for a cluster where it does apply.
 - `SECRET_KEY_BASE` is the only required secret. The `onepassword` ClusterSecretStore is pinned to the `tuist-k8s-production` vault, so chart secrets resolve there; the deploy kubeconfig lives in `condukt-k8s-production` and is read by the 1Password CLI in CI. OpenRouter sign-in is PKCE, so no provider credential lives in the cluster.
 - The site has no database. `postgres.enabled` is `false` and the app starts its Repo only when `DATABASE_URL` is set; enabling the value provisions the cluster and wires the URL in.
 - Verify chart changes with `helm lint infra/helm/condukt-site` and `./infra/helm/condukt-site/tests/render-conditionals.sh` before committing.
