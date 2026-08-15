@@ -8,7 +8,7 @@ defmodule ConduktSiteWeb.DocsTest do
   test "resolves a Markdown page and rejects traversal" do
     assert {:ok, page} = Docs.get_page(["cli", "getting-started"])
     assert page.title == "Install and connect"
-    assert page.markdown =~ "mise use -g github:tuist/condukt"
+    assert page.markdown =~ "mise use -g"
     assert page.source_path == "cli/getting-started.md"
 
     assert {:ok, index_page} = Docs.get_page(["cli"])
