@@ -1,6 +1,6 @@
 # Rust crate architecture
 
-Condukt is a workspace of focused crates. Applications can depend on the narrowest layer that matches the host they are building.
+Condukt's Rust surface is a workspace of focused crates that back the browser package. It lives at `packages/condukt/crates/`, next to the npm package it produces. Applications can depend on the narrowest layer that matches the host they are building.
 
 ## Foundation crates
 
@@ -16,17 +16,13 @@ The host-driven `HostSession` is the portable core used when inference and tools
 
 | Crate | Responsibility |
 | --- | --- |
-| `condukt-tools` | Native file and shell tools plus their model-visible definitions. |
-| `condukt-openrouter` | OpenRouter transport and credential handling for native hosts. |
 | `condukt-wasm` | WebAssembly bindings around the host-driven session. |
 
-These crates add capabilities without making them assumptions of the portable session. A browser host can use `condukt-wasm` without linking native file or shell tools.
+Capabilities live outside the portable session rather than inside it. A browser host links `condukt-wasm` and registers only the tools that page should have.
 
-## Application crate
+## Where the terminal agent lives
 
-The `condukt` crate assembles the terminal coding agent, one-shot execution, provider sign-in, workspace tools, rich terminal presentation, and [Agent Client Protocol](https://agentclientprotocol.com/) integration.
-
-Use it as an architectural example when building another application, but keep host-specific policy in your application layer.
+The terminal coding agent is not one of these crates. It is an Elixir application built on the [Elixir library](/framework/elixir), packaged as a single binary per platform. Read [use Condukt as a coding agent](/cli) for it.
 
 ## Choose a starting point
 

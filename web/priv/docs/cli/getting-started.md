@@ -16,6 +16,19 @@ Confirm that the command is available:
 condukt --help
 ```
 
+## Install by downloading a binary
+
+Each release attaches one binary per platform, named after its target. Download the one that matches your machine, make it executable, and put it on your path:
+
+```sh
+curl -Lo condukt https://github.com/tuist/condukt/releases/latest/download/condukt-aarch64-apple-darwin
+chmod +x condukt
+```
+
+Binaries are published for macOS on Apple silicon (`aarch64-apple-darwin`) and Intel (`x86_64-apple-darwin`), and for Linux on 64-bit Intel (`x86_64-unknown-linux-musl`) and ARM (`aarch64-unknown-linux-musl`). There is no Windows binary yet. Each one carries its own runtime, so nothing else needs to be installed. Linux binaries are statically linked against musl and run on any distribution.
+
+The first run unpacks the binary into a cache directory, so it takes a moment longer than the ones after it.
+
 ## Start the terminal agent
 
 Run Condukt from the project you want it to understand:

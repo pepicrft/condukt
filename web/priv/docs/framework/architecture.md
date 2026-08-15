@@ -1,6 +1,6 @@
 # Architecture
 
-Condukt separates the agent state machine from the capabilities owned by an application. The same separation holds in both implementations: the [Elixir library](/framework/elixir) on the BEAM, and the Rust crates behind the terminal coding agent and the browser package.
+Condukt separates the agent state machine from the capabilities owned by an application. The same separation holds in both implementations: the [Elixir library](/framework/elixir) on the BEAM, which also drives the terminal coding agent, and the Rust crates behind the browser package.
 
 ## The host boundary
 

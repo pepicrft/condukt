@@ -1,6 +1,6 @@
 # Use Condukt as a coding agent
 
-Condukt works directly in a project from the terminal, through a compatible editor, or as one task in an automation script. The coding agent is a single Rust binary built on Condukt's own agent loop, so the workflows below share one conversation model and one tool registry.
+Condukt works directly in a project from the terminal, through a compatible editor, or as one task in an automation script. The coding agent is a single self-contained binary built on the Condukt Elixir library, so the workflows below share one agent loop, one conversation model, and one tool registry with any agent you build yourself.
 
 ## Start in five minutes
 

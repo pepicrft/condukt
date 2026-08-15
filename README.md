@@ -18,8 +18,9 @@ It ships as three surfaces from one repository:
 
 - An **Elixir library** for OTP-native agents with sub-agents, MCP, sandboxes,
   network policy, redaction, compaction, and HTTP routes.
-- A **terminal CLI** that runs the same agent loop in Rust with a ratatui TUI,
-  slash commands, an ACP backend, and headless `exec` for scripts and CI.
+- A **terminal CLI** built on that library, with a ratatui interface, slash
+  commands, an ACP backend, and headless `exec` for scripts and CI. It ships as
+  a single self-contained binary per platform.
 - A **browser package** (`@tuist/condukt`) that ships the portable session as
   WebAssembly so any page can host an agent that only inherits the tools it
   explicitly registers.
@@ -79,10 +80,20 @@ Read the [library documentation on HexDocs](https://hexdocs.pm/condukt/overview.
 
 ## CLI
 
-Install the terminal coding agent globally with [mise](https://mise.jdx.dev/):
+The terminal coding agent is the library with a terminal in front of it: the
+same session, tools, and turn loop the examples above use. Install it globally
+with [mise](https://mise.jdx.dev/):
 
 ```sh
 mise use -g github:tuist/condukt
+```
+
+Every release also attaches a self-contained binary per platform, so you can
+download one directly instead:
+
+```sh
+curl -Lo condukt https://github.com/tuist/condukt/releases/latest/download/condukt-aarch64-apple-darwin
+chmod +x condukt
 ```
 
 Run `condukt`, then type `/connect` and follow the sign-in flow. Once
@@ -138,18 +149,15 @@ that signs developers in with OpenRouter and proxies the completion request.
 condukt/
 ├── lib/                  # Elixir library
 ├── native/               # Rust NIFs (bashkit, microsandbox, egress)
-├── cli/                  # Rust workspace for the terminal CLI
-│   └── crates/
-│       ├── condukt/         # binary
-│       ├── condukt-inference/
-│       ├── condukt-openrouter/
-│       ├── condukt-protocol/
-│       ├── condukt-session/
-│       ├── condukt-tools/
-│       └── condukt-wasm/
+├── cli/                  # Elixir terminal coding agent, packaged with Burrito
 ├── web/                  # Phoenix marketing site, documentation source, browser endpoint
 │   └── priv/docs/           # single source for docs and the ExDoc extras
 ├── packages/condukt/     # @tuist/condukt npm package
+│   └── crates/              # Rust workspace behind the WebAssembly build
+│       ├── condukt-inference/
+│       ├── condukt-protocol/
+│       ├── condukt-session/
+│       └── condukt-wasm/
 ├── infra/                # Helm chart and cluster configuration for the site
 └── .github/workflows/    # CI for library, CLI, and web
 ```

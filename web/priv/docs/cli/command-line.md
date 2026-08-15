@@ -14,6 +14,13 @@ Use `-p` or `--prompt` to submit one task without opening the interface:
 condukt -p "Review the current changes"
 ```
 
+Use `-h` or `--help` for a summary of every command, and `--version` for the installed version:
+
+```sh
+condukt --help
+condukt --version
+```
+
 ## `condukt exec`
 
 Run one coding task and print the final response.
@@ -48,6 +55,24 @@ Import Pi's saved OpenRouter credential without printing it:
 
 ```sh
 condukt import-pi-credentials
+```
+
+## `condukt files`
+
+List the files at the workspace root, matching the interactive `/files` command:
+
+```sh
+condukt files
+condukt files --cwd path/to/project
+```
+
+## `condukt read`
+
+Print a workspace file, matching the interactive `/read` command. Relative paths resolve against the workspace root, and long files are truncated:
+
+```sh
+condukt read README.md
+condukt read src/main.ex --cwd path/to/project
 ```
 
 ## `condukt acp`
