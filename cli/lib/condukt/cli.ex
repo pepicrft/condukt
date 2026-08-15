@@ -67,9 +67,20 @@ defmodule Condukt.CLI do
 
   defp execute({:ok, command}, opts), do: run(command, opts)
 
+  # Loading the renderer here makes `--version` a proof of life for the bundled
+  # native library. A binary whose renderer cannot load is broken for every
+  # interactive run, and this is the one command that can say so without a
+  # terminal, so packaging mistakes surface in continuous integration rather
+  # than on a user's machine.
   defp run(:version, _opts) do
-    IO.puts("#{@name} #{@version}")
-    0
+    case ExRatatui.Native.ensure_loaded() do
+      :ok ->
+        IO.puts("#{@name} #{@version}")
+        0
+
+      {:error, reason} ->
+        fail("the terminal renderer could not be loaded: #{inspect(reason)}")
+    end
   end
 
   defp run(:tui, opts), do: run_tui(opts)

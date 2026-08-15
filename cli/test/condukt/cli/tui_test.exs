@@ -121,6 +121,20 @@ defmodule Condukt.CLI.TUITest do
       assert Process.alive?(tui)
     end
 
+    test "the connection in flight is the only one that may connect", %{tui: tui} do
+      # Cancelling disowns an attempt but cannot stop the task already running
+      # it, so a late reply has to be dropped rather than connect an interface
+      # the user backed out of.
+      send(tui, {:connection_result, make_ref(), {:ok, self()}})
+      inject(tui, "x")
+      refute connected?(tui), "a disowned connection result must not connect the interface"
+
+      reference = adopt_connection(tui)
+      send(tui, {:connection_result, reference, {:ok, self()}})
+      inject(tui, "x")
+      assert connected?(tui), "the attempt still in flight must be able to connect"
+    end
+
     test "quitting stops the interface", %{tui: tui} do
       reference = Process.monitor(tui)
       Process.unlink(tui)
@@ -132,6 +146,24 @@ defmodule Condukt.CLI.TUITest do
       assert_receive {:DOWN, ^reference, :process, ^tui, reason}, 2_000
       assert reason in [:normal, :shutdown]
     end
+  end
+
+  defp inject(tui, code) do
+    ExRatatui.Runtime.inject_event(tui, %ExRatatui.Event.Key{code: code, kind: "press", modifiers: []})
+  end
+
+  # The runtime snapshot deliberately does not carry application state, and
+  # there is no buffer read-back from a supervised app, so a state assertion has
+  # to reach into the server. Injecting an event first makes sure the message
+  # under test has already been handled.
+  defp connected?(tui), do: :sys.get_state(tui).user_state.app.connected?
+
+  # Stands in for a connection attempt the interface started, without making the
+  # network call that starting one for real would.
+  defp adopt_connection(tui) do
+    reference = make_ref()
+    :sys.replace_state(tui, fn state -> put_in(state.user_state.connect_ref, reference) end)
+    reference
   end
 
   defp text(line), do: Enum.map_join(line.spans, & &1.content)

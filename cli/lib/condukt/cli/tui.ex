@@ -62,7 +62,8 @@ defmodule Condukt.CLI.TUI do
       cwd: cwd,
       assistant_buffer: "",
       tool_names: %{},
-      busy_since: nil
+      busy_since: nil,
+      connect_ref: nil
     }
 
     if Keyword.get(opts, :footer_refresh, true), do: schedule_footer_refresh(0)
@@ -125,7 +126,14 @@ defmodule Condukt.CLI.TUI do
     {:noreply, %{state | app: %{state.app | pending: false}, busy_since: nil, tool_names: %{}}}
   end
 
-  def handle_info({:connection_result, result}, state), do: apply_connection_result(state, result)
+  # Only the attempt currently in flight may report a result. A cancelled
+  # attempt keeps running to completion in its task, and without this guard its
+  # late reply would connect an interface the user had already backed out of.
+  def handle_info({:connection_result, reference, result}, %{connect_ref: reference} = state) do
+    apply_connection_result(%{state | connect_ref: nil}, result)
+  end
+
+  def handle_info({:connection_result, _reference, _result}, state), do: {:noreply, state}
 
   def handle_info({:footer, snapshot}, state) do
     schedule_footer_refresh(Footer.refresh_interval())
@@ -150,15 +158,20 @@ defmodule Condukt.CLI.TUI do
   end
 
   # A browser sign-in reports its outcome as a bare message tagged with the
-  # reference the login was started with.
-  def handle_info({reference, result}, %{login: %OAuth{ref: reference}} = state) when is_reference(reference) do
-    apply_connection_result(%{state | login: nil}, login_outcome(result, state))
+  # reference the login was started with. The key it produces still has to be
+  # validated and turned into a session, which is a network call, so it goes to
+  # a task rather than running here and freezing the frame loop, cancel key
+  # included.
+  def handle_info({reference, {:ok, key}}, %{login: %OAuth{ref: reference}} = state) when is_reference(reference) do
+    {:noreply, start_connect_task(%{state | login: nil}, key)}
+  end
+
+  def handle_info({reference, {:error, message}}, %{login: %OAuth{ref: reference}} = state)
+      when is_reference(reference) do
+    apply_connection_result(%{state | login: nil}, {:error, message})
   end
 
   def handle_info(_message, state), do: {:noreply, state}
-
-  defp login_outcome({:ok, key}, state), do: connect_with_key(key, state.cwd)
-  defp login_outcome({:error, message}, _state), do: {:error, message}
 
   defp apply_connection_result(state, {:ok, session}) do
     {:noreply, %{state | session: session, app: App.connection_result(state.app, :ok), busy_since: nil}}
@@ -235,17 +248,7 @@ defmodule Condukt.CLI.TUI do
     %{state | busy_since: now(), assistant_buffer: "", tool_names: %{}}
   end
 
-  defp run_effect(state, {:connect_with_key, key}) do
-    tui = self()
-    cwd = state.cwd
-
-    Task.Supervisor.start_child(Condukt.CLI.TaskSupervisor, fn ->
-      send(tui, {:connection_result, connect_with_key(key, cwd)})
-    end)
-
-    schedule_progress_tick()
-    %{state | busy_since: now()}
-  end
+  defp run_effect(state, {:connect_with_key, key}), do: start_connect_task(state, key)
 
   defp run_effect(state, {:start_oauth, _provider}) do
     case OAuth.start_login() do
@@ -260,16 +263,32 @@ defmodule Condukt.CLI.TUI do
     end
   end
 
-  defp run_effect(%{login: nil} = state, :cancel_connection), do: %{state | busy_since: nil}
-
+  # Cancelling stops the browser listener and disowns whatever attempt is in
+  # flight. The task itself is left to finish: its reply no longer matches
+  # `connect_ref`, so it is dropped on arrival.
   defp run_effect(state, :cancel_connection) do
-    OAuth.cancel(state.login)
-    %{state | login: nil, busy_since: nil}
+    if state.login, do: OAuth.cancel(state.login)
+    %{state | login: nil, busy_since: nil, connect_ref: nil}
   end
 
   defp run_effect(state, :exit), do: state
 
   defp run_effect(state, _effect), do: state
+
+  # Validating a key, saving it, and starting a session are all slow enough to
+  # be visible, so they happen off the frame loop and report back as a message.
+  defp start_connect_task(state, key) do
+    tui = self()
+    cwd = state.cwd
+    reference = make_ref()
+
+    Task.Supervisor.start_child(Condukt.CLI.TaskSupervisor, fn ->
+      send(tui, {:connection_result, reference, connect_with_key(key, cwd)})
+    end)
+
+    schedule_progress_tick()
+    %{state | busy_since: now(), connect_ref: reference}
+  end
 
   @doc """
   Validates a key, saves it, and starts a session for it.
