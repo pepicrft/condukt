@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [1.10.0] - 2026-08-15
+
+### Features
+
+- serve the site at condukt.dev, and let the deploy create the release
+
+
 ## [1.9.1] - 2026-08-15
 
 ### Changes
