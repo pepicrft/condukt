@@ -105,8 +105,13 @@ jobs:
       - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
         with:
           install_args: "helm@4.2.4"
+      # Same PATH caveat as the deploy job: resolve the pinned binary so the
+      # chart is linted and rendered by the Helm that deploys it.
+      - name: Resolve the pinned Helm
+        run: echo "HELM=$(mise which helm)" >> "$GITHUB_ENV"
       - name: Lint chart
-        run: helm lint "$HELM_CHART_PATH"
+        run: |
+          "$HELM" lint "$HELM_CHART_PATH"
       - name: Render conditionals
         run: ./infra/helm/condukt-site/tests/render-conditionals.sh
 
@@ -136,6 +141,16 @@ jobs:
           mkdir -p "$(dirname "$KUBECONFIG")"
           op document get "$KUBECONFIG_ITEM" --vault "$KUBECONFIG_VAULT" --output "$KUBECONFIG"
           chmod 600 "$KUBECONFIG"
+      # The runner image ships its own Helm ahead of the mise shim in PATH, so
+      # a bare `helm` is whatever the image happens to carry, not the version
+      # installed above. Resolve the pinned binary once and call it by path.
+      - name: Resolve the pinned Helm
+        run: |
+          set -euo pipefail
+          HELM="$(mise which helm)"
+          echo "HELM=$HELM" >> "$GITHUB_ENV"
+          echo "PATH helm:  $(command -v helm) ($(helm version --short 2>/dev/null || echo unknown))"
+          echo "pinned helm: $HELM ($("$HELM" version --short))"
       - name: Verify cluster reachability
         run: |
           set -euo pipefail
@@ -144,22 +159,22 @@ jobs:
           kubectl --request-timeout=10s get --raw /version >/dev/null
       - name: Recover stuck release
         run: |
-          status=$(helm status "$HELM_RELEASE_NAME" -n "$NAMESPACE" -o json 2>/dev/null \
+          status=$("$HELM" status "$HELM_RELEASE_NAME" -n "$NAMESPACE" -o json 2>/dev/null \
             | jq -r '.info.status // empty' || true)
           echo "Current release status: ${status:-<none>}"
           case "$status" in
             pending-install)
               echo "Release stuck in pending-install; uninstalling."
-              helm uninstall "$HELM_RELEASE_NAME" -n "$NAMESPACE" --wait || true
+              "$HELM" uninstall "$HELM_RELEASE_NAME" -n "$NAMESPACE" --wait || true
               ;;
             pending-upgrade|pending-rollback)
               echo "Release stuck in $status; rolling back to last deployed revision."
-              helm rollback "$HELM_RELEASE_NAME" -n "$NAMESPACE" --wait --timeout 5m || true
+              "$HELM" rollback "$HELM_RELEASE_NAME" -n "$NAMESPACE" --wait --timeout 5m || true
               ;;
           esac
       - name: helm upgrade --install
         run: |
-          helm upgrade --install "$HELM_RELEASE_NAME" "$HELM_CHART_PATH" \
+          "$HELM" upgrade --install "$HELM_RELEASE_NAME" "$HELM_CHART_PATH" \
             --namespace "$NAMESPACE" --create-namespace \
             --set image.tag="$IMAGE_TAG" \
             --rollback-on-failure --timeout 15m --wait
@@ -168,7 +183,7 @@ jobs:
         run: |
           set +e
           echo "::group::helm history"
-          helm history "$HELM_RELEASE_NAME" -n "$NAMESPACE" --max 10 || true
+          "${HELM:-helm}" history "$HELM_RELEASE_NAME" -n "$NAMESPACE" --max 10 || true
           echo "::endgroup::"
           echo "::group::pods"
           kubectl -n "$NAMESPACE" get pods -o wide || true
