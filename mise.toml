@@ -1,3 +1,8 @@
+[settings]
+# Resolve every tool through mise.lock so CI, the Dockerfile, and a laptop all
+# get the same build, not just the same version range.
+lockfile = true
+
 [tools]
 erlang = "28.3.1"
 elixir = "1.19.5-otp-28"
@@ -7,3 +12,9 @@ aube = "1.6.2"
 rust = "1.91"
 "cargo:wasm-pack" = "0.13.1"
 zig = "0.15.2"
+
+# Deployment tooling. Declared here rather than inline in the workflow so the
+# version CI installs is the version a local `helm upgrade` would run.
+helm = "4.2.4"
+kubectl = "1.34.6"
+jq = "1.8.1"

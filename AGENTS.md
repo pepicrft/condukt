@@ -228,6 +228,7 @@ The site runs on Kubernetes and is served at https://condukt.tuist.dev.
 - `SECRET_KEY_BASE` is the only required secret. The `onepassword` ClusterSecretStore is pinned to the `tuist-k8s-production` vault, so chart secrets resolve there; the deploy kubeconfig lives in `condukt-k8s-production` and is read by the 1Password CLI in CI. OpenRouter sign-in is PKCE, so no provider credential lives in the cluster.
 - The site has no database. `postgres.enabled` is `false` and the app starts its Repo only when `DATABASE_URL` is set; enabling the value provisions the cluster and wires the URL in.
 - Verify chart changes with `helm lint infra/helm/condukt-site` and `./infra/helm/condukt-site/tests/render-conditionals.sh` before committing.
+- `helm`, `kubectl`, and `jq` are declared in `mise.toml` and pinned by `mise.lock`, like every other tool. Do not pass inline versions (`helm@x.y.z`) in a workflow: change `mise.toml` and run `mise lock --platform linux-x64,macos-arm64`. Workflow steps call `$(mise which helm)` rather than a bare `helm`, because the GitHub runner image ships its own Helm ahead of the mise shim in `PATH`.
 
 ## Documentation (`web/priv/docs/`)
 
