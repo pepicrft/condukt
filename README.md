@@ -85,10 +85,14 @@ same session, tools, and turn loop the examples above use. Install it globally
 with [mise](https://mise.jdx.dev/):
 
 ```sh
-mise use -g github:tuist/condukt
+mise use -g "ubi:tuist/condukt[matching=condukt-,exe=condukt]"
 ```
 
-Every release also attaches a self-contained binary per platform, so you can
+The release also carries the library's precompiled native artifacts, several of
+which name the same platform, so `matching=condukt-` is what points mise at the
+agent rather than at one of those.
+
+Every release attaches a self-contained binary per platform, so you can
 download one directly instead:
 
 ```sh

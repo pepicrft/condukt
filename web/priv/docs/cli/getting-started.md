@@ -7,8 +7,10 @@ Install the Condukt CLI, connect OpenRouter, and run your first coding task.
 Install the latest release globally with [mise](https://mise.jdx.dev/):
 
 ```sh
-mise use -g github:tuist/condukt
+mise use -g "ubi:tuist/condukt[matching=condukt-,exe=condukt]"
 ```
+
+The release also carries the library's precompiled native artifacts, several of which name the same platform. The `matching=condukt-` filter is what points mise at the agent rather than at one of those.
 
 Confirm that the command is available:
 
