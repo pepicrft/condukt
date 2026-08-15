@@ -7,7 +7,7 @@
 nameOverride: ""
 fullnameOverride: "condukt-site"
 
-host: condukt.tuist.dev
+host: condukt.dev
 
 image:
   repository: ghcr.io/tuist/condukt
@@ -49,12 +49,26 @@ service:
 
 ingress:
   className: nginx
-  # The cluster already runs this issuer for other tuist.dev hosts, for example
-  # registry.tuist.dev. It solves DNS-01 through Cloudflare, so it works while
-  # the record is proxied.
+  # A namespaced Issuer (created by templates/dns-issuer.yaml) that can solve
+  # the DNS-01 challenge for condukt.dev. When set, it takes precedence over
+  # clusterIssuer, which the shared cluster only scopes to the tuist.dev zone.
+  issuer: letsencrypt-condukt
+  # Kept for a cluster whose ClusterIssuer does cover this zone: clear
+  # `issuer` and this one is used instead.
   clusterIssuer: letsencrypt-cloudflare
-  # platform-external-dns reads this annotation when it creates the record.
-  cloudflareProxied: true
+  # platform-external-dns filters on tuist.dev and so never sees condukt.dev.
+  # The record is created by hand against the ingress LB, the same way
+  # buildonce.dev is, which also means nothing here can proxy it.
+  cloudflareProxied: false
+
+# Namespaced ACME issuer for condukt.dev. Its Cloudflare token is synced from
+# 1Password into the namespace and grants edit access to the condukt.dev zone.
+dnsIssuer:
+  enabled: true
+  email: ops@tuist.dev
+  acmeServer: https://acme-v02.api.letsencrypt.org/directory
+  tokenSecretName: cloudflare-condukt-token
+  tokenRemoteRef: "cloudflare-condukt-dns/credential"
 
 # Extra environment variables passed to the container, for example
 # OPENROUTER_MODEL to override the model offered by the browser agent.

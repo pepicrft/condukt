@@ -72,7 +72,7 @@ NIF build and the CLI's release build don't fight each other.
 | `@tuist/plasma` (npm)        | `@tuist/condukt`            |
 | `plasma_site` (Elixir app)   | `condukt_site`              |
 | `PlasmaSite.*` (modules)     | `ConduktSite.*`             |
-| `plasma.tuist.dev` (domain)  | `condukt.tuist.dev` (no change) |
+| `plasma.tuist.dev` (domain)  | `condukt.dev` |
 | `PLASMA_*` env vars          | `CONDUKT_*`                 |
 | `~/.config/plasma`           | `~/.config/condukt`         |
 | `mise use -g github:tuist/plasma`  | `mise use -g github:tuist/condukt` |

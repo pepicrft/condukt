@@ -178,10 +178,13 @@ jobs:
               "$HELM" rollback "$HELM_RELEASE_NAME" -n "$NAMESPACE" --wait --timeout 5m || true
               ;;
           esac
+      # No --create-namespace: the namespace is part of the one-time bootstrap
+      # in infra/k8s/ci-service-account.yaml, and Helm 4 server-side applies
+      # the Namespace object, which a namespace-scoped deployer cannot patch.
       - name: helm upgrade --install
         run: |
           "$HELM" upgrade --install "$HELM_RELEASE_NAME" "$HELM_CHART_PATH" \
-            --namespace "$NAMESPACE" --create-namespace \
+            --namespace "$NAMESPACE" \
             --set image.tag="$IMAGE_TAG" \
             --rollback-on-failure --timeout 15m --wait
       - name: Diagnostics on failure
