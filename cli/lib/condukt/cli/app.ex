@@ -9,6 +9,7 @@ defmodule Condukt.CLI.App do
   asynchronous tests, and keeps the frame loop free of blocking work.
   """
 
+  alias Condukt.CLI.Clipboard
   alias Condukt.CLI.Commands
   alias Condukt.CLI.Footer
   alias Condukt.CLI.OpenRouter
@@ -39,7 +40,8 @@ defmodule Condukt.CLI.App do
             user_name: "You",
             model_name: nil,
             working_dir: ".",
-            document_scroll_from_bottom: 0
+            document_scroll_from_bottom: 0,
+            attachments: []
 
   @doc "The rows offered by the authentication-method menu."
   def connect_methods, do: @connect_methods
@@ -176,10 +178,90 @@ defmodule Condukt.CLI.App do
         {push_error(app, "You are not connected. Run /connect to sign in before sending a prompt."), []}
 
       true ->
-        app = %{app | document: Transcript.push_prompt_echo(app.document, app.user_name, prompt), pending: true}
-        {app, [{:submit_prompt, prompt}]}
+        document =
+          app.document
+          |> Transcript.push_prompt_echo(app.user_name, prompt)
+          |> Transcript.push_attachments(app.attachments)
+
+        # The attachments belong to the turn being sent, so they are read out
+        # before the state is cleared for the next one.
+        effect = {:submit_prompt, prompt, images(app.attachments)}
+        {%{app | document: document, pending: true, attachments: []}, [effect]}
     end
   end
+
+  # The shape `Condukt.Session` attaches to a user message.
+  defp images(attachments) do
+    Enum.map(attachments, fn attachment ->
+      %{type: :base64, media_type: attachment.media_type, data: attachment.data}
+    end)
+  end
+
+  # ============================================================================
+  # Pasting
+  # ============================================================================
+
+  @doc """
+  Attaches a clipboard image to the turn being composed.
+
+  The prompt gains a marker rather than the image itself, because a terminal has
+  no way to show one inside a line of input. The marker is left in the text on
+  submit so the model can tell which image a sentence is talking about when more
+  than one is attached.
+
+  Returns the state unchanged, with an error in the transcript, when the image is
+  too large to send.
+  """
+  def attach_image(%__MODULE__{} = app, %{media_type: media_type, bytes: bytes}) do
+    cond do
+      not supported_image?(media_type) ->
+        push_error(app, "Cannot attach #{media_type}: only PNG, JPEG, WebP, and GIF images are supported.")
+
+      byte_size(bytes) > max_image_bytes() ->
+        push_error(
+          app,
+          "That image is #{describe_size(byte_size(bytes))} and the limit is #{describe_size(max_image_bytes())}. " <>
+            "Save it to a file and ask me to read it instead."
+        )
+
+      true ->
+        marker = "[image ##{length(app.attachments) + 1}]"
+        attachment = %{media_type: media_type, data: Base.encode64(bytes), marker: marker}
+        %{app | attachments: app.attachments ++ [attachment], input: append_to_input(app.input, marker)}
+    end
+  end
+
+  @doc """
+  Inserts pasted text into the prompt.
+
+  Newlines become spaces: the prompt is a single line, and a multi-line paste
+  would otherwise be silently truncated at the first break.
+  """
+  def insert_text(%__MODULE__{} = app, text) do
+    flattened = text |> String.replace(["\r\n", "\n", "\r"], " ") |> String.trim_trailing()
+
+    if flattened == "" do
+      app
+    else
+      recompute_show_commands(%{app | input: app.input <> flattened})
+    end
+  end
+
+  @doc "Largest clipboard image the interface will attach, in bytes."
+  def max_image_bytes, do: 8 * 1024 * 1024
+
+  defp supported_image?(media_type), do: media_type in Clipboard.supported_types()
+
+  defp append_to_input(input, marker) do
+    cond do
+      input == "" -> marker
+      String.ends_with?(input, " ") -> input <> marker
+      true -> input <> " " <> marker
+    end
+  end
+
+  defp describe_size(bytes) when bytes >= 1024 * 1024, do: "#{Float.round(bytes / (1024 * 1024), 1)} MB"
+  defp describe_size(bytes), do: "#{div(bytes, 1024)} KB"
 
   defp submit_slash_command(app, input) do
     case Commands.parse(input) do

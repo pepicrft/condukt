@@ -20,6 +20,18 @@ The slash menu exposes the same primary workflows as the command line:
 | `/help` | Show available commands |
 | `/quit` | Exit Condukt |
 
+## Include an image
+
+Copy an image, then press **Ctrl+V** in the prompt. Condukt reads it from the system clipboard, attaches it to the turn, and leaves a marker such as `[image #1]` in the text so you can refer to it:
+
+```text
+Why does the footer look wrong here? [image #1]
+```
+
+A terminal never hands an application image bytes, so this is a deliberate key rather than your terminal's own paste. Ctrl+V also pastes text when the clipboard holds no image, and your terminal's usual paste keeps working for text.
+
+PNG, JPEG, WebP, and GIF are supported, up to 8 MB. macOS works out of the box; Linux needs `wl-paste` on Wayland or `xclip` on X11.
+
 The coding agent can ask for two model tools:
 
 - `read` reads text from a path and truncates very large results.

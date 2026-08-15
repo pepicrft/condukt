@@ -42,7 +42,7 @@ defmodule Condukt.CLI.AppTest do
         |> with_input("explain this project")
         |> App.submit()
 
-      assert effects == [{:submit_prompt, "explain this project"}]
+      assert effects == [{:submit_prompt, "explain this project", []}]
       assert app.pending
       assert document_text(app) =~ "explain this project"
     end
@@ -127,6 +127,105 @@ defmodule Condukt.CLI.AppTest do
         |> App.submit()
 
       assert document_text(app) =~ "could not read"
+    end
+  end
+
+  describe "attachments" do
+    defp png(bytes \\ 32), do: %{media_type: "image/png", bytes: :binary.copy(<<137, 80, 78, 71>>, bytes)}
+
+    test "an attached image gets a marker in the prompt" do
+      app = App.attach_image(App.empty(), png())
+
+      assert app.input == "[image #1]"
+      assert [%{media_type: "image/png", marker: "[image #1]"}] = app.attachments
+    end
+
+    test "the image is carried as base64" do
+      app = App.attach_image(App.empty(), %{media_type: "image/png", bytes: "raw bytes"})
+
+      assert [%{data: data}] = app.attachments
+      assert Base.decode64!(data) == "raw bytes"
+    end
+
+    test "markers are numbered and spaced away from what is already typed" do
+      app =
+        %{App.empty() | input: "what is wrong here?"}
+        |> App.attach_image(png())
+        |> App.attach_image(png())
+
+      assert app.input == "what is wrong here? [image #1] [image #2]"
+      assert length(app.attachments) == 2
+    end
+
+    test "submitting sends the images and clears them" do
+      {app, effects} =
+        %{App.empty() | connected?: true}
+        |> App.attach_image(%{media_type: "image/png", bytes: "one"})
+        |> App.submit()
+
+      assert [{:submit_prompt, "[image #1]", [image]}] = effects
+      assert image == %{type: :base64, media_type: "image/png", data: Base.encode64("one")}
+      assert app.attachments == []
+    end
+
+    test "the transcript records what went with the turn" do
+      {app, _effects} =
+        %{App.empty() | connected?: true, input: "look"}
+        |> App.attach_image(png())
+        |> App.submit()
+
+      assert document_text(app) =~ "attached [image #1]"
+    end
+
+    test "a turn with no attachment says nothing about them" do
+      {app, effects} = %{App.empty() | connected?: true, input: "look"} |> App.submit()
+
+      assert [{:submit_prompt, "look", []}] = effects
+      refute document_text(app) =~ "attached"
+    end
+
+    test "an unsupported image type is refused with a reason" do
+      app = App.attach_image(App.empty(), %{media_type: "image/tiff", bytes: "x"})
+
+      assert app.attachments == []
+      assert document_text(app) =~ "only PNG, JPEG, WebP, and GIF"
+    end
+
+    # Base64 inflates by a third on the way to the provider, and a rejected
+    # request would surface as an opaque provider error rather than something
+    # the user can act on.
+    test "an image beyond the limit is refused with its size" do
+      oversized = %{media_type: "image/png", bytes: :binary.copy("x", App.max_image_bytes() + 1)}
+      app = App.attach_image(App.empty(), oversized)
+
+      assert app.attachments == []
+      assert document_text(app) =~ "8.0 MB"
+    end
+  end
+
+  describe "pasted text" do
+    test "is appended to the prompt" do
+      app = App.insert_text(%{App.empty() | input: "see "}, "this file")
+
+      assert app.input == "see this file"
+    end
+
+    # The prompt is one line, so a multi-line paste would otherwise be cut at
+    # the first break with no sign that anything was lost.
+    test "arrives flattened onto the single prompt line" do
+      app = App.insert_text(App.empty(), "first\nsecond\r\nthird")
+
+      assert app.input == "first second third"
+    end
+
+    test "opens the slash menu when it starts a command" do
+      app = App.insert_text(App.empty(), "/conn")
+
+      assert App.show_commands?(app)
+    end
+
+    test "empty text leaves the prompt alone" do
+      assert App.insert_text(%{App.empty() | input: "kept"}, "  \n ").input == "kept"
     end
   end
 

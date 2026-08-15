@@ -71,6 +71,32 @@ defmodule Condukt.CLI.Transcript do
     |> Kernel.++(body_lines(prompt, Theme.user_marker()))
   end
 
+  @doc """
+  Notes the images that went with a turn.
+
+  The transcript cannot show an image, so it records that one was sent. Without
+  this the turn reads as if only the text had been submitted.
+  """
+  def push_attachments(document, []), do: document
+
+  def push_attachments(document, attachments) do
+    document ++
+      [
+        %Line{
+          spans: [
+            %Span{content: "\u258c ", style: Theme.user_marker()},
+            %Span{content: describe(attachments), style: Theme.muted_italic()}
+          ]
+        }
+      ]
+  end
+
+  defp describe([attachment]), do: "attached #{attachment.marker}"
+
+  defp describe(attachments) do
+    "attached " <> Enum.map_join(attachments, ", ", & &1.marker)
+  end
+
   @doc "Appends a plain informational line."
   def push_info(document, message), do: document ++ [plain(message)]
 

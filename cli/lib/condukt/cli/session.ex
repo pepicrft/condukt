@@ -37,11 +37,11 @@ defmodule Condukt.CLI.Session do
   caller can stop a turn it no longer wants.
   """
   def stream_to(session, prompt, subscriber, opts \\ []) do
-    supervisor = Keyword.get(opts, :supervisor, Condukt.CLI.TaskSupervisor)
+    {supervisor, prompt_opts} = Keyword.pop(opts, :supervisor, Condukt.CLI.TaskSupervisor)
 
     Task.Supervisor.start_child(supervisor, fn ->
       session
-      |> Condukt.Session.stream(prompt)
+      |> Condukt.Session.stream(prompt, prompt_opts)
       |> Enum.each(fn event -> send(subscriber, {:agent_event, event}) end)
 
       send(subscriber, {:agent_done, :ok})

@@ -10,6 +10,7 @@ defmodule Condukt.CLI.Footer do
   flicker.
   """
 
+  alias Condukt.CLI.Command
   alias Condukt.CLI.OpenRouter
   alias Condukt.CLI.Theme
   alias Condukt.CLI.Width
@@ -204,31 +205,17 @@ defmodule Condukt.CLI.Footer do
   end
 
   @doc """
-  Runs one status command and captures everything it writes.
+  Runs one status command, capturing everything it writes.
 
-  `stderr_to_stdout` is the load-bearing option, not a convenience. Without it a
-  child's standard error is inherited from the virtual machine, which is the
-  same terminal the interface is drawing on: `gh pr view` on a branch with no
-  pull request writes "no pull requests found" straight onto the frame,
-  scrolling the screen out from under the renderer so that every later redraw
-  lands a row off. Nothing this function runs may reach the terminal.
-
-  `gh` in particular is often not installed. Looking the executable up first
-  keeps a missing tool from raising inside the refresh task, where the crash
-  report would be written over the frame for the same reason.
+  Delegates to `Condukt.CLI.Command`, which owns the reason this is not a plain
+  `System.cmd`: nothing the footer runs may reach the terminal the interface is
+  drawing on.
   """
   def run(program, arguments, working_dir) do
-    with executable when is_binary(executable) <- System.find_executable(program),
-         {output, 0} <-
-           MuonTrap.cmd(executable, arguments,
-             cd: working_dir,
-             stderr_to_stdout: true,
-             timeout: @command_timeout,
-             env: [{"NO_COLOR", "1"}, {"GH_NO_UPDATE_NOTIFIER", "1"}, {"GH_TOKEN", nil}]
-           ) do
-      {:ok, String.trim(output)}
-    else
-      _other -> :error
-    end
+    Command.run(program, arguments,
+      cd: working_dir,
+      timeout: @command_timeout,
+      env: [{"NO_COLOR", "1"}, {"GH_NO_UPDATE_NOTIFIER", "1"}, {"GH_TOKEN", nil}]
+    )
   end
 end

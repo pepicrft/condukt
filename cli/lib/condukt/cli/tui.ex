@@ -12,6 +12,7 @@ defmodule Condukt.CLI.TUI do
 
   alias Condukt.CLI.App
   alias Condukt.CLI.Browser
+  alias Condukt.CLI.Clipboard
   alias Condukt.CLI.Footer
   alias Condukt.CLI.Input
   alias Condukt.CLI.OAuth
@@ -21,6 +22,7 @@ defmodule Condukt.CLI.TUI do
   alias Condukt.CLI.Width
   alias ExRatatui.Event.Key
   alias ExRatatui.Event.Mouse
+  alias ExRatatui.Event.Paste
   alias ExRatatui.Layout
   alias ExRatatui.Layout.Rect
   alias ExRatatui.Style
@@ -104,6 +106,12 @@ defmodule Condukt.CLI.TUI do
     end
   end
 
+  # The terminal's own paste arrives here already decoded. Without this clause a
+  # paste did nothing at all.
+  def handle_event(%Paste{content: content}, state) do
+    {:noreply, %{state | app: App.insert_text(state.app, content)}}
+  end
+
   def handle_event(%Mouse{kind: "scroll_up"}, state) do
     {:noreply, %{state | app: App.scroll_document_up(state.app)}}
   end
@@ -134,6 +142,16 @@ defmodule Condukt.CLI.TUI do
   end
 
   def handle_info({:connection_result, _reference, _result}, state), do: {:noreply, state}
+
+  def handle_info({:clipboard, {:image, image}}, state) do
+    {:noreply, %{state | app: App.attach_image(state.app, image)}}
+  end
+
+  def handle_info({:clipboard, {:text, text}}, state) do
+    {:noreply, %{state | app: App.insert_text(state.app, text)}}
+  end
+
+  def handle_info({:clipboard, :empty}, state), do: {:noreply, state}
 
   def handle_info({:footer, snapshot}, state) do
     schedule_footer_refresh(Footer.refresh_interval())
@@ -242,8 +260,8 @@ defmodule Condukt.CLI.TUI do
     state
   end
 
-  defp run_effect(state, {:submit_prompt, prompt}) do
-    Session.stream_to(state.session, prompt, self())
+  defp run_effect(state, {:submit_prompt, prompt, images}) do
+    Session.stream_to(state.session, prompt, self(), images: images)
     schedule_progress_tick()
     %{state | busy_since: now(), assistant_buffer: "", tool_names: %{}}
   end
@@ -271,6 +289,19 @@ defmodule Condukt.CLI.TUI do
     %{state | login: nil, busy_since: nil, connect_ref: nil}
   end
 
+  # Reading the clipboard shells out, and on macOS that is AppleScript, which is
+  # slow enough to drop frames. It belongs in a task like every other command
+  # the interface runs.
+  defp run_effect(state, :paste_clipboard) do
+    tui = self()
+
+    Task.Supervisor.start_child(Condukt.CLI.TaskSupervisor, fn ->
+      send(tui, {:clipboard, read_clipboard()})
+    end)
+
+    state
+  end
+
   defp run_effect(state, :exit), do: state
 
   defp run_effect(state, _effect), do: state
@@ -288,6 +319,26 @@ defmodule Condukt.CLI.TUI do
 
     schedule_progress_tick()
     %{state | busy_since: now(), connect_ref: reference}
+  end
+
+  @doc """
+  Reads whatever the clipboard is holding.
+
+  An image wins over text, because a clipboard carrying an image often carries a
+  filename alongside it and the image is what the user meant to paste.
+  """
+  def read_clipboard do
+    case Clipboard.read_image() do
+      {:ok, image} -> {:image, image}
+      :none -> clipboard_text()
+    end
+  end
+
+  defp clipboard_text do
+    case Clipboard.read_text() do
+      {:ok, text} -> {:text, text}
+      :none -> :empty
+    end
   end
 
   @doc """

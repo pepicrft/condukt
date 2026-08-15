@@ -18,33 +18,49 @@ defmodule Condukt.CLI.Input do
   end
 
   def handle_key(%App{} = app, %Key{code: code, modifiers: modifiers}) do
-    modifiers = modifiers || []
-
-    cond do
-      code == "c" and "ctrl" in modifiers ->
-        handle_ctrl_c(app)
-
-      code == "esc" ->
-        handle_escape(app)
-
-      # A chord the interface does not bind should do nothing rather than
-      # insert its letter into the prompt. Shift is not a chord: it is how the
-      # character was typed in the first place.
-      Enum.any?(modifiers, &(&1 in @chord_modifiers)) ->
-        {:continue, app, []}
-
-      # While a request is in flight the interface stays read-only apart from
-      # the cancel keys handled above, so a stray keystroke cannot reorder the
-      # conversation or start a second turn.
-      App.busy?(app) and code in @busy_ignored ->
-        {:continue, app, []}
-
-      true ->
-        dispatch(app, code)
+    case binding(code, modifiers || []) do
+      :interrupt -> handle_ctrl_c(app)
+      :cancel -> handle_escape(app)
+      :paste -> {:continue, app, [:paste_clipboard]}
+      :ignore -> {:continue, app, []}
+      :input -> handle_input(app, code)
     end
   end
 
   def handle_key(%App{} = app, _event), do: {:continue, app, []}
+
+  # The terminal's own paste sends text through a bracketed-paste event and
+  # cannot carry an image at all, so an explicit binding is what makes the
+  # clipboard's image reachable.
+  defp binding("v", modifiers) do
+    if "ctrl" in modifiers, do: :paste, else: typed(modifiers)
+  end
+
+  defp binding("c", modifiers) do
+    if "ctrl" in modifiers, do: :interrupt, else: typed(modifiers)
+  end
+
+  defp binding("esc", _modifiers), do: :cancel
+
+  defp binding(_code, modifiers), do: typed(modifiers)
+
+  # A chord the interface does not bind should do nothing rather than insert its
+  # letter into the prompt. Shift is not a chord: it is how the character was
+  # typed in the first place.
+  defp typed(modifiers) do
+    if Enum.any?(modifiers, &(&1 in @chord_modifiers)), do: :ignore, else: :input
+  end
+
+  # While a request is in flight the interface stays read-only apart from the
+  # cancel keys, so a stray keystroke cannot reorder the conversation or start a
+  # second turn.
+  defp handle_input(app, code) do
+    if App.busy?(app) and code in @busy_ignored do
+      {:continue, app, []}
+    else
+      dispatch(app, code)
+    end
+  end
 
   @doc """
   Handles Escape.
