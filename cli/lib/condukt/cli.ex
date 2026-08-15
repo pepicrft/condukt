@@ -130,16 +130,19 @@ defmodule Condukt.CLI do
   end
 
   defp run_tui(opts) do
+    # The interface is a linked child, and it can die between `start_link`
+    # returning and this process getting a chance to say how it wants to hear
+    # about that. Trapping first turns the exit signal into a message either
+    # way, so a terminal that cannot be initialized is reported the same way
+    # whether the caller happens to trap exits already (a supervisor, inside a
+    # wrapped binary) or not (`mix condukt`). Waiting selectively leaves any
+    # other message in the mailbox for whoever it belongs to.
+    Process.flag(:trap_exit, true)
+
     case TUI.start_link(Keyword.take(opts, [:cwd, :browser])) do
       {:ok, pid} ->
-        # An abnormal exit has to arrive as a monitor message rather than as an
-        # exit signal, which would kill this process before it could set the
-        # exit code and leave the wrapped binary hanging on an idle machine.
-        reference = Process.monitor(pid)
-        Process.unlink(pid)
-
         receive do
-          {:DOWN, ^reference, :process, ^pid, reason} -> exit_code_for(reason)
+          {:EXIT, ^pid, reason} -> exit_code_for(reason)
         end
 
       {:error, reason} ->
