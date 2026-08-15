@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [1.9.1] - 2026-08-15
+
+### Changes
+
+- pin the deploy toolchain in mise.toml with a lockfile
+
+
 ## [1.9.0] - 2026-08-14
 
 ### Features
