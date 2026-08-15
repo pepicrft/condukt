@@ -58,6 +58,27 @@ defmodule Condukt.CLI.FooterTest do
     assert Footer.tally(checks) == %{passing: 1, failing: 2, pending: 1}
   end
 
+  describe "running a status command" do
+    # A child's standard error is inherited from the virtual machine unless it
+    # is captured, and that is the terminal the interface is drawing on. `gh pr
+    # view` on a branch with no pull request writes there on every refresh, so
+    # a leak here scrolls the frame and every later redraw lands a row off.
+    test "captures standard error instead of letting it reach the terminal" do
+      assert {:ok, output} = Footer.run("sh", ["-c", "echo to-stderr >&2; echo to-stdout"], System.tmp_dir!())
+
+      assert output =~ "to-stderr"
+      assert output =~ "to-stdout"
+    end
+
+    test "a failing command yields no output to render" do
+      assert :error = Footer.run("sh", ["-c", "echo nope >&2; exit 1"], System.tmp_dir!())
+    end
+
+    test "a missing executable is not an exception" do
+      assert :error = Footer.run("definitely-not-a-real-program", [], System.tmp_dir!())
+    end
+  end
+
   describe "shortening a path" do
     test "the home directory becomes a tilde" do
       assert Footer.shorten_path("/home/person/code", "/home/person") == "~/code"

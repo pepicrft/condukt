@@ -137,15 +137,14 @@ defmodule Condukt.CLI.Footer do
 
   defp git_branch(working_dir) do
     case run("git", ["rev-parse", "--abbrev-ref", "HEAD"], working_dir) do
-      {:ok, ""} -> nil
-      {:ok, branch} -> branch
+      {:ok, output} -> output |> last_line() |> presence()
       :error -> nil
     end
   end
 
   defp gh_pull_request(working_dir, branch) do
-    with {:ok, output} when output != "" <- run("gh", ["pr", "view", branch, "--json", "number"], working_dir),
-         {:ok, %{"number" => number}} <- JSON.decode(output) do
+    with {:ok, output} <- run("gh", ["pr", "view", branch, "--json", "number"], working_dir),
+         {:ok, %{"number" => number}} <- decode(output) do
       number
     else
       _other -> nil
@@ -153,14 +152,40 @@ defmodule Condukt.CLI.Footer do
   end
 
   defp gh_checks(working_dir, number) do
-    with {:ok, output} when output != "" <-
-           run("gh", ["pr", "checks", to_string(number), "--json", "name,conclusion"], working_dir),
-         {:ok, checks} when is_list(checks) <- JSON.decode(output) do
+    with {:ok, output} <- run("gh", ["pr", "checks", to_string(number), "--json", "name,conclusion"], working_dir),
+         {:ok, checks} when is_list(checks) <- decode(output) do
       tally(checks)
     else
       _other -> nil
     end
   end
+
+  # Output arrives with anything the tool wrote to standard error mixed in, so
+  # the payload is located rather than assumed to start at byte zero. A tool
+  # that is quiet on success, which both of these are, lands on the first
+  # branch every time.
+  defp decode(output) do
+    case JSON.decode(output) do
+      {:ok, value} -> {:ok, value}
+      {:error, _reason} -> output |> json_payload() |> decode_payload()
+    end
+  end
+
+  defp decode_payload(nil), do: :error
+  defp decode_payload(payload), do: JSON.decode(payload)
+
+  defp json_payload(output) do
+    output
+    |> String.split("\n")
+    |> Enum.find(fn line -> String.starts_with?(String.trim_leading(line), ["{", "["]) end)
+  end
+
+  defp last_line(output) do
+    output |> String.split("\n") |> Enum.reverse() |> Enum.find("", &(String.trim(&1) != "")) |> String.trim()
+  end
+
+  defp presence(""), do: nil
+  defp presence(value), do: value
 
   @doc "Counts checks into passing, failing, and pending buckets."
   def tally(checks) do
@@ -178,14 +203,26 @@ defmodule Condukt.CLI.Footer do
     end)
   end
 
-  # `gh` in particular is often not installed. Looking the executable up first
-  # keeps a missing tool from raising inside the refresh task, where the crash
-  # report would be written straight over the drawn frame.
-  defp run(program, arguments, working_dir) do
+  @doc """
+  Runs one status command and captures everything it writes.
+
+  `stderr_to_stdout` is the load-bearing option, not a convenience. Without it a
+  child's standard error is inherited from the virtual machine, which is the
+  same terminal the interface is drawing on: `gh pr view` on a branch with no
+  pull request writes "no pull requests found" straight onto the frame,
+  scrolling the screen out from under the renderer so that every later redraw
+  lands a row off. Nothing this function runs may reach the terminal.
+
+  `gh` in particular is often not installed. Looking the executable up first
+  keeps a missing tool from raising inside the refresh task, where the crash
+  report would be written over the frame for the same reason.
+  """
+  def run(program, arguments, working_dir) do
     with executable when is_binary(executable) <- System.find_executable(program),
          {output, 0} <-
            MuonTrap.cmd(executable, arguments,
              cd: working_dir,
+             stderr_to_stdout: true,
              timeout: @command_timeout,
              env: [{"NO_COLOR", "1"}, {"GH_NO_UPDATE_NOTIFIER", "1"}, {"GH_TOKEN", nil}]
            ) do

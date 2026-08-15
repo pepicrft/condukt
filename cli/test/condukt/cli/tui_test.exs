@@ -73,6 +73,91 @@ defmodule Condukt.CLI.TUITest do
     assert TUI.prompt_content_width(%{App.empty() | input: "é你"}) == 5
   end
 
+  # Layout assertions above check which slot gets which rectangle. These draw
+  # the frame for real and read the cells back, which is the only way to catch
+  # text landing somewhere other than the slot it was meant for.
+  describe "the drawn frame" do
+    test "typed text lands inside the prompt, never on the footer" do
+      rows = draw(input: "hello world")
+
+      prompt = row_containing(rows, "> hello world")
+      [top, bottom] = border_rows(rows)
+
+      assert prompt > top and prompt < bottom, "the prompt content belongs between its rules"
+      refute List.last(rows) =~ "hello world", "the footer is not the prompt"
+    end
+
+    test "the footer holds the workspace and the model on the last row" do
+      rows = draw(cwd: "/tmp/demo")
+      footer = List.last(rows)
+
+      assert footer =~ "/tmp/demo"
+      assert footer =~ "openrouter"
+    end
+
+    test "the transcript sits above the prompt" do
+      rows = draw([])
+      [top, _bottom] = border_rows(rows)
+
+      assert row_containing(rows, "Type /connect") < top
+    end
+
+    test "the slash menu opens between the transcript and the prompt" do
+      rows = draw(input: "/")
+      [top, _bottom] = border_rows(rows)
+
+      menu = row_containing(rows, "List workspace files")
+      assert menu < top
+      assert row_containing(rows, "Type /connect") < menu
+    end
+
+    test "a guided menu replaces the prompt rather than stacking on it" do
+      rows = draw(mode: {:awaiting_connect_method, 0})
+
+      assert row_containing(rows, "Select authentication method:")
+      assert row_containing(rows, "→ Sign in with an account")
+      refute Enum.any?(rows, &String.contains?(&1, "> "))
+    end
+
+    defp draw(opts) do
+      width = Keyword.get(opts, :width, 60)
+      height = Keyword.get(opts, :height, 14)
+
+      {:ok, state} =
+        TUI.mount(
+          cwd: Keyword.get(opts, :cwd, "/tmp/demo"),
+          footer_refresh: false,
+          restore_session: fn _cwd -> {false, nil, []} end
+        )
+
+      app =
+        state.app
+        |> Map.put(:mode, Keyword.get(opts, :mode, :normal))
+        |> Map.put(:input, Keyword.get(opts, :input, ""))
+        |> App.recompute_show_commands()
+
+      widgets = TUI.render(%{state | app: app}, %ExRatatui.Frame{width: width, height: height})
+
+      terminal = ExRatatui.init_test_terminal(width, height)
+      :ok = ExRatatui.draw(terminal, widgets)
+
+      terminal |> ExRatatui.get_buffer_content() |> String.split("\n")
+    end
+
+    defp row_containing(rows, text) do
+      index = Enum.find_index(rows, &String.contains?(&1, text))
+      assert index, "no row contains #{inspect(text)} in:\n#{Enum.join(rows, "\n")}"
+      index
+    end
+
+    defp border_rows(rows) do
+      rows
+      |> Enum.with_index()
+      |> Enum.filter(fn {row, _index} -> String.starts_with?(row, "───") end)
+      |> Enum.map(fn {_row, index} -> index end)
+    end
+  end
+
   describe "running headlessly" do
     setup do
       {:ok, tui} =
