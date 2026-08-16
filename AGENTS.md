@@ -158,6 +158,13 @@
   when the target is supported.
 - The release publish job runs with `MIX_ENV=prod` so Hex package
   validation and publishing exercise the precompiled NIF path.
+- The GitHub release is created, and its artifacts checked as downloadable,
+  **before** the package is published to Hex. The order is load-bearing: the
+  library resolves its native artifacts from the release's download URL, so a
+  version on Hex whose release does not exist cannot be compiled by anyone, and
+  the only advice the resulting error can offer is to install Rust and build
+  from source. Versions 1.8.0 through 1.10.0 shipped that way. Never move the
+  Hex publish ahead of the release again.
 - Releases must publish precompiled artifacts for every target listed in
   `lib/condukt/bashkit/nif.ex` and `lib/condukt/microsandbox/nif.ex`,
   plus checksum files named `checksum-Elixir.Condukt.Bashkit.NIF.exs`

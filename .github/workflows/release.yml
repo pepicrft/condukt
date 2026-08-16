@@ -344,14 +344,11 @@ jobs:
           build_dir="$(mktemp -d /tmp/condukt-hex-build-XXXXXX)"
           mix hex.build --unpack -o "$build_dir"
 
-      - name: Publish release
+      - name: Tag the release commit
         id: publish
-        env:
-          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
         shell: bash
         run: |
           set -euo pipefail
-          : "${HEX_API_KEY:?HEX_API_KEY secret is required}"
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -362,12 +359,76 @@ jobs:
           git commit -m "[Release] Condukt ${{ needs.plan.outputs.next_version }}"
           git tag -a "${{ needs.plan.outputs.next_version }}" -m "${{ needs.plan.outputs.next_version }}"
 
-          mix hex.publish package --yes
-
           git push origin HEAD:main
           git push origin "${{ needs.plan.outputs.next_version }}"
 
           echo "release_commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # This runs before publishing to Hex, and the order is the point. The
+      # library resolves its native artifacts from this release's download URL,
+      # so a version on Hex whose release does not exist yet cannot be compiled
+      # by anyone: `mix deps.get` succeeds, `mix compile` fails on a 404, and
+      # the only advice the error can offer is to install Rust and build from
+      # source. Publishing second means a failure here leaves a version nobody
+      # can depend on yet, which is recoverable, instead of a broken one
+      # everybody can.
+      - name: Create GitHub release with NIF and CLI artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          mapfile -t nif_files < <(find nif-artifacts -type f -name '*.tar.gz' | sort)
+          # The CLI binaries are named after their target triple so `mise use -g
+          # github:tuist/condukt` resolves the right one for the host.
+          mapfile -t cli_files < <(find cli-artifacts -type f -name 'condukt-*' | sort)
+
+          # An empty set here would publish a release the library cannot resolve
+          # against, which is the failure this ordering exists to prevent.
+          if [ "${#nif_files[@]}" -eq 0 ]; then
+            echo "no NIF artifacts to attach; refusing to publish a release consumers cannot compile" >&2
+            exit 1
+          fi
+
+          chmod +x "${cli_files[@]}"
+
+          gh release create "${{ needs.plan.outputs.next_version }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "${{ steps.publish.outputs.release_commit }}" \
+            --title "${{ needs.plan.outputs.next_version }}" \
+            --latest \
+            --notes-file RELEASE_NOTES.md \
+            "${nif_files[@]}" "${cli_files[@]}"
+
+      # Confirms the URLs the library will actually request, rather than
+      # assuming the upload put them where `base_url` looks.
+      - name: Check the published artifacts resolve
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${{ needs.plan.outputs.next_version }}"
+
+          while read -r artifact; do
+            url="https://github.com/$GITHUB_REPOSITORY/releases/download/$version/$artifact"
+            status=$(curl -sSL -o /dev/null -w '%{http_code}' "$url")
+            if [ "$status" != "200" ]; then
+              echo "$url is not downloadable (HTTP $status)" >&2
+              exit 1
+            fi
+          done < <(find nif-artifacts -type f -name '*.tar.gz' -exec basename {} \; | sort)
+
+          echo "every native artifact resolves"
+
+      - name: Publish to Hex.pm
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${HEX_API_KEY:?HEX_API_KEY secret is required}"
+
+          mix hex.publish package --yes
 
       - name: Publish documentation to HexDocs
         env:
@@ -382,24 +443,6 @@ jobs:
           mix deps.get
           mix docs
           mix hex.publish docs --yes
-
-      - name: Create GitHub release with NIF and CLI artifacts
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mapfile -t nif_files < <(find nif-artifacts -type f -name '*.tar.gz' | sort)
-          # The CLI binaries are named after their target triple so `mise use -g
-          # github:tuist/condukt` resolves the right one for the host.
-          mapfile -t cli_files < <(find cli-artifacts -type f -name 'condukt-*' | sort)
-          chmod +x "${cli_files[@]}"
-
-          gh release create "${{ needs.plan.outputs.next_version }}" \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "${{ steps.publish.outputs.release_commit }}" \
-            --title "${{ needs.plan.outputs.next_version }}" \
-            --latest \
-            --notes-file RELEASE_NOTES.md \
-            "${nif_files[@]}" "${cli_files[@]}"
 
   # ============================================================================
   # publish_egress_image
