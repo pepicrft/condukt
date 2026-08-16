@@ -1,19 +1,23 @@
 defmodule ConduktSiteWeb.TerminalLive do
   @moduledoc """
-  The terminal on the home page, driven by a session on the server.
+  The terminal on the home page: the loop on the server, the tools in the page.
 
   The visitor signs in with OpenRouter through the existing flow, which leaves
   the credential in the Phoenix session. This reads it once at mount and hands
-  it to a `Condukt.Session`, so the key never reaches the page and the agent
-  never leaves the server.
+  it to a `Condukt.Session`, so the key never reaches the page and inference is
+  still billed to whoever asked for it.
 
-  Streaming is the reason this is a LiveView rather than a form: a turn emits
-  text, tool calls and tool results as it goes, and each one is rendered as it
-  arrives.
+  What the agent can do comes from the other direction. The page declares its
+  tools when it connects, and this holds the socket open in the middle: a tool
+  call goes out as an event, the browser runs it, the result comes back as
+  another, and the process waiting inside `ConduktSite.BrowserTools` is handed
+  the answer. Pending calls live in this LiveView's own state, so one visitor's
+  page can only ever resolve one visitor's calls.
   """
 
   use ConduktSiteWeb, :live_view
 
+  alias ConduktSite.BrowserTools
   alias ConduktSite.Conversation
   alias ConduktSite.Repository
 
@@ -22,41 +26,26 @@ defmodule ConduktSiteWeb.TerminalLive do
     key = session["openrouter_key"]
 
     socket =
-      socket
-      |> assign(
+      assign(socket,
         connected?: not is_nil(key),
+        api_key: key,
         session_id: nil,
         prompt: "",
         pending?: false,
         entries: [],
+        pending_calls: %{},
         model: Application.fetch_env!(:condukt_site, :openrouter_model),
         source: Repository.source()
       )
-      |> start_conversation(key)
 
     {:ok, socket}
   end
 
-  # Only a connected mount starts a session. The first, static render happens
-  # for every page load including crawlers, and starting a process there would
-  # spawn one per visit that nothing ever talks to.
-  defp start_conversation(socket, nil), do: socket
-
-  defp start_conversation(socket, key) do
-    if connected?(socket) do
-      case Conversation.start(key) do
-        {:ok, session_id} ->
-          assign(socket, :session_id, session_id)
-
-        {:error, _reason} ->
-          put_entry(socket, :error, "The agent could not be started. Try reloading.")
-      end
-    else
-      socket
-    end
+  @impl Phoenix.LiveView
+  def handle_event("tools", %{"tools" => declarations}, socket) do
+    {:noreply, ensure_session(socket, BrowserTools.build(declarations, self()))}
   end
 
-  @impl Phoenix.LiveView
   def handle_event("update", %{"prompt" => prompt}, socket) do
     {:noreply, assign(socket, :prompt, prompt)}
   end
@@ -74,8 +63,47 @@ defmodule ConduktSiteWeb.TerminalLive do
     if prompt == "" do
       {:noreply, socket}
     else
-      {:noreply, submit(socket, prompt)}
+      {:noreply, socket |> ensure_session([]) |> submit(prompt)}
     end
+  end
+
+  # The browser answered a tool call. An unknown token is dropped rather than
+  # trusted: the map holds only what this page was actually asked for.
+  def handle_event("tool_result", %{"token" => token} = payload, socket) do
+    case Map.pop(socket.assigns.pending_calls, token) do
+      {nil, _pending} ->
+        {:noreply, socket}
+
+      {{caller, ref}, pending} ->
+        send(caller, {:browser_tool_result, ref, interpret(payload)})
+        {:noreply, assign(socket, :pending_calls, pending)}
+    end
+  end
+
+  defp interpret(%{"ok" => true, "result" => result}), do: {:ok, result}
+  defp interpret(%{"error" => message}) when is_binary(message), do: {:error, message}
+  defp interpret(_payload), do: {:error, "the browser returned a malformed tool result"}
+
+  # Started on the page's first word rather than at mount, because the tools
+  # belong to the page and a session is worth nothing without them. A static
+  # render, which happens for every crawler, never reaches here.
+  defp ensure_session(%{assigns: %{session_id: id}} = socket, _tools) when is_binary(id),
+    do: socket
+
+  defp ensure_session(%{assigns: %{api_key: nil}} = socket, _tools), do: socket
+
+  defp ensure_session(socket, tools) do
+    case Conversation.start(socket.assigns.api_key, tools) do
+      {:ok, session_id} ->
+        assign(socket, :session_id, session_id)
+
+      {:error, _reason} ->
+        put_entry(socket, :error, "The agent could not be started. Try reloading the page.")
+    end
+  end
+
+  defp submit(%{assigns: %{session_id: nil}} = socket, _prompt) do
+    put_entry(socket, :error, "The agent could not be started. Try reloading the page.")
   end
 
   defp submit(socket, prompt) do
@@ -95,10 +123,6 @@ defmodule ConduktSiteWeb.TerminalLive do
   @impl Phoenix.LiveView
   def handle_info({:agent, {:text, chunk}}, socket), do: {:noreply, append_text(socket, chunk)}
 
-  def handle_info({:agent, {:tool_call, name, _id, _args}}, socket) do
-    {:noreply, put_entry(socket, :tool, name)}
-  end
-
   def handle_info({:agent, {:error, reason}}, socket) do
     {:noreply, socket |> put_entry(:error, describe(reason)) |> assign(pending?: false)}
   end
@@ -107,19 +131,32 @@ defmodule ConduktSiteWeb.TerminalLive do
 
   # Thinking, tool results, and the turn markers carry nothing this surface
   # shows. Matching them explicitly would mean listing every event the library
-  # will ever emit.
+  # will ever emit. Tool calls are shown when they are dispatched below, which
+  # is also where the arguments are known to have survived validation.
   def handle_info({:agent, _event}, socket), do: {:noreply, socket}
+
+  # A tool the agent called, on its way to the browser. The caller is parked in
+  # a receive until the page answers or `BrowserTools` gives up on it.
+  def handle_info({:browser_tool, caller, ref, name, args}, socket) do
+    token = token()
+
+    socket =
+      socket
+      |> assign(:pending_calls, Map.put(socket.assigns.pending_calls, token, {caller, ref}))
+      |> put_entry(:tool, name)
+      |> push_event("condukt:tool", %{token: token, name: name, args: args})
+
+    {:noreply, socket}
+  end
 
   def handle_info(_message, socket), do: {:noreply, socket}
 
-  @impl Phoenix.LiveView
-  def terminate(_reason, socket) do
-    Conversation.stop(socket.assigns[:session_id])
-    :ok
-  end
+  # There is no terminate/2 stopping the session on purpose. A lost connection
+  # kills this process without running it, which is how most of these end, so
+  # `ConduktSite.Conversation` monitors instead and covers both endings.
 
   # Assistant text arrives in fragments. Appending to the open reply keeps one
-  # answer as one block rather than one per token.
+  # answer as one block rather than one entry per token.
   defp append_text(socket, chunk) do
     case socket.assigns.entries do
       [%{kind: :reply, text: text} = entry | rest] ->
@@ -136,19 +173,21 @@ defmodule ConduktSiteWeb.TerminalLive do
 
   defp entry_id, do: System.unique_integer([:positive, :monotonic])
 
+  defp token, do: 12 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
+
   defp describe(reason) when is_binary(reason), do: reason
   defp describe(reason), do: inspect(reason)
 
   @impl Phoenix.LiveView
   def render(assigns) do
     ~H"""
-    <section id="terminal" data-part="terminal-live">
+    <section id="terminal" data-part="terminal-live" phx-hook="ConduktTerminal">
       <header data-part="terminal-header">
         <span data-part="terminal-title">Condukt</span>
         <span data-part="terminal-meta">{@model} · reading {@source.repository}</span>
       </header>
 
-      <div data-part="terminal-body" id="terminal-body">
+      <div data-part="terminal-body">
         <ol data-part="terminal-entries">
           <li :for={entry <- Enum.reverse(@entries)} id={"entry-#{entry.id}"} data-kind={entry.kind}>
             <span :if={entry.kind == :prompt} data-part="marker">&gt;</span>
@@ -174,7 +213,7 @@ defmodule ConduktSiteWeb.TerminalLive do
 
         <p :if={!@connected?} data-part="terminal-signin">
           <a href={~p"/auth/openrouter?#{%{return_to: "/#terminal"}}"}>Connect OpenRouter</a>
-          to run a real Condukt session. Inference is billed to your account; the agent reads {@source.repository} and nothing else.
+          to run a real Condukt session. The agent runs on this server and reads {@source.repository} from your browser; inference is billed to your account.
         </p>
       </footer>
     </section>

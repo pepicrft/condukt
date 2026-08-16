@@ -64,6 +64,11 @@ jobs:
         run: mix deps.get --check-locked
       - name: Test
         run: mix test
+      # The terminal's tools run in the browser, so half of that contract is
+      # JavaScript. These pin the page's side of it against what the LiveView
+      # tests assert on the server's.
+      - name: Test the browser tools
+        run: node --test "assets/js/*.test.mjs"
 
   release-image:
     name: Release image
