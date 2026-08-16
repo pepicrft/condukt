@@ -127,7 +127,7 @@ jobs:
     runs-on: ubuntu-24.04
     environment:
       name: production
-      url: https://condukt.tuist.dev
+      url: https://condukt.dev
     timeout-minutes: 20
     env:
       KUBECONFIG: ${{ github.workspace }}/.kube/config
