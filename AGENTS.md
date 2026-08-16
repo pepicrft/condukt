@@ -130,6 +130,22 @@
   implementation for many viewers or more than one node. Subscribers are
   monitored, so a viewer that crashes is dropped rather than accumulating.
 
+## Running the loop without a virtual machine
+
+- `Condukt.HostSession` is the agent loop with the host doing the work: it holds
+  conversation state and says what should happen next, while the caller performs
+  inference and runs tools. No processes, no input or output, no dependencies
+  beyond `Condukt.Message`. Use it when the caller owns the provider call, and
+  `Condukt.Session` when Condukt should.
+- It mirrors the Rust `condukt_session::HostSession` behind the `@tuist/condukt`
+  browser package transition for transition, deliberately, so the two are one
+  design. They currently differ on one point: Rust pushes the system prompt into
+  history, this carries it on the request. Align Rust to this, not the reverse.
+- The browser package stays Rust. Elixir in a browser means AtomVM through
+  Popcorn, which pins OTP 26.0.2 and Elixir 1.17.3 exactly and produces a
+  bundle an order of magnitude larger than the 109 KB WebAssembly module the
+  Rust crates build. The measurements are in the commit that added this module.
+
 ## Persistence
 
 - `Condukt.SessionStore` is a snapshot cache, not a repository: no listing, no
