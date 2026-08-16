@@ -261,6 +261,19 @@ defmodule Condukt.CLI.App do
     end
   end
 
+  @doc """
+  Explains that this host cannot read its clipboard.
+
+  Points at the route that needs nothing installed rather than only naming the
+  package, because dragging the file works right now and installing does not.
+  """
+  def clipboard_unavailable(%__MODULE__{} = app, tools) do
+    push_info(
+      app,
+      "Install #{tools} to paste images, or drag the image file onto the terminal instead."
+    )
+  end
+
   @doc "Largest clipboard image the interface will attach, in bytes."
   def max_image_bytes, do: 8 * 1024 * 1024
 

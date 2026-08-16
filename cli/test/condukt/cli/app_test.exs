@@ -203,6 +203,17 @@ defmodule Condukt.CLI.AppTest do
     end
   end
 
+  describe "a host that cannot read its clipboard" do
+    # Ctrl+V doing nothing at all is the worst outcome. The message names the
+    # route that works right now, not only the package to install.
+    test "says what to install and what works without installing" do
+      app = App.clipboard_unavailable(App.empty(), "xclip")
+
+      assert document_text(app) =~ "Install xclip to paste images"
+      assert document_text(app) =~ "drag the image file onto the terminal"
+    end
+  end
+
   describe "pasted text" do
     test "is appended to the prompt" do
       app = App.insert_text(%{App.empty() | input: "see "}, "this file")

@@ -34,7 +34,7 @@ You can also **drag an image file onto the terminal**. Dragging makes the termin
 
 PNG, JPEG, WebP, and GIF are supported, up to 8 MB. The format is taken from the file's contents rather than its name, so a mislabelled screenshot still works.
 
-Reading the clipboard needs no setup on macOS. On Linux it uses `wl-paste` on Wayland or `xclip` on X11; if neither is installed, drag the file instead.
+Reading the clipboard needs no setup on macOS. On Linux it uses `wl-paste` on Wayland or `xclip` on X11; if neither is installed, Condukt says so and dragging the file works instead.
 
 The coding agent can ask for two model tools:
 

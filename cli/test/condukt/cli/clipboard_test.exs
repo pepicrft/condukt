@@ -67,6 +67,25 @@ defmodule Condukt.CLI.ClipboardTest do
     end
   end
 
+  describe "reporting missing tooling" do
+    test "macOS never needs anything installed" do
+      assert Clipboard.missing_tooling(platform: :darwin) == nil
+    end
+
+    test "a Linux desktop is told what would make the key work" do
+      linux = [platform: :linux, env: fake_env(%{"WAYLAND_DISPLAY" => "wayland-0"})]
+
+      # Whether this host happens to have the tools decides the answer, so the
+      # assertion is on the shape either way.
+      assert Clipboard.missing_tooling(linux) in [nil, "wl-clipboard or xclip"]
+      assert Clipboard.missing_tooling(platform: :linux, env: fake_env(%{})) in [nil, "xclip"]
+    end
+
+    test "a platform with no clipboard at all has nothing to suggest" do
+      assert Clipboard.missing_tooling(platform: :windows) == nil
+    end
+  end
+
   # The clipboard is shared machine state, so this reads whatever happens to be
   # there rather than putting something in place. It asserts the contract every
   # caller depends on: a result the interface can act on, or `:none`, never a

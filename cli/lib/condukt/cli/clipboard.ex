@@ -70,6 +70,23 @@ defmodule Condukt.CLI.Clipboard do
   defp text_result(:error), do: :none
 
   @doc """
+  Names the tools this host would need to read its clipboard, if any are missing.
+
+  Returns `nil` when the clipboard is readable. A Linux desktop without them is
+  the one case where Ctrl+V can do nothing at all, and saying so beats a key
+  that silently does nothing.
+  """
+  def missing_tooling(opts \\ []) do
+    case platform(opts) do
+      :wayland -> if !installed?(["wl-paste", "xclip"]), do: "wl-clipboard or xclip"
+      :x11 -> if !installed?(["xclip"]), do: "xclip"
+      _other -> nil
+    end
+  end
+
+  defp installed?(programs), do: Enum.any?(programs, &System.find_executable/1)
+
+  @doc """
   Which clipboard tooling this host offers.
 
   Wayland and X11 are distinguished by the session's own environment rather than

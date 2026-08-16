@@ -153,6 +153,10 @@ defmodule Condukt.CLI.TUI do
 
   def handle_info({:clipboard, :empty}, state), do: {:noreply, state}
 
+  def handle_info({:clipboard, {:unavailable, tools}}, state) do
+    {:noreply, %{state | app: App.clipboard_unavailable(state.app, tools)}}
+  end
+
   def handle_info({:footer, snapshot}, state) do
     schedule_footer_refresh(Footer.refresh_interval())
     footer = Footer.apply_refresh(state.app.footer, snapshot)
@@ -337,7 +341,16 @@ defmodule Condukt.CLI.TUI do
   defp clipboard_text do
     case Clipboard.read_text() do
       {:ok, text} -> {:text, text}
-      :none -> :empty
+      :none -> empty_clipboard()
+    end
+  end
+
+  # Nothing came back, which is either an empty clipboard or a host with no way
+  # to read one. Only the second is worth telling the user about.
+  defp empty_clipboard do
+    case Clipboard.missing_tooling() do
+      nil -> :empty
+      tools -> {:unavailable, tools}
     end
   end
 
