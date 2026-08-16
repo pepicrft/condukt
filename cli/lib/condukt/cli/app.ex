@@ -9,6 +9,7 @@ defmodule Condukt.CLI.App do
   asynchronous tests, and keeps the frame loop free of blocking work.
   """
 
+  alias Condukt.CLI.Attachment
   alias Condukt.CLI.Clipboard
   alias Condukt.CLI.Commands
   alias Condukt.CLI.Footer
@@ -234,16 +235,29 @@ defmodule Condukt.CLI.App do
   @doc """
   Inserts pasted text into the prompt.
 
+  Text that is entirely paths to image files is attached instead, because
+  dragging a file onto a terminal is how it types that path, and the user
+  dragging a screenshot in means the image. This is also the only route to
+  attaching one that needs nothing installed and works over SSH, where there is
+  no clipboard to read.
+
   Newlines become spaces: the prompt is a single line, and a multi-line paste
   would otherwise be silently truncated at the first break.
   """
   def insert_text(%__MODULE__{} = app, text) do
     flattened = text |> String.replace(["\r\n", "\n", "\r"], " ") |> String.trim_trailing()
 
-    if flattened == "" do
-      app
-    else
-      recompute_show_commands(%{app | input: app.input <> flattened})
+    cond do
+      flattened == "" -> app
+      images = attachable(flattened) -> Enum.reduce(images, app, &attach_image(&2, &1))
+      true -> recompute_show_commands(%{app | input: app.input <> flattened})
+    end
+  end
+
+  defp attachable(text) do
+    case Attachment.from_text(text) do
+      {:ok, images} -> images
+      :none -> nil
     end
   end
 

@@ -224,6 +224,31 @@ defmodule Condukt.CLI.AppTest do
       assert App.show_commands?(app)
     end
 
+    # Dragging a file onto a terminal makes it type that file's path. This is
+    # the route to attaching an image that needs nothing installed, and the only
+    # one that works over SSH, where there is no clipboard at all.
+    test "a dragged image file is attached rather than typed" do
+      root = temporary_directory()
+      path = Path.join(root, "shot.png")
+      File.write!(path, <<137, 80, 78, 71, 13, 10, 26, 10>>)
+
+      app = App.insert_text(App.empty(), path)
+
+      assert app.input == "[image #1]"
+      assert [%{media_type: "image/png"}] = app.attachments
+    end
+
+    test "a sentence that merely mentions a path stays text" do
+      root = temporary_directory()
+      path = Path.join(root, "shot.png")
+      File.write!(path, <<137, 80, 78, 71, 13, 10, 26, 10>>)
+
+      app = App.insert_text(App.empty(), "look at #{path}")
+
+      assert app.input == "look at #{path}"
+      assert app.attachments == []
+    end
+
     test "empty text leaves the prompt alone" do
       assert App.insert_text(%{App.empty() | input: "kept"}, "  \n ").input == "kept"
     end
