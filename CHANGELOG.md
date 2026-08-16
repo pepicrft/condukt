@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [1.10.1] - 2026-08-16
+
+### Bug Fixes
+
+- let the deployer manage the namespaced Issuer
+
+
 ## [1.10.0] - 2026-08-15
 
 ### Features
