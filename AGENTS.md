@@ -179,6 +179,18 @@ The terminal coding agent is an Elixir Mix project under `cli/`, application `:c
 - Rendering: [ex_ratatui](https://hexdocs.pm/ex_ratatui) (`use ExRatatui.App`, callback runtime). Widgets are plain structs rebuilt every frame; `render/2` returns the whole screen as `[{widget, %Rect{}}]`. Key event fields are lowercase strings (`%Event.Key{code: "up", modifiers: ["ctrl"]}`), never atoms.
 - Build and check: `cd cli && mix deps.get`, then `mix compile --warnings-as-errors`, `mix format --check-formatted`, `mix credo --strict`, and `mix test` must all be green. Credo and the formatter use the repository-root `.credo.exs`; `cli/credo` is a symlink to `../credo` so its `requires` resolve with `cli/` as the working directory. Do not add a second `.credo.exs` under `cli/`: two configs in the tree crash Quokka's Credo reader during `mix format`.
 - Run it from the checkout with `mix condukt`, `mix condukt exec "..."`, `mix condukt files`. Outside a wrapped binary the supervision-tree entry point is inert, so `mix test` and `iex -S mix` never start the interface.
+- A released binary must be silent on both streams unless it has something the
+  user asked for. Two things are set up for that and should stay: `cli/config/config.exs`
+  turns off the logger's default handler, and `cli/rel/vm.args.eex` sets
+  `ERL_CRASH_DUMP_SECONDS 0` so a crash cannot drop a multi-megabyte
+  `erl_crash.dump` into someone else's project. Check both streams when adding
+  anything that shells out or logs.
+- One line is outside our control: on the first run after an upgrade, burrito's
+  wrapper prints `[l] Uninstalled older version (vX.Y.Z)`. Its logger has no
+  suppression switch in 1.6.0, the latest. It goes to standard error, so
+  `--json` output and the protocol server's stdout are unaffected. Fixing it
+  properly means upstreaming a quiet flag; do not patch the dependency's Zig
+  source at build time to hide it.
 - Burrito reuses an already-extracted payload when the version has not changed, so a rebuilt binary keeps running the previous code. After `mix release`, delete `~/Library/Application Support/.burrito/condukt_erts-*_<version>` (or the platform's equivalent) before testing, or a local check will silently pass against stale code. Continuous integration is unaffected: every runner starts empty.
 - Packaging: [Burrito](https://github.com/burrito-elixir/burrito) wraps the release into one self-extracting binary per platform. `MIX_ENV=prod BURRITO_TARGET=<target> mix release --overwrite` writes `cli/burrito_out/condukt_<target>`. Zig 0.16.0 and `xz` must be on `PATH`; the zig version is pinned in `mise.toml` and burrito checks it exactly.
 - Targets are `linux`, `linux_arm`, `macos`, and `macos_silicon`. Each is built on a host with the same operating system and CPU, because ex_ratatui's NIF is a precompiled artifact resolved from the build host's triple. Linux also needs `TARGET_ABI=musl`: burrito's linux wrapper runs a musl runtime, and `ExRatatui.Burrito.verify_linux_nif/1` fails the build rather than shipping a glibc library. There is no Windows target; ex_ratatui publishes no Windows artifact.
