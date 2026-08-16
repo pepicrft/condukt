@@ -32,12 +32,20 @@ condukt exec [OPTIONS] [PROMPT]
 | Option | Meaning |
 | --- | --- |
 | `--api-key <KEY>` | Use an OpenRouter key for this invocation |
+| `-i`, `--image <PATH>` | Attach an image to the task; repeat for more than one |
 | `--cwd <PATH>` | Run tools from another directory |
 | `-v`, `--verbose` | Print tool activity to standard error |
 | `--json` | Print a machine-readable final response |
 | `--color <auto|always|never>` | Control terminal color |
 
 When `PROMPT` is omitted, Condukt reads it from standard input.
+
+Attach images by path, which works from any script, build job, or remote shell:
+
+```sh
+condukt exec -i screenshot.png "What is wrong with this layout?"
+condukt exec -i before.png -i after.png "What changed?"
+```
 
 ## `condukt connect`
 

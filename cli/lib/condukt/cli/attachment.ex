@@ -19,8 +19,8 @@ defmodule Condukt.CLI.Attachment do
   Returns `{:ok, %{media_type: media_type, bytes: bytes}}`, or `:none` when the
   path is not a readable file holding a supported image.
   """
-  def from_path(path) do
-    with {:ok, resolved} <- resolve(path),
+  def from_path(path, root \\ ".") do
+    with {:ok, resolved} <- resolve(path, root),
          {:ok, bytes} <- File.read(resolved),
          media_type when is_binary(media_type) <- media_type(bytes) do
       {:ok, %{media_type: media_type, bytes: bytes}}
@@ -36,17 +36,17 @@ defmodule Condukt.CLI.Attachment do
   a screenshot is text, and turning half of it into attachments would lose the
   other half.
   """
-  def from_text(text) do
-    case from_path(text) do
+  def from_text(text, root \\ ".") do
+    case from_path(text, root) do
       {:ok, image} -> {:ok, [image]}
-      :none -> from_paths(split_paths(text))
+      :none -> from_paths(split_paths(text), root)
     end
   end
 
-  defp from_paths([]), do: :none
+  defp from_paths([], _root), do: :none
 
-  defp from_paths(paths) do
-    images = Enum.map(paths, &from_path/1)
+  defp from_paths(paths, root) do
+    images = Enum.map(paths, &from_path(&1, root))
 
     if Enum.all?(images, &match?({:ok, _image}, &1)) do
       {:ok, Enum.map(images, fn {:ok, image} -> image end)}
@@ -67,13 +67,13 @@ defmodule Condukt.CLI.Attachment do
   Dragging a file quotes it or backslash-escapes its spaces, and a typed one
   often starts with `~`.
   """
-  def resolve(path) do
+  def resolve(path, root \\ ".") do
     resolved =
       path
       |> String.trim()
       |> unquote_path()
       |> String.replace(~r/\\(.)/, "\\1")
-      |> Path.expand()
+      |> Path.expand(root)
 
     if File.regular?(resolved), do: {:ok, resolved}, else: :none
   end

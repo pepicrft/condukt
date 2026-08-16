@@ -8,6 +8,7 @@ defmodule Condukt.CLI.Headless do
   result a caller is parsing.
   """
 
+  alias Condukt.CLI.Attachment
   alias Condukt.CLI.OpenRouter
   alias Condukt.CLI.Session
   alias Condukt.CLI.Syntax
@@ -18,6 +19,7 @@ defmodule Condukt.CLI.Headless do
   ## Options
 
     * `:prompt` - the task; read from standard input when absent
+    * `:images` - paths to images attached to the task
     * `:api_key` - OpenRouter key; falls back to `CONDUKT_OPENROUTER_API_KEY`
       and then to the saved credential
     * `:cwd` - workspace root (default: the current directory)
@@ -28,11 +30,29 @@ defmodule Condukt.CLI.Headless do
   def run(opts) do
     with {:ok, prompt} <- resolve_prompt(Keyword.get(opts, :prompt)),
          {:ok, root} <- resolve_root(Keyword.get(opts, :cwd)),
+         {:ok, images} <- resolve_images(Keyword.get(opts, :images, []), root),
          {:ok, api_key} <- resolve_api_key(Keyword.get(opts, :api_key)),
          {:ok, session} <- start_session(api_key, root),
-         {:ok, response} <- run_turn(session, prompt, Keyword.get(opts, :verbose, false)) do
+         {:ok, response} <- run_turn(session, prompt, images, Keyword.get(opts, :verbose, false)) do
       write_response(response, opts)
     end
+  end
+
+  # Attaching by path is the only image route open to a script, a build job, or
+  # a remote shell, none of which have a clipboard to read. Resolved before the
+  # credential so a mistyped path fails immediately rather than after a
+  # round trip.
+  defp resolve_images(paths, root) do
+    Enum.reduce_while(paths, {:ok, []}, fn path, {:ok, images} ->
+      case Attachment.from_path(path, root) do
+        {:ok, image} -> {:cont, {:ok, images ++ [attachment(image)]}}
+        :none -> {:halt, {:error, "not a readable image: #{path}"}}
+      end
+    end)
+  end
+
+  defp attachment(image) do
+    %{type: :base64, media_type: image.media_type, data: Base.encode64(image.bytes)}
   end
 
   defp resolve_prompt(prompt) when is_binary(prompt) do
@@ -87,9 +107,9 @@ defmodule Condukt.CLI.Headless do
     end
   end
 
-  defp run_turn(session, prompt, verbose?) do
+  defp run_turn(session, prompt, images, verbose?) do
     session
-    |> Condukt.Session.stream(prompt)
+    |> Condukt.Session.stream(prompt, images: images)
     |> Enum.reduce({[], nil}, fn event, {text, error} ->
       if verbose?, do: print_event(event)
 

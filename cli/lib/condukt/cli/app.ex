@@ -249,15 +249,29 @@ defmodule Condukt.CLI.App do
 
     cond do
       flattened == "" -> app
-      images = attachable(flattened) -> Enum.reduce(images, app, &attach_image(&2, &1))
+      images = attachable(app, flattened) -> Enum.reduce(images, app, &attach_image(&2, &1))
       true -> recompute_show_commands(%{app | input: app.input <> flattened})
     end
   end
 
-  defp attachable(text) do
-    case Attachment.from_text(text) do
+  defp attachable(app, text) do
+    case Attachment.from_text(text, app.working_dir) do
       {:ok, images} -> images
       :none -> nil
+    end
+  end
+
+  @doc """
+  Attaches an image named by path.
+
+  This is the route that works everywhere: it needs nothing installed, and it is
+  the only one available over a remote connection, where the host has no
+  clipboard to read.
+  """
+  def attach_path(%__MODULE__{} = app, path) do
+    case Attachment.from_path(path, app.working_dir) do
+      {:ok, image} -> attach_image(app, image)
+      :none -> push_error(app, "Not a readable image: #{path}")
     end
   end
 
@@ -312,6 +326,12 @@ defmodule Condukt.CLI.App do
   end
 
   defp run_slash_command(app, %{kind: :files}, _argument), do: {list_workspace_files(app), []}
+
+  defp run_slash_command(app, %{kind: :image, usage: usage}, "") do
+    {push_error(app, "Usage: #{usage}"), []}
+  end
+
+  defp run_slash_command(app, %{kind: :image}, path), do: {attach_path(app, path), []}
 
   defp run_slash_command(app, %{kind: :read, usage: usage}, "") do
     {push_error(app, "Usage: #{usage}"), []}

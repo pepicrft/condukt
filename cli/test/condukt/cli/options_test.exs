@@ -20,6 +20,25 @@ defmodule Condukt.CLI.OptionsTest do
     assert options[:json]
   end
 
+  # Attaching by path is the only image route available to a script, a build
+  # job, or a remote shell, none of which have a clipboard to read.
+  test "exec attaches images by path" do
+    assert {:ok, {:exec, options}} = Options.parse(["exec", "look", "-i", "a.png"])
+    assert options[:images] == ["a.png"]
+  end
+
+  test "exec accepts more than one image" do
+    assert {:ok, {:exec, options}} =
+             Options.parse(["exec", "compare", "--image", "before.png", "--image", "after.png"])
+
+    assert options[:images] == ["before.png", "after.png"]
+  end
+
+  test "a task with no image attaches none" do
+    assert {:ok, {:exec, options}} = Options.parse(["exec", "look"])
+    assert options[:images] == []
+  end
+
   test "connect can start browser sign-in without a key" do
     assert {:ok, {:connect, "openrouter", nil}} = Options.parse(["connect", "openrouter"])
   end

@@ -11,6 +11,7 @@ defmodule Condukt.CLI.Options do
     prompt: :string,
     api_key: :string,
     cwd: :string,
+    image: [:string, :keep],
     verbose: :boolean,
     json: :boolean,
     color: :string,
@@ -18,7 +19,7 @@ defmodule Condukt.CLI.Options do
     version: :boolean
   ]
 
-  @aliases [p: :prompt, v: :verbose, h: :help]
+  @aliases [p: :prompt, v: :verbose, h: :help, i: :image]
 
   @colors ~w(auto always never)
 
@@ -81,6 +82,7 @@ defmodule Condukt.CLI.Options do
           prompt: prompt,
           api_key: options[:api_key],
           cwd: options[:cwd],
+          images: Keyword.get_values(options, :image),
           verbose: options[:verbose] || false,
           json: options[:json] || false,
           color: color
@@ -104,6 +106,7 @@ defmodule Condukt.CLI.Options do
       condukt                          Start the terminal interface
       condukt -p <prompt>              Run one task without the interface
       condukt exec [prompt]            Run one task; reads standard input when the prompt is omitted
+      condukt exec -i shot.png "..."   Run one task with an image attached
       condukt connect openrouter       Connect OpenRouter, in the browser or with --api-key
       condukt acp                      Serve the Agent Client Protocol over standard input and output
       condukt files                    List files at the workspace root
@@ -112,6 +115,7 @@ defmodule Condukt.CLI.Options do
 
     Options:
       -p, --prompt <prompt>  Submit a prompt without starting the terminal interface
+      -i, --image <path>     Attach an image to the task; repeat for more than one
           --api-key <key>    OpenRouter credential; prefer CONDUKT_OPENROUTER_API_KEY for scripts
           --cwd <path>       Directory in which tools run (default: the current directory)
       -v, --verbose          Include tool activity on standard error

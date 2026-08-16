@@ -203,6 +203,35 @@ defmodule Condukt.CLI.AppTest do
     end
   end
 
+  describe "the image command" do
+    test "attaches a file from the workspace" do
+      root = temporary_directory()
+      File.write!(Path.join(root, "shot.png"), <<137, 80, 78, 71, 13, 10, 26, 10>>)
+
+      {app, _effects} =
+        App.empty(working_dir: root) |> with_input("/image shot.png") |> App.submit()
+
+      assert app.input == "[image #1]"
+      assert [%{media_type: "image/png"}] = app.attachments
+    end
+
+    test "reports a path that is not a readable image" do
+      {app, _effects} =
+        App.empty(working_dir: temporary_directory())
+        |> with_input("/image nope.png")
+        |> App.submit()
+
+      assert document_text(app) =~ "Not a readable image: nope.png"
+      assert app.attachments == []
+    end
+
+    test "without a path shows its usage" do
+      {app, _effects} = App.empty() |> with_input("/image") |> App.submit()
+
+      assert document_text(app) =~ "Usage: /image <path>"
+    end
+  end
+
   describe "a host that cannot read its clipboard" do
     # Ctrl+V doing nothing at all is the worst outcome. The message names the
     # route that works right now, not only the package to install.

@@ -30,7 +30,7 @@ Why does the footer look wrong here? [image #1]
 
 A terminal never hands an application image bytes, so this is a deliberate key rather than your terminal's own paste. Ctrl+V also pastes text when the clipboard holds no image, and your terminal's usual paste keeps working for text.
 
-You can also **drag an image file onto the terminal**. Dragging makes the terminal type the file's path, and Condukt attaches the file instead of typing it. This needs nothing installed, and it is the way to include an image over a remote connection, where there is no clipboard to read.
+You can also type `/image <path>`, or **drag an image file onto the terminal**. Dragging makes the terminal type the file's path, and Condukt attaches the file instead of typing it. This needs nothing installed, and it is the way to include an image over a remote connection, where there is no clipboard to read.
 
 PNG, JPEG, WebP, and GIF are supported, up to 8 MB. The format is taken from the file's contents rather than its name, so a mislabelled screenshot still works.
 

@@ -10,6 +10,7 @@ defmodule Condukt.CLI.Commands do
     %{kind: :connect, name: "connect", usage: "/connect", description: "Connect OpenRouter"},
     %{kind: :files, name: "files", usage: "/files", description: "List workspace files"},
     %{kind: :help, name: "help", usage: "/help", description: "Show available commands"},
+    %{kind: :image, name: "image", usage: "/image <path>", description: "Attach an image to the prompt"},
     %{kind: :quit, name: "quit", usage: "/quit", description: "Exit Condukt"},
     %{kind: :read, name: "read", usage: "/read <path>", description: "Read a workspace file"}
   ]
