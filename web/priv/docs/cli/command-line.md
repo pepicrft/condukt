@@ -21,6 +21,16 @@ condukt --help
 condukt --version
 ```
 
+## Diagnostics
+
+Condukt prints nothing but what you asked for. When you need to see inside a run, raise the log level:
+
+```sh
+condukt --log-level debug exec "Run the tests"
+```
+
+Levels are `none` (the default), `error`, `warning`, `info`, and `debug`. Diagnostics go to standard error, never standard output, so `--json` responses stay parseable and the protocol server's frames stay well formed. The option works on every command.
+
 ## `condukt exec`
 
 Run one coding task and print the final response.

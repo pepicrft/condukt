@@ -15,6 +15,7 @@ defmodule Condukt.CLI.Options do
     verbose: :boolean,
     json: :boolean,
     color: :string,
+    log_level: :string,
     help: :boolean,
     version: :boolean
   ]
@@ -23,10 +24,14 @@ defmodule Condukt.CLI.Options do
 
   @colors ~w(auto always never)
 
+  # `none` first because it is the default: a coding agent runs inside someone
+  # else's terminal, and diagnostics are something they ask for.
+  @log_levels ~w(none error warning info debug)
+
   @doc """
   Parses `argv` into a command.
 
-  Returns `{:ok, command}`, `{:error, message}`, or `{:help, text}`.
+  Returns `{:ok, command, log_level}`, `{:error, message}`, or `{:help, text}`.
   """
   def parse(argv) do
     case OptionParser.parse(argv, strict: @switches, aliases: @aliases) do
@@ -36,12 +41,33 @@ defmodule Condukt.CLI.Options do
   end
 
   defp build(options, rest) do
+    with {:ok, log_level} <- log_level(options[:log_level]) do
+      options |> command(rest) |> with_log_level(log_level)
+    end
+  end
+
+  defp command(options, rest) do
     cond do
       options[:help] -> {:help, help_text()}
       options[:version] -> {:ok, :version}
       rest == [] -> default_command(options)
       true -> subcommand(hd(rest), tl(rest), options)
     end
+  end
+
+  # Carried alongside the command rather than inside it, because every command
+  # honours it and none of them should have to thread it through.
+  defp with_log_level({:ok, command}, log_level), do: {:ok, command, log_level}
+  defp with_log_level(other, _log_level), do: other
+
+  defp log_level(nil), do: {:ok, :none}
+
+  defp log_level(value) when value in @log_levels do
+    {:ok, String.to_existing_atom(value)}
+  end
+
+  defp log_level(value) do
+    {:error, "unknown log level: #{value} (expected #{Enum.join(@log_levels, ", ")})"}
   end
 
   # `condukt -p "..."` is the same as `condukt exec "..."`; a bare `condukt`
@@ -121,6 +147,8 @@ defmodule Condukt.CLI.Options do
       -v, --verbose          Include tool activity on standard error
           --json             Print the final response as machine-readable data
           --color <choice>   auto, always, or never
+          --log-level <level> Diagnostics on standard error: none (the default), error,
+                             warning, info, or debug
       -h, --help             Show this message
           --version          Show the version
     """

@@ -185,12 +185,19 @@ The terminal coding agent is an Elixir Mix project under `cli/`, application `:c
   `ERL_CRASH_DUMP_SECONDS 0` so a crash cannot drop a multi-megabyte
   `erl_crash.dump` into someone else's project. Check both streams when adding
   anything that shells out or logs.
+- `--log-level none|error|warning|info|debug` is the supported way to get
+  diagnostics out of a released binary; `none` is the default and
+  `Condukt.CLI.configure_logging/1` attaches the handler. It writes to standard
+  error so `--json` and the protocol server's stdout stay machine-readable.
 - One line is outside our control: on the first run after an upgrade, burrito's
   wrapper prints `[l] Uninstalled older version (vX.Y.Z)`. Its logger has no
   suppression switch in 1.6.0, the latest. It goes to standard error, so
-  `--json` output and the protocol server's stdout are unaffected. Fixing it
-  properly means upstreaming a quiet flag; do not patch the dependency's Zig
-  source at build time to hide it.
+  `--json` output and the protocol server's stdout are unaffected. Elixir's
+  logger cannot reach it, and neither can `--log-level`: the wrapper writes it
+  from a native process before it starts the virtual machine, so there is no
+  BEAM, no logger, and no module to filter. Fixing it properly means
+  upstreaming a quiet flag; do not patch the dependency's Zig source at build
+  time to hide it.
 - Burrito reuses an already-extracted payload when the version has not changed, so a rebuilt binary keeps running the previous code. After `mix release`, delete `~/Library/Application Support/.burrito/condukt_erts-*_<version>` (or the platform's equivalent) before testing, or a local check will silently pass against stale code. Continuous integration is unaffected: every runner starts empty.
 - Packaging: [Burrito](https://github.com/burrito-elixir/burrito) wraps the release into one self-extracting binary per platform. `MIX_ENV=prod BURRITO_TARGET=<target> mix release --overwrite` writes `cli/burrito_out/condukt_<target>`. Zig 0.16.0 and `xz` must be on `PATH`; the zig version is pinned in `mise.toml` and burrito checks it exactly.
 - Targets are `linux`, `linux_arm`, `macos`, and `macos_silicon`. Each is built on a host with the same operating system and CPU, because ex_ratatui's NIF is a precompiled artifact resolved from the build host's triple. Linux also needs `TARGET_ABI=musl`: burrito's linux wrapper runs a musl runtime, and `ExRatatui.Burrito.verify_linux_nif/1` fails the build rather than shipping a glibc library. There is no Windows target; ex_ratatui publishes no Windows artifact.

@@ -65,7 +65,30 @@ defmodule Condukt.CLI do
 
   defp execute({:error, message}, _opts), do: fail(message)
 
-  defp execute({:ok, command}, opts), do: run(command, opts)
+  defp execute({:ok, command, log_level}, opts) do
+    configure_logging(log_level)
+    run(command, opts)
+  end
+
+  @doc """
+  Turns diagnostics on at the requested level.
+
+  Off by default: this runs inside someone else's terminal, and an agent that
+  volunteers its internals is noise. When they are asked for they go to standard
+  error, never standard output, so a `--json` response stays parseable and the
+  protocol server's frames stay well formed.
+  """
+  def configure_logging(:none), do: :ok
+
+  def configure_logging(level) do
+    :logger.add_handler(:condukt_cli, :logger_std_h, %{
+      level: level,
+      config: %{type: :standard_error},
+      formatter: {:logger_formatter, %{single_line: true, legacy_header: false}}
+    })
+
+    :ok
+  end
 
   # Loading the renderer here makes `--version` a proof of life for the bundled
   # native library. A binary whose renderer cannot load is broken for every

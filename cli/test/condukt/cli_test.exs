@@ -5,6 +5,19 @@ defmodule Condukt.CLITest do
 
   defp run(argv), do: Condukt.CLI.main(argv, halt: fn code -> code end)
 
+  test "the help text documents how to ask for diagnostics" do
+    output = capture_io(fn -> assert run(["--help"]) == 0 end)
+
+    assert output =~ "--log-level"
+    assert output =~ "none (the default)"
+  end
+
+  test "an unknown log level fails rather than starting the command" do
+    output = capture_io(:stderr, fn -> assert run(["--log-level", "chatty"]) == 1 end)
+
+    assert output =~ "unknown log level"
+  end
+
   test "help succeeds and describes every command" do
     output = capture_io(fn -> assert run(["--help"]) == 0 end)
 
