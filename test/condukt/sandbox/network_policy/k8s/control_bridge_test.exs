@@ -52,19 +52,27 @@ defmodule Condukt.Sandbox.NetworkPolicy.K8s.ControlBridgeTest do
     )
   end
 
+  # Telemetry handlers are VM-wide: this one fires for every network-policy
+  # event in the suite, not only the ones this test provokes. The tests below
+  # match on `{:telemetry, _, _}` wildcards, and a `refute_received` against a
+  # wildcard fails on any foreign event that happens to land first. Tag each
+  # message with the handler's own ref so a test only ever sees its own.
   defp attach(event, test_pid) do
-    id = {__MODULE__, event, make_ref()}
+    ref = make_ref()
+    id = {__MODULE__, event, ref}
 
     :telemetry.attach(
       id,
       [:condukt, :sandbox, :network_policy, event],
-      fn _name, measurements, metadata, _ ->
-        send(test_pid, {:telemetry, measurements, metadata})
+      fn _name, measurements, metadata, %{ref: ref, test_pid: pid} ->
+        send(pid, {:telemetry, ref, measurements, metadata})
       end,
-      nil
+      %{ref: ref, test_pid: test_pid}
     )
 
     on_exit(fn -> :telemetry.detach(id) end)
+
+    ref
   end
 
   describe "__decode_event_line__/1" do
@@ -96,7 +104,7 @@ defmodule Condukt.Sandbox.NetworkPolicy.K8s.ControlBridgeTest do
 
   describe "handle_info/2 event frames" do
     test "delivers an event as telemetry, including matched_rule" do
-      attach(:request_allowed, self())
+      ref = attach(:request_allowed, self())
       st = state(%NetworkPolicy{rules: [allow: ["api.github.com"]]}, self())
 
       line =
@@ -108,13 +116,13 @@ defmodule Condukt.Sandbox.NetworkPolicy.K8s.ControlBridgeTest do
 
       assert {:noreply, _st} = ControlBridge.handle_info({:control_bridge_data, line <> "\n"}, st)
 
-      assert_receive {:telemetry, _measurements, metadata}
+      assert_receive {:telemetry, ^ref, _measurements, metadata}
       assert metadata.request.host == "api.github.com"
       assert metadata.matched_rule == %{index: 0, kind: :allow}
     end
 
     test "buffers a partial line until the newline arrives" do
-      attach(:request_closed, self())
+      ref = attach(:request_closed, self())
       st = state(%NetworkPolicy{}, self())
 
       line = JSON.encode!(event_frame("request_closed", "api.github.com"))
@@ -122,11 +130,11 @@ defmodule Condukt.Sandbox.NetworkPolicy.K8s.ControlBridgeTest do
 
       assert {:noreply, st} = ControlBridge.handle_info({:control_bridge_data, head}, st)
       assert st.buffer == head
-      refute_received {:telemetry, _, _}
+      refute_received {:telemetry, ^ref, _, _}
 
       assert {:noreply, st} = ControlBridge.handle_info({:control_bridge_data, tail <> "\n"}, st)
       assert st.buffer == ""
-      assert_receive {:telemetry, _, _}
+      assert_receive {:telemetry, ^ref, _, _}
     end
 
     test "ignores an unknown frame type without crashing" do

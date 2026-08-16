@@ -1,6 +1,7 @@
 defmodule Condukt.AnonymousRunTest do
   use ExUnit.Case, async: true
 
+  alias Condukt.SessionID
   alias Condukt.Test.LLMProvider
   alias ReqLLM.Message
   alias ReqLLM.ToolCall
@@ -238,6 +239,14 @@ defmodule Condukt.AnonymousRunTest do
       handler_id = "anonymous-run-session-id-#{inspect(make_ref())}"
       test_pid = self()
 
+      # Telemetry handlers are VM-wide, so this one sees every run in the suite,
+      # not only ours. The id is chosen here and the handler drops everything
+      # else, which keeps concurrent async tests out of this mailbox. Learning
+      # the id from the first [:condukt, :run, :start] instead would bind it to
+      # whichever run happened to fire first, and a foreign run that never
+      # reaches the agent span leaves the assertions below waiting forever.
+      run_id = SessionID.generate()
+
       :telemetry.attach_many(
         handler_id,
         [
@@ -246,20 +255,22 @@ defmodule Condukt.AnonymousRunTest do
           [:condukt, :agent, :start],
           [:condukt, :agent, :stop]
         ],
-        fn event, _measurements, metadata, _ ->
-          send(test_pid, {:telemetry, event, metadata})
+        fn event, _measurements, metadata, %{run_id: expected, test_pid: pid} ->
+          if metadata[:session_id] == expected do
+            send(pid, {:telemetry, event, metadata})
+          end
         end,
-        nil
+        %{run_id: run_id, test_pid: test_pid}
       )
 
       on_exit(fn -> :telemetry.detach(handler_id) end)
 
       {model, _model_id} = LLMProvider.model([LLMProvider.text_response("done")])
 
-      assert {:ok, "done"} = Condukt.AnonymousRun.run("hello", model: model)
+      assert {:ok, "done"} = Condukt.AnonymousRun.run("hello", model: model, id: run_id)
 
-      assert_receive {:telemetry, [:condukt, :run, :start], %{session_id: run_id}}
       assert is_binary(run_id)
+      assert_receive {:telemetry, [:condukt, :run, :start], %{session_id: ^run_id}}
       assert_receive {:telemetry, [:condukt, :agent, :start], %{session_id: ^run_id}}
       assert_receive {:telemetry, [:condukt, :agent, :stop], %{session_id: ^run_id}}
       assert_receive {:telemetry, [:condukt, :run, :stop], %{session_id: ^run_id}}
