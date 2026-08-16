@@ -20,7 +20,11 @@ config :condukt_site, ConduktSiteWeb.Endpoint,
     formats: [html: ConduktSiteWeb.ErrorHTML, json: ConduktSiteWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: ConduktSite.PubSub
+  pubsub_server: ConduktSite.PubSub,
+  # Signs the session token a LiveView connection carries. Not a secret in the
+  # way `secret_key_base` is, but it must stay stable: changing it invalidates
+  # every open connection.
+  live_view: [signing_salt: "Nn7pQdVsK2xLmT4c"]
 
 # Configure esbuild (the version is required)
 config :esbuild,

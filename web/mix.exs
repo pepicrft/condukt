@@ -47,6 +47,11 @@ defmodule ConduktSite.MixProject do
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 1.1.0"},
+
+      # The agent the home page runs. It used to run in the visitor's browser
+      # as WebAssembly built from the Rust crates, which meant a second
+      # implementation of the same loop; the site now runs the real one.
+      {:condukt, path: "..", override: true},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
       {:telemetry_metrics, "~> 1.0"},

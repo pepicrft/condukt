@@ -41,6 +41,7 @@ defmodule ConduktSiteWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    live "/terminal", TerminalLive, :show
     get "/blog", BlogController, :index
     get "/blog/:slug", BlogController, :show
     get "/docs", DocsController, :index

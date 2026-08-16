@@ -32,6 +32,12 @@ end
 
 if model = System.get_env("OPENROUTER_MODEL") do
   config :condukt_site, openrouter_model: model
+
+  # The home page's agent reads Condukt's own repository through the GitHub API.
+  # Unauthenticated requests are limited per address, and every visitor now
+  # shares the server's, so without a token the demo runs out after roughly
+  # sixty requests an hour for everyone together. With one it is five thousand.
+  config :condukt_site, ConduktSite.Repository, token: System.get_env("GITHUB_TOKEN")
 end
 
 if config_env() == :prod do
