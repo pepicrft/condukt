@@ -9,8 +9,9 @@
         <h1>One agent.<br /><span>Every surface.</span></h1>
         <p>
           Condukt is a coding agent for the terminal and a framework for building
-          agent runtimes. The same portable agent loop powers the CLI, the
-          Elixir library, and the WebAssembly package that ships to browsers.
+          agent runtimes. The same agent loop powers the CLI, the Elixir
+          library, and the terminal below, which runs a real session on this
+          server and calls its tools in your browser.
         </p>
 
         <div data-part="hero-actions">
@@ -36,17 +37,9 @@
       </div>
     </header>
 
-    <condukt-browser-agent
-      id="terminal"
-      connected={@connected}
-      provider="OpenRouter"
-      model={@inference_model}
-      inference-endpoint="/api/completions"
-      connect-url={~p"/auth/openrouter?#{%{return_to: "/#terminal"}}"}
-      disconnect-url={~p"/auth/openrouter"}
-      csrf-token={get_csrf_token()}
-    >
-    </condukt-browser-agent>
+    <div id="terminal">
+      {live_render(@conn, ConduktSiteWeb.TerminalLive)}
+    </div>
 
     <section id="products" data-part="products">
       <div data-part="products-copy">
@@ -71,8 +64,8 @@
           <h3>Framework</h3>
           <p>
             Build your own agent on the same loop the coding agent runs: an
-            Elixir library for OTP applications, Rust crates, and the <code>@tuist/condukt</code>
-            WebAssembly package for browsers.
+            Elixir library for OTP applications, with sandboxing, sub-agents,
+            and tools you supply.
           </p>
           <a href={~p"/docs/framework"}>Read the framework docs</a>
         </article>

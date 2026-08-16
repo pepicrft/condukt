@@ -4,7 +4,9 @@ on:
   pull_request:
     paths:
       - "web/**"
-      - "packages/condukt/**"
+      - "lib/**"
+      - "mix.exs"
+      - "mix.lock"
       - "infra/**"
       - "mise.toml"
       - ".github/workflows/condukt-web.yml"
@@ -12,7 +14,9 @@ on:
     branches: [main]
     paths:
       - "web/**"
-      - "packages/condukt/**"
+      - "lib/**"
+      - "mix.exs"
+      - "mix.lock"
       - "infra/**"
       - "mise.toml"
       - ".github/workflows/condukt-web.yml"
@@ -54,12 +58,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
         with:
-          install_args: "rust node elixir erlang cargo:wasm-pack"
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
-        with:
-          shared-key: web-test
-      - name: Add WebAssembly target
-        run: rustup target add wasm32-unknown-unknown
+          install_args: "node elixir erlang"
       - name: Install dependencies
         run: mix deps.get --check-locked
       - name: Test

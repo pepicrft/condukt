@@ -31,7 +31,7 @@ config :esbuild,
   version: "0.25.4",
   condukt_site: [
     args:
-      ~w(js/app.js css/app.css --bundle --format=esm --target=es2022 --outdir=../priv/static/assets --entry-names=[dir]/[name] --external:/fonts/* --external:/images/* --external:/condukt/* --external:https://cdn.jsdelivr.net/gh/lit/dist@3.3.3/core/lit-core.min.js --alias:@=.),
+      ~w(js/app.js css/app.css --bundle --format=esm --target=es2022 --outdir=../priv/static/assets --entry-names=[dir]/[name] --external:/fonts/* --external:/images/* --external:https://cdn.jsdelivr.net/gh/lit/dist@3.3.3/core/lit-core.min.js --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]

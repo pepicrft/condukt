@@ -19,10 +19,6 @@ checksum = "sha256:4ce92482500f77f0779f288328cb7411f7ae2441b8618eae36a2ab5ea7591
 url = "https://github.com/jdx/aube/releases/download/v1.6.2/aube-v1.6.2-aarch64-apple-darwin.tar.gz"
 url_api = "https://api.github.com/repos/jdx/aube/releases/assets/410166750"
 
-[[tools."cargo:wasm-pack"]]
-version = "0.13.1"
-backend = "cargo:wasm-pack"
-
 [[tools.elixir]]
 version = "1.19.5-otp-28"
 backend = "core:elixir"

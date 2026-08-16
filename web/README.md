@@ -1,6 +1,6 @@
 # Condukt site
 
-This [Phoenix](https://www.phoenixframework.org/) application owns Condukt's marketing pages, OpenRouter authorization, and browser inference proxy.
+This [Phoenix](https://www.phoenixframework.org/) application owns Condukt's marketing pages, its documentation, OpenRouter authorization, and the agent behind the terminal on the home page.
 
 ## Development
 
@@ -11,23 +11,32 @@ mix setup
 mix phx.server
 ```
 
-`mix setup` creates the database, compiles the browser package to [WebAssembly](https://webassembly.org/), and builds the site assets. Open the address printed by the server and select **Log in with OpenRouter**. OpenRouter returns to the same worktree-specific address and the agent input becomes available.
+`mix setup` creates the database and builds the site assets. Open the address printed by the server and select **Log in with OpenRouter**. OpenRouter returns to the same worktree-specific address and the agent input becomes available.
 
 Each Git worktree receives a stable suffix from 100 through 999. Development uses port `4000 + suffix` and database `condukt_site_dev_SUFFIX`. Tests use port `4002 + suffix` and a separate `condukt_site_test_SUFFIX` database. Set `CONDUKT_SITE_DEV_INSTANCE` to an unused suffix when an explicit value is useful.
 
-## Browser boundary
+## Where the terminal runs
 
-The page imports `@tuist/condukt` from its own static files. It supplies:
+The site depends on the Condukt library at the repository root, so the terminal on the home page
+is a real `Condukt.Session`: `ConduktSiteWeb.TerminalLive` starts one per visitor and streams the
+turn as it happens.
 
-- inference through the same-origin `/api/completions` endpoint and a configured model;
-- two explicit tools that list directories and read bounded text files from the public
-  `tuist/condukt` GitHub repository.
+The tools go the other way. The page declares what it can do when the socket opens, and
+`ConduktSite.BrowserTools` turns each declaration into a tool whose call travels back down the
+socket for the browser to run. The two it declares list directories and read bounded text files
+from the public `tuist/condukt` repository, in `assets/js/repository_tools.mjs`.
 
-The OpenRouter credential remains in a signed, encrypted session cookie that page JavaScript cannot read. It is read only by the Elixir completion endpoint and is never included in page markup or JavaScript.
+That split is deliberate on both counts. GitHub rate-limits unauthenticated requests per address,
+so reading from the visitor's browser keeps each visitor on their own allowance rather than a
+shared server one. And the agent runs on a server it must not be able to reach, so its entire
+reach being the page's to grant is a stronger guarantee than auditing a list of server-side tools.
 
-The browser agent is a [Lit](https://lit.dev/) custom element imported from a pinned jsDelivr
-module. Its interactive controls come from the web-component build of
-[`@tuist/noora`](https://www.npmjs.com/package/@tuist/noora), also pinned to version `0.86.0`
+The OpenRouter credential stays in a signed, encrypted session cookie that page JavaScript cannot
+read. The LiveView reads it at mount and hands it to the session, so inference is billed to the
+visitor without the key ever reaching the page.
+
+Interactive controls come from the web-component build of
+[`@tuist/noora`](https://www.npmjs.com/package/@tuist/noora), pinned to version `0.86.0`
 on jsDelivr with subresource integrity hashes.
 
 ## Production image

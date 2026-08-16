@@ -38,4 +38,4 @@ This boundary prevents a browser build from inheriting terminal authority merely
 
 Completion requests contain messages and tool definitions. Provider adapters translate that shape into the service-specific request and response formats. This keeps provider authentication and transport outside the core session.
 
-For the exact boundary, see the [host interface reference](/framework/rust/host-interface) in Rust, or [agents](/framework/elixir/agents) and [tools](/framework/elixir/tools) in Elixir, where the library drives the loop for you inside a supervised process.
+For the exact boundary, see [agents](/framework/elixir/agents) and [tools](/framework/elixir/tools), where the library drives the loop for you inside a supervised process. `Condukt.HostSession` is the same model with the caller driving it instead.

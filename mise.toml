@@ -10,7 +10,6 @@ git-cliff = "2.12.0"
 node = "22"
 aube = "1.6.2"
 rust = "1.91"
-"cargo:wasm-pack" = "0.13.1"
 # Burrito 1.6 checks for this exact version when it wraps the terminal agent
 # into a single-file binary, so it moves in lockstep with the burrito dependency
 # in cli/mix.exs rather than floating.

@@ -47,8 +47,7 @@ defmodule ConduktSiteWeb.Docs.Navigation do
         items: [
           %Item{label: "Framework overview", slug: "/docs/framework"},
           %Item{label: "Architecture", slug: "/docs/framework/architecture"},
-          %Item{label: "Elixir library", slug: "/docs/framework/elixir"},
-          %Item{label: "Rust and browser", slug: "/docs/framework/rust"}
+          %Item{label: "Elixir library", slug: "/docs/framework/elixir"}
         ]
       }
     ]
@@ -150,19 +149,6 @@ defmodule ConduktSiteWeb.Docs.Navigation do
             slug: "/docs/framework/elixir/project-instructions"
           },
           %Item{label: "Telemetry", slug: "/docs/framework/elixir/telemetry"}
-        ]
-      },
-      %Group{
-        label: "Rust and browser",
-        icon: "devices_browser",
-        items: [
-          %Item{label: "Overview", slug: "/docs/framework/rust"},
-          %Item{label: "Browser quickstart", slug: "/docs/framework/rust/browser"},
-          %Item{label: "Provide inference", slug: "/docs/framework/rust/inference"},
-          %Item{label: "Define tools", slug: "/docs/framework/rust/tools"},
-          %Item{label: "Host interface", slug: "/docs/framework/rust/host-interface"},
-          %Item{label: "Browser package", slug: "/docs/framework/rust/browser-package"},
-          %Item{label: "Crate architecture", slug: "/docs/framework/rust/crates"}
         ]
       }
     ]

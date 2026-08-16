@@ -1,11 +1,11 @@
 defmodule ConduktSiteWeb.PageController do
   use ConduktSiteWeb, :controller
 
+  # The terminal is a LiveView now, and it reads the session and the model
+  # itself at mount, so neither is assigned here any more.
   def home(conn, _params) do
     conn
     |> assign(:page_title, "One agent. Every surface.")
-    |> assign(:connected, not is_nil(get_session(conn, :openrouter_key)))
-    |> assign(:inference_model, Application.fetch_env!(:condukt_site, :openrouter_model))
     |> render(:home)
   end
 end

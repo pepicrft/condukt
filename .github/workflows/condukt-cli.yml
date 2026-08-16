@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - "cli/**"
-      - "packages/condukt/**"
       - "lib/**"
       - "mix.exs"
       - "mix.lock"
@@ -14,7 +13,6 @@ on:
     branches: [main]
     paths:
       - "cli/**"
-      - "packages/condukt/**"
       - "lib/**"
       - "mix.exs"
       - "mix.lock"
@@ -110,58 +108,3 @@ jobs:
           ./burrito_out/condukt_linux --help
           ./burrito_out/condukt_linux files
 
-  browser_crates:
-    name: Browser crates
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: packages/condukt
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy, rustfmt
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
-        with:
-          shared-key: browser-crates
-          workspaces: packages/condukt
-      - name: cargo build
-        run: cargo build --verbose --all-targets
-        env:
-          RUSTFLAGS: -D warnings
-      - name: cargo test
-        run: cargo test --verbose --all-targets
-      - name: cargo clippy
-        run: cargo clippy --all-targets --all-features -- --deny warnings
-      - name: cargo fmt
-        run: cargo fmt --all -- --check
-
-  wasm_package:
-    name: WebAssembly package
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
-        with:
-          install_args: "rust node cargo:wasm-pack"
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
-        with:
-          shared-key: cli-wasm
-          workspaces: packages/condukt
-      - name: Add WebAssembly target
-        run: rustup target add wasm32-unknown-unknown
-      # wasm-pack resolves --out-dir relative to the crate, not the working
-      # directory, so the path is absolute and the artifacts land straight in
-      # the package. --out-name matches web/Dockerfile so both surfaces emit
-      # the same condukt_wasm.js the package entry point imports.
-      - name: Build package
-        run: |
-          rm -rf packages/condukt/generated
-          wasm-pack build packages/condukt/crates/condukt-wasm \
-            --target web \
-            --out-dir "$GITHUB_WORKSPACE/packages/condukt/generated" \
-            --out-name condukt_wasm \
-            --release
-      - name: Exercise package in Node.js
-        working-directory: packages/condukt
-        run: node --test test/*.test.mjs

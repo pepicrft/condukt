@@ -13,6 +13,14 @@ defmodule ConduktSiteWeb.TerminalLive do
   another, and the process waiting inside `ConduktSite.BrowserTools` is handed
   the answer. Pending calls live in this LiveView's own state, so one visitor's
   page can only ever resolve one visitor's calls.
+
+  ## The form is not a LiveView form
+
+  Everything below the transcript is markup this never re-renders, driven by the
+  `ConduktTerminal` hook. The controls are Noora custom elements holding their
+  own state, and a server-side patch is a good way to lose what someone is
+  halfway through typing. The transcript above it is the opposite: it is
+  rendered here on every fragment, which is the whole reason this is a LiveView.
   """
 
   use ConduktSiteWeb, :live_view
@@ -20,6 +28,13 @@ defmodule ConduktSiteWeb.TerminalLive do
   alias ConduktSite.BrowserTools
   alias ConduktSite.Conversation
   alias ConduktSite.Repository
+
+  @markdown_options [
+    extension: [table: true, strikethrough: true, autolink: true],
+    # Model output. Raw HTML in it is text, not markup.
+    render: [unsafe: false],
+    syntax_highlight: nil
+  ]
 
   @impl Phoenix.LiveView
   def mount(_params, session, socket) do
@@ -30,7 +45,6 @@ defmodule ConduktSiteWeb.TerminalLive do
         connected?: not is_nil(key),
         api_key: key,
         session_id: nil,
-        prompt: "",
         pending?: false,
         entries: [],
         pending_calls: %{},
@@ -46,24 +60,14 @@ defmodule ConduktSiteWeb.TerminalLive do
     {:noreply, ensure_session(socket, BrowserTools.build(declarations, self()))}
   end
 
-  def handle_event("update", %{"prompt" => prompt}, socket) do
-    {:noreply, assign(socket, :prompt, prompt)}
-  end
-
   def handle_event("submit", _params, %{assigns: %{pending?: true}} = socket) do
     {:noreply, socket}
   end
 
-  # The submitted value wins over the last change event. Relying on the change
-  # having arrived first loses anything the browser filled in and sent in one
-  # go, which is what an autofill or a fast return key does.
-  def handle_event("submit", params, socket) do
-    prompt = params |> Map.get("prompt", socket.assigns.prompt) |> String.trim()
-
-    if prompt == "" do
-      {:noreply, socket}
-    else
-      {:noreply, socket |> ensure_session([]) |> submit(prompt)}
+  def handle_event("submit", %{"prompt" => prompt}, socket) do
+    case String.trim(prompt) do
+      "" -> {:noreply, socket}
+      trimmed -> {:noreply, socket |> ensure_session([]) |> submit(trimmed)}
     end
   end
 
@@ -107,7 +111,7 @@ defmodule ConduktSiteWeb.TerminalLive do
   end
 
   defp submit(socket, prompt) do
-    socket = socket |> put_entry(:prompt, prompt) |> assign(prompt: "", pending?: true)
+    socket = socket |> put_entry(:user, prompt) |> busy(true)
 
     case Conversation.submit(socket.assigns.session_id, prompt, self()) do
       :ok ->
@@ -116,7 +120,7 @@ defmodule ConduktSiteWeb.TerminalLive do
       {:error, :no_session} ->
         socket
         |> put_entry(:error, "The agent session ended. Reload the page to start another.")
-        |> assign(pending?: false)
+        |> busy(false)
     end
   end
 
@@ -124,10 +128,10 @@ defmodule ConduktSiteWeb.TerminalLive do
   def handle_info({:agent, {:text, chunk}}, socket), do: {:noreply, append_text(socket, chunk)}
 
   def handle_info({:agent, {:error, reason}}, socket) do
-    {:noreply, socket |> put_entry(:error, describe(reason)) |> assign(pending?: false)}
+    {:noreply, socket |> put_entry(:error, describe(reason)) |> busy(false)}
   end
 
-  def handle_info({:agent, :done}, socket), do: {:noreply, assign(socket, :pending?, false)}
+  def handle_info({:agent, :done}, socket), do: {:noreply, busy(socket, false)}
 
   # Thinking, tool results, and the turn markers carry nothing this surface
   # shows. Matching them explicitly would mean listing every event the library
@@ -143,7 +147,7 @@ defmodule ConduktSiteWeb.TerminalLive do
     socket =
       socket
       |> assign(:pending_calls, Map.put(socket.assigns.pending_calls, token, {caller, ref}))
-      |> put_entry(:tool, name)
+      |> put_activity(name)
       |> push_event("condukt:tool", %{token: token, name: name, args: args})
 
     {:noreply, socket}
@@ -155,15 +159,37 @@ defmodule ConduktSiteWeb.TerminalLive do
   # kills this process without running it, which is how most of these end, so
   # `ConduktSite.Conversation` monitors instead and covers both endings.
 
+  # The form is not re-rendered, so its busy state is told to the page rather
+  # than patched into it.
+  defp busy(socket, pending?) do
+    socket |> assign(:pending?, pending?) |> push_event("condukt:busy", %{busy: pending?})
+  end
+
   # Assistant text arrives in fragments. Appending to the open reply keeps one
   # answer as one block rather than one entry per token.
   defp append_text(socket, chunk) do
     case socket.assigns.entries do
-      [%{kind: :reply, text: text} = entry | rest] ->
+      [%{kind: :assistant, text: text} = entry | rest] ->
         assign(socket, :entries, [%{entry | text: text <> chunk} | rest])
 
       entries ->
-        assign(socket, :entries, [%{kind: :reply, text: chunk, id: entry_id()} | entries])
+        assign(socket, :entries, [
+          %{kind: :assistant, text: chunk, id: entry_id()} | entries
+        ])
+    end
+  end
+
+  # Consecutive tool calls collect into one line of badges rather than one
+  # entry each, which is what a turn that reads four files looks like.
+  defp put_activity(socket, name) do
+    case socket.assigns.entries do
+      [%{kind: :tools, activities: activities} = entry | rest] ->
+        assign(socket, :entries, [%{entry | activities: activities ++ [name]} | rest])
+
+      entries ->
+        assign(socket, :entries, [
+          %{kind: :tools, activities: [name], id: entry_id()} | entries
+        ])
     end
   end
 
@@ -178,45 +204,135 @@ defmodule ConduktSiteWeb.TerminalLive do
   defp describe(reason) when is_binary(reason), do: reason
   defp describe(reason), do: inspect(reason)
 
+  defp markdown(text), do: text |> MDEx.to_html!(@markdown_options) |> raw()
+
+  defp greeting(true = _connected?, source),
+    do:
+      "I am a Condukt session running on this server. My tools run in your browser, " <>
+        "where I can list directories and read text files from #{source.repository}. " <>
+        "What would you like to know?"
+
+  defp greeting(false = _connected?, source),
+    do:
+      "Connect OpenRouter to start a real Condukt session. The agent loop runs on this " <>
+        "server; its tools run in your browser, reading #{source.repository} and nothing else."
+
   @impl Phoenix.LiveView
   def render(assigns) do
     ~H"""
-    <section id="terminal" data-part="terminal-live" phx-hook="ConduktTerminal">
-      <header data-part="terminal-header">
-        <span data-part="terminal-title">Condukt</span>
-        <span data-part="terminal-meta">{@model} · reading {@source.repository}</span>
-      </header>
+    <noora-card
+      id="condukt-terminal"
+      phx-hook="ConduktTerminal"
+      data-part="terminal"
+      class="noora-dark"
+      title="condukt · github.com/tuist/condukt"
+      icon="devices_code"
+    >
+      <div id="agent-transcript" data-part="agent-transcript" aria-live="polite">
+        <div data-part="terminal-entry" data-role="assistant">
+          <span data-part="terminal-prompt">condukt</span>
+          <div data-part="message-body">
+            <div data-part="markdown">{markdown(greeting(@connected?, @source))}</div>
+          </div>
+        </div>
 
-      <div data-part="terminal-body">
-        <ol data-part="terminal-entries">
-          <li :for={entry <- Enum.reverse(@entries)} id={"entry-#{entry.id}"} data-kind={entry.kind}>
-            <span :if={entry.kind == :prompt} data-part="marker">&gt;</span>
-            <span :if={entry.kind == :tool} data-part="marker">tool</span>
-            <span data-part="entry-text">{entry.text}</span>
-          </li>
-        </ol>
+        <div
+          :for={entry <- Enum.reverse(@entries)}
+          id={"entry-#{entry.id}"}
+          data-part="terminal-entry"
+          data-role={if entry.kind == :user, do: "user", else: "assistant"}
+        >
+          <span data-part="terminal-prompt">
+            {if entry.kind == :user, do: "you", else: "condukt"}
+          </span>
+
+          <div :if={entry.kind == :tools} data-part="tool-activities">
+            <noora-status-badge
+              :for={activity <- entry.activities}
+              data-part="tool-activity"
+              type="dot"
+              status="in_progress"
+              label={activity}
+            >
+              {activity}
+            </noora-status-badge>
+          </div>
+
+          <div :if={entry.kind == :user} data-part="message-body">{entry.text}</div>
+
+          <div :if={entry.kind == :assistant} data-part="message-body">
+            <div data-part="markdown">{markdown(entry.text)}</div>
+          </div>
+
+          <div :if={entry.kind == :error} data-part="message-body" data-error>{entry.text}</div>
+        </div>
       </div>
 
-      <footer data-part="terminal-footer">
-        <form :if={@connected?} phx-submit="submit" phx-change="update">
-          <label for="prompt" class="sr-only">Ask about Condukt's source</label>
-          <input
-            id="prompt"
-            name="prompt"
-            value={@prompt}
-            autocomplete="off"
-            disabled={@pending?}
-            placeholder={if @pending?, do: "Working…", else: "Ask about Condukt's source"}
-          />
-          <button type="submit" disabled={@pending? or @prompt == ""}>Send</button>
-        </form>
+      <div :if={!@connected?} data-part="agent-connect">
+        <noora-alert
+          type="secondary"
+          status="information"
+          size="large"
+          title="Connect OpenRouter to continue"
+          show-icon
+        >
+          Your OpenRouter key stays in a browser-inaccessible encrypted session and is used
+          only to bill your own inference. The agent reads <code>{@source.repository}</code>
+          from your browser.
+          <noora-button
+            slot="action"
+            data-action="connect"
+            variant="primary"
+            size="large"
+            href={~p"/auth/openrouter?#{%{return_to: "/#terminal"}}"}
+          >
+            Log in with OpenRouter
+          </noora-button>
+        </noora-alert>
+      </div>
 
-        <p :if={!@connected?} data-part="terminal-signin">
-          <a href={~p"/auth/openrouter?#{%{return_to: "/#terminal"}}"}>Connect OpenRouter</a>
-          to run a real Condukt session. The agent runs on this server and reads {@source.repository} from your browser; inference is billed to your account.
-        </p>
-      </footer>
-    </section>
+      <form :if={@connected?} id="agent-form" data-part="agent-form" data-model={@model}>
+        <noora-label label="Ask Condukt about its repository" for="agent-prompt"></noora-label>
+        <div data-part="prompt-row">
+          <noora-text-area
+            id="agent-prompt"
+            name="prompt"
+            aria-label="Ask Condukt about its repository"
+            rows="2"
+            max-length="2000"
+            show-character-count
+            resize="none"
+            placeholder="How does the host-driven agent loop work?"
+            required
+          >
+          </noora-text-area>
+          <noora-button
+            id="agent-submit"
+            type="button"
+            icon-only
+            size="small"
+            aria-label="Send message"
+          >
+            <span aria-hidden="true">↑</span>
+          </noora-button>
+        </div>
+        <div data-part="form-footer">
+          <div data-part="form-context" aria-label="Agent configuration">
+            <noora-status-badge id="agent-status" type="dot" status="success" label={@model}>
+              {@model}
+            </noora-status-badge>
+          </div>
+          <noora-button type="submit" form="disconnect-form" variant="secondary" size="small">
+            Disconnect OpenRouter
+          </noora-button>
+        </div>
+      </form>
+
+      <form :if={@connected?} id="disconnect-form" action={~p"/auth/openrouter"} method="post" hidden>
+        <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
+        <input type="hidden" name="_method" value="delete" />
+      </form>
+    </noora-card>
     """
   end
 end

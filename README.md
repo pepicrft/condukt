@@ -21,14 +21,11 @@ It ships as three surfaces from one repository:
 - A **terminal CLI** built on that library, with a ratatui interface, slash
   commands, an ACP backend, and headless `exec` for scripts and CI. It ships as
   a single self-contained binary per platform.
-- A **browser package** (`@tuist/condukt`) that ships the portable session as
-  WebAssembly so any page can host an agent that only inherits the tools it
-  explicitly registers.
-
 A marketing and documentation site lives under [`web/`](web/) and serves both
-the install story and the public docs. The same `Message` history and
-`ToolDefinition` shape crosses every surface, so the same conversation can move
-between them when a host chooses to do so.
+the install story and the public docs. The terminal on its home page runs a
+real session on the server and calls its tools in the visitor's browser, which
+is the shortest demonstration of the split the library is built around: the
+loop is Condukt's, the reach is the host's.
 
 ## Library
 
@@ -121,32 +118,6 @@ input. The command uses the saved OpenRouter credential, or
 `CONDUKT_OPENROUTER_API_KEY` when set. Pass `--verbose` to show tool activity
 on standard error and `--json` for a machine-readable final response.
 
-## Browser
-
-Add the npm package to a JavaScript or TypeScript application:
-
-```sh
-npm install @tuist/condukt
-```
-
-```js
-import {createAgent, createHttpInference} from "@tuist/condukt"
-
-const agent = await createAgent({
-  inference: createHttpInference({model: "openrouter/auto"}),
-  tools: [{
-    name: "read_page",
-    description: "Read the public content on this page",
-    parameters: {type: "object", properties: {}},
-    execute: () => document.querySelector("main").innerText,
-  }],
-})
-```
-
-The page supplies both the inference configuration and the tool allowlist. The
-public Condukt site demonstrates the same package against a Phoenix endpoint
-that signs developers in with OpenRouter and proxies the completion request.
-
 ## Repository layout
 
 ```
@@ -154,14 +125,8 @@ condukt/
 ├── lib/                  # Elixir library
 ├── native/               # Rust NIFs (bashkit, microsandbox, egress)
 ├── cli/                  # Elixir terminal coding agent, packaged with Burrito
-├── web/                  # Phoenix marketing site, documentation source, browser endpoint
+├── web/                  # Phoenix marketing site and documentation source
 │   └── priv/docs/           # single source for docs and the ExDoc extras
-├── packages/condukt/     # @tuist/condukt npm package
-│   └── crates/              # Rust workspace behind the WebAssembly build
-│       ├── condukt-inference/
-│       ├── condukt-protocol/
-│       ├── condukt-session/
-│       └── condukt-wasm/
 ├── infra/                # Helm chart and cluster configuration for the site
 └── .github/workflows/    # CI for library, CLI, and web
 ```
@@ -169,8 +134,8 @@ condukt/
 ## Documentation
 
 All documentation lives in `web/priv/docs`. Read it on
-[the site](https://condukt.dev/docs), which covers the coding agent, the
-Elixir library, and the Rust and browser surfaces. The Elixir pages are also
+[the site](https://condukt.dev/docs), which covers the coding agent and the
+Elixir library. The Elixir pages are also
 published to [HexDocs](https://hexdocs.pm/condukt/overview.html) alongside the
 API reference.
 
@@ -178,8 +143,8 @@ API reference.
 
 MIT, except the server.
 
-- Everything at the root is MIT: the Elixir library, the terminal agent, the
-  Rust crates, and the browser package. See [LICENSE](LICENSE).
+- Everything at the root is MIT: the Elixir library, the terminal agent, and
+  the Rust NIFs under `native/`. See [LICENSE](LICENSE).
 - [`web/`](web/), the Phoenix server that runs
   [condukt.tuist.dev](https://condukt.tuist.dev), is Mozilla Public License 2.0.
   See [web/LICENSE](web/LICENSE).

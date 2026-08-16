@@ -3,10 +3,9 @@ defmodule Condukt.HostSession do
   The agent loop as a state machine, with the host doing the work.
 
   `Condukt.Session` runs a turn itself: it holds a process, calls the provider,
-  executes tools, and hands back a result. That needs a virtual machine with
-  sockets, a supervision tree, and the dependencies to match. A browser has
-  none of those, and neither does any host that would rather own its own
-  inference and tool execution.
+  executes tools, and hands back a result. That suits a host willing to let
+  Condukt own those, and not one that would rather own its own inference and
+  tool execution, or drive the loop inside a request it already has.
 
   This is the same loop with all of that removed. It holds conversation state
   and decides what should happen next; the host performs each step and reports
@@ -26,20 +25,19 @@ defmodule Condukt.HostSession do
   here performs input or output, sleeps, or spawns. That is what lets the same
   loop run inside a process, inside a request, or inside a page.
 
-  This mirrors the Rust `condukt_session::HostSession` that backs the
-  `@tuist/condukt` browser package, transition for transition, so the two
-  surfaces stay one design rather than two that resemble each other. One
-  difference is deliberate: the Rust version pushes the system prompt into
-  history as a message, while this one carries it on the request. Providers
-  take a system prompt as its own parameter and `Condukt.Session` already
-  treats it that way, so the Rust side is the one to change.
+  It began as a transition-for-transition port of the Rust
+  `condukt_session::HostSession` behind the `@tuist/condukt` browser package.
+  That package and its crates are gone, so this is the only host-driven loop
+  now and is free to change on its own terms. The system prompt travelling on
+  the request rather than in history, which the Rust side did the other way,
+  is the shape to keep: providers take it as its own parameter and
+  `Condukt.Session` already treats it that way.
   """
 
   alias Condukt.Message
 
-  # The same ceiling the Rust implementation uses. A host that wants a different
-  # one bounds its own loop; this exists so a model that keeps asking for tools
-  # cannot run forever unattended.
+  # A host that wants a different ceiling bounds its own loop; this exists so a
+  # model that keeps asking for tools cannot run forever unattended.
   @max_iterations 16
 
   defstruct history: [],

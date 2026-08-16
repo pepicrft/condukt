@@ -45,4 +45,4 @@ using idiomatic Elixir patterns.
 
 The same agent model exists in Rust for native hosts and browsers. This library
 is the fuller implementation; the Rust crates are the portable core the terminal
-coding agent and the WebAssembly package are built on.
+coding agent is built on.

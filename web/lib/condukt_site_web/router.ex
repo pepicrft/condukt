@@ -1,6 +1,10 @@
 defmodule ConduktSiteWeb.Router do
   use ConduktSiteWeb, :router
 
+  # connect-src carries three things now: the LiveView socket, which 'self'
+  # covers for wss on an https origin and the explicit entries cover for plain
+  # ws in development, and the two GitHub origins the terminal's tools read
+  # from, which run in the visitor's browser rather than on the server.
   @content_security_policy Enum.join(
                              [
                                "default-src 'self'",
@@ -12,7 +16,7 @@ defmodule ConduktSiteWeb.Router do
                                "frame-src 'self'",
                                "img-src 'self' data:",
                                "object-src 'none'",
-                               "script-src 'self' 'wasm-unsafe-eval' https://cdn.jsdelivr.net/npm/@tuist/noora@0.86.0/priv/static/noora-web-components.js https://cdn.jsdelivr.net/gh/lit/dist@3.3.3/core/lit-core.min.js 'sha384-Bh5v5tOligzRcj5lSaylOQfOrIj0Yniwk1Y99S9BlevMFIz7dff2ntuqKyQ/3Nr4'",
+                               "script-src 'self' https://cdn.jsdelivr.net/npm/@tuist/noora@0.86.0/priv/static/noora-web-components.js https://cdn.jsdelivr.net/gh/lit/dist@3.3.3/core/lit-core.min.js 'sha384-Bh5v5tOligzRcj5lSaylOQfOrIj0Yniwk1Y99S9BlevMFIz7dff2ntuqKyQ/3Nr4'",
                                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/@tuist/noora@0.86.0/priv/static/tokens.css https://fonts.googleapis.com"
                              ],
                              "; "
@@ -25,12 +29,6 @@ defmodule ConduktSiteWeb.Router do
     plug :put_root_layout, html: {ConduktSiteWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers, %{"content-security-policy" => @content_security_policy}
-  end
-
-  pipeline :api do
-    plug :accepts, ["json"]
-    plug :fetch_session
-    plug :protect_from_forgery
   end
 
   scope "/", ConduktSiteWeb do
@@ -50,11 +48,5 @@ defmodule ConduktSiteWeb.Router do
     get "/auth/openrouter", OpenRouterAuthController, :new
     get "/auth/openrouter/callback/:state", OpenRouterAuthController, :callback
     delete "/auth/openrouter", OpenRouterAuthController, :delete
-  end
-
-  scope "/api", ConduktSiteWeb do
-    pipe_through :api
-
-    post "/completions", CompletionController, :create
   end
 end

@@ -307,7 +307,9 @@ code {
   width: 22%;
 }
 
-condukt-browser-agent {
+/* The LiveView's container, named by live_render so the #terminal anchor and
+   this rule survived the move off the browser agent. */
+#terminal {
   display: block;
   scroll-margin-top: 80px;
 }

@@ -137,14 +137,16 @@
   inference and runs tools. No processes, no input or output, no dependencies
   beyond `Condukt.Message`. Use it when the caller owns the provider call, and
   `Condukt.Session` when Condukt should.
-- It mirrors the Rust `condukt_session::HostSession` behind the `@tuist/condukt`
-  browser package transition for transition, deliberately, so the two are one
-  design. They currently differ on one point: Rust pushes the system prompt into
-  history, this carries it on the request. Align Rust to this, not the reverse.
-- The browser package stays Rust. Elixir in a browser means AtomVM through
-  Popcorn, which pins OTP 26.0.2 and Elixir 1.17.3 exactly and produces a
-  bundle an order of magnitude larger than the 109 KB WebAssembly module the
-  Rust crates build. The measurements are in the commit that added this module.
+- It began as a port of the Rust `condukt_session::HostSession` behind the
+  `@tuist/condukt` browser package. Those crates and that package are gone, so
+  this is the only host-driven loop and is free to change on its own terms.
+- There is no browser build any more, and reaching for one is a decision, not a
+  gap to fill. Elixir in a browser means AtomVM through Popcorn, which pins OTP
+  26.0.2 and Elixir 1.17.3 exactly and produces a bundle an order of magnitude
+  larger than the 109 KB WebAssembly module the deleted Rust crates built. The
+  measurements are in the commit that added this module. The web terminal
+  solves the same problem differently: the loop runs on the server and calls
+  the page's tools over the LiveView socket.
 
 ## Persistence
 
@@ -256,16 +258,7 @@ The terminal coding agent is an Elixir Mix project under `cli/`, application `:c
 - `Condukt.CLI.Attachment` is the route that needs nothing installed: pasted or dragged text that is entirely paths to image files is attached rather than typed, with the format read from the file's leading bytes rather than its extension. Dragging is how a terminal types a path, and it is the only way to attach an image over a remote connection, where there is no clipboard at all. Keep it all-or-nothing: a line that mixes paths with words stays text, because attaching the images and dropping the words would lose the question.
 - Every host tool the interface runs goes through `Condukt.CLI.Command`, which captures standard error. This is load-bearing, not tidiness: an uncaptured child writes onto the terminal the interface is drawing on, scrolling the frame so that every later redraw lands a row off. Never call `System.cmd/3` or `MuonTrap.cmd/3` directly from the interface.
 - Auth: OpenRouter is the only provider today, reached through ReqLLM as `openrouter:<model>`. Credentials live under `$XDG_CONFIG_HOME/condukt` (or `~/.config/condukt`) and can be overridden through `CONDUKT_OPENROUTER_API_KEY` and `CONDUKT_CREDENTIAL_DIR`. Import Pi credentials with `condukt import-pi-credentials`; set `CONDUKT_PI_AUTH_FILE` to override the source path.
-- CI: `.github/workflows/condukt-cli.yml` compiles, formats, lints, and tests the agent, builds the linux binary end to end, and covers the browser crates and the WebAssembly package. `.github/workflows/release.yml` builds one binary per target and attaches them to the GitHub release named after their target triple (`condukt-aarch64-apple-darwin` and so on). The same release carries the NIF tarballs, several of which name the same platform, so the documented install is `mise use -g "ubi:tuist/condukt[matching=condukt-,exe=condukt]"`: ubi's `matching` is a tiebreaker among assets that already match the host, and `condukt-` is the prefix only the agent binaries have. Keep that prefix if the artifact naming ever changes.
-
-## Browser package (`packages/condukt/`)
-
-The published npm package `@tuist/condukt` is generated from the `condukt-wasm` Rust crate. The package directory holds the Rust workspace, the TypeScript types, the JavaScript entry point, and the Node tests; the generated `condukt_wasm` artifacts are produced by `wasm-pack` and copied in by the CI workflow and the Dockerfile.
-
-- The Rust workspace lives at `packages/condukt/`, with members `condukt-inference`, `condukt-protocol`, `condukt-session`, and `condukt-wasm`. These crates exist to compile to WebAssembly, which is why they stayed in Rust when the terminal agent moved to Elixir. They are a separate workspace from `native/`; the two share no crates or lockfile.
-- Build: `wasm-pack build packages/condukt/crates/condukt-wasm --target web --out-dir "$PWD/packages/condukt/generated" --out-name condukt_wasm --release`, then run `node --test test/*.test.mjs` from `packages/condukt/`. The out-dir must be absolute: `wasm-pack` resolves a relative one against the crate directory, not the working directory.
-- `cargo build --all-targets`, `cargo test --all-targets`, `cargo clippy --all-targets --all-features -- --deny warnings`, and `cargo fmt --all -- --check` are all required to be green from `packages/condukt/`.
-- The Phoenix web app serves the generated files from `priv/static/condukt/`. The page imports `/condukt/index.js` to obtain `createAgent` and `createHttpInference`.
+- CI: `.github/workflows/condukt-cli.yml` compiles, formats, lints, and tests the agent and builds the linux binary end to end. `.github/workflows/release.yml` builds one binary per target and attaches them to the GitHub release named after their target triple (`condukt-aarch64-apple-darwin` and so on). The same release carries the NIF tarballs, several of which name the same platform, so the documented install is `mise use -g "ubi:tuist/condukt[matching=condukt-,exe=condukt]"`: ubi's `matching` is a tiebreaker among assets that already match the host, and `condukt-` is the prefix only the agent binaries have. Keep that prefix if the artifact naming ever changes.
 
 ## Git
 
@@ -292,7 +285,7 @@ The published npm package `@tuist/condukt` is generated from the `condukt-wasm` 
 ## Licensing
 
 - The repository is MIT, and `LICENSE` at the root is what covers the library,
-  the terminal agent, the Rust crates, and the browser package. `MIT.md` is a
+  the terminal agent, and the Rust NIFs under `native/`. `MIT.md` is a
   copy of the same text shipped inside the Hex package.
 - `web/` is Mozilla Public License 2.0 and carries its own `web/LICENSE`, which
   is the canonical text unmodified. A file is covered by the licence in its
@@ -309,16 +302,18 @@ The published npm package `@tuist/condukt` is generated from the `condukt-wasm` 
 
 ## Marketing site (`web/`)
 
-The marketing site, public docs, and browser inference endpoint live under `web/` as a Phoenix application named `condukt_site` (modules under `ConduktSite.*`). It serves the install story, hosts the documentation pages, and proxies the browser-side agent through a same-origin `/api/completions` endpoint.
+The marketing site and public docs live under `web/` as a Phoenix application named `condukt_site` (modules under `ConduktSite.*`). It serves the install story, hosts the documentation pages, and runs the terminal on the home page.
 
 - Source: `web/lib/`, `web/priv/`, `web/assets/`, `web/config/`, `web/test/`. Docs source files live under `web/priv/docs/{cli,framework}/`. Blog posts live under `web/priv/blog/posts/`.
 - Package manager: [Hex](https://hex.pm/) for Elixir dependencies; `npm` is not used in the web app.
 - Build: `cd web && mix deps.get && mix assets.deploy && mix release`.
 - Local preview: `cd web && mix setup && mix phx.server`. The server prints a worktree-specific address; each Git worktree receives a stable suffix from 100 through 999 and uses port `4000 + suffix` plus a database named `condukt_site_dev_SUFFIX`. Tests use `4002 + suffix` and `condukt_site_test_SUFFIX`. Set `CONDUKT_SITE_DEV_INSTANCE` to an unused suffix when an explicit value is useful.
-- Deployment: pushes to `main` that touch `web/**`, `cli/**`, `packages/condukt/**`, or `infra/**` publish a Docker image to `ghcr.io/tuist/condukt` and then run `helm upgrade --install` against the production cluster, all in `.github/workflows/condukt-web.yml`. The Dockerfile at `web/Dockerfile` builds the `condukt_site` Phoenix release, the WASM module from `packages/condukt/crates/condukt-wasm`, and the `@tuist/condukt` browser package into the served static assets.
+- Deployment: pushes to `main` that touch `web/**`, `lib/**`, `mix.exs`, `mix.lock`, or `infra/**` publish a Docker image to `ghcr.io/tuist/condukt` and then run `helm upgrade --install` against the production cluster, all in `.github/workflows/condukt-web.yml`. `lib/**` is in that list because the site depends on the library. The Dockerfile at `web/Dockerfile` takes the repository root as its build context for the same reason.
 - The site answers `GET /ready` with `ok`. The Kubernetes probes depend on it, so keep the route out of the browser pipeline and free of external dependencies.
-- WASM artifacts: the release image bundles `priv/static/condukt/generated/condukt_wasm_bg.wasm` plus the `condukt-wasm` JavaScript glue. The web page imports them as `/condukt/index.js` and `/condukt/generated/condukt_wasm.js`. The esbuild config treats `/condukt/*` as external.
-- The web app does not depend on the `condukt` Elixir library. It is a marketing, docs, and browser inference surface only. The hosted Condukt service is not in scope.
+- The terminal on the home page is `ConduktSiteWeb.TerminalLive`: a real `Condukt.Session` per visitor, started on the page's first message with tools the page declares. `ConduktSite.BrowserTools` turns each declaration into a tool whose call travels back down the LiveView socket for the browser to run, so the loop is the server's and the reach is the page's. Keeping the GitHub reads in the browser also keeps that rate limit per visitor rather than per server.
+- The composer below the transcript is deliberately not a LiveView form. Those controls are Noora custom elements holding their own state and the transcript above them re-renders on every streamed fragment, so the `ConduktTerminal` hook owns submission and busy state instead. Do not "fix" this by binding `phx-change`/`phx-submit` to them.
+- The web app depends on `{:condukt, path: ".."}`. `web/mix.exs` sets `CONDUKT_BASHKIT_DISABLE` and `CONDUKT_MICROSANDBOX_DISABLE` itself so a path dependency does not force-build both Rust crates; the site never starts those sandboxes. The hosted Condukt service is not in scope.
+- `web/assets/js/*.test.mjs` runs under `node --test` in `.github/workflows/condukt-web.yml`. The browser half of the tool contract lives there, so it is not optional.
 
 ## Cluster deployment (`infra/`)
 
@@ -339,7 +334,7 @@ The site runs on Kubernetes and is served at https://condukt.dev.
 All prose documentation has a single source under `web/priv/docs/`, served by the Phoenix site and, for the Elixir pages, published to HexDocs by ExDoc. There is no `guides/` directory.
 
 - `web/priv/docs/cli/`: the terminal coding agent journey ("Use Condukt").
-- `web/priv/docs/framework/`: the framework journey ("Build agents"), with `elixir/` for the Hex library and `rust/` for the crates and the browser package.
+- `web/priv/docs/framework/`: the framework journey ("Build agents"), with `elixir/` for the Hex library.
 - The Elixir pages under `web/priv/docs/framework/elixir/` are also the ExDoc extras. They are listed in `mix.exs` under `extras` and `groups_for_extras`, and the root mix `package` includes that directory.
 - Cross-link rules: pages that are ExDoc extras link to their siblings with relative Markdown paths (`tools.md`, `sandbox.md#custom`) so both surfaces resolve them. Site-only pages link with root-relative paths (`/framework/rust/browser`), which the site rewrites to `/docs/...`.
 - When adding, removing, or meaningfully changing a feature (tools, sessions, compaction, redaction, providers, telemetry, project instructions, streaming, etc.), update the corresponding page in the same change.

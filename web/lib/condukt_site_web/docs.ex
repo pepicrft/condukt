@@ -2,8 +2,8 @@ defmodule ConduktSiteWeb.Docs do
   @moduledoc """
   Resolves documentation routes to Markdown files under `priv/docs`.
 
-  A route such as `/docs/framework/rust/browser` resolves to either
-  `framework/rust/browser.md` or `framework/rust/browser/index.md`. Path segments are validated
+  A route such as `/docs/framework/elixir/tools` resolves to either
+  `framework/elixir/tools.md` or `framework/elixir/tools/index.md`. Path segments are validated
   before any filesystem access so a documentation request cannot escape the
   documentation root.
   """

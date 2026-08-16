@@ -1,6 +1,16 @@
 defmodule ConduktSite.MixProject do
   use Mix.Project
 
+  # The site depends on the library for the terminal's agent, and a path
+  # dependency compiles under this project's environment, so without these the
+  # site would force-build both Rust crates from source. It never starts a
+  # bashkit or microsandbox sandbox: the terminal's agent has no tools of its
+  # own, and the ones the page gives it run in the page. Setting them here
+  # keeps a local build, continuous integration, and the release image on the
+  # same path, and keeps a Rust toolchain out of the Docker build.
+  System.put_env("CONDUKT_BASHKIT_DISABLE", "1")
+  System.put_env("CONDUKT_MICROSANDBOX_DISABLE", "1")
+
   def project do
     [
       app: :condukt_site,
@@ -78,14 +88,8 @@ defmodule ConduktSite.MixProject do
       "ecto.setup": ["ecto.create", "ecto.migrate"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       "assets.setup": ["esbuild.install --if-missing"],
-      "wasm.build": ["cmd --cd ../cli mise run wasm:build"],
-      "assets.build": ["compile", "wasm.build", "esbuild condukt_site"],
-      "assets.deploy": [
-        "compile",
-        "wasm.build",
-        "esbuild condukt_site --minify",
-        "phx.digest"
-      ],
+      "assets.build": ["compile", "esbuild condukt_site"],
+      "assets.deploy": ["compile", "esbuild condukt_site --minify", "phx.digest"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
     ]

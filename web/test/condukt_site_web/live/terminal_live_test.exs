@@ -30,7 +30,7 @@ defmodule ConduktSiteWeb.TerminalLiveTest do
     test "offers no way to submit a prompt", %{conn: conn} do
       {:ok, live, _html} = live(conn, ~p"/terminal")
 
-      refute has_element?(live, "form")
+      refute has_element?(live, "#agent-form")
     end
 
     # Without a credential there is nothing to bill inference to, so a page
@@ -47,11 +47,11 @@ defmodule ConduktSiteWeb.TerminalLiveTest do
       %{conn: init_test_session(conn, %{"openrouter_key" => "sk-or-v1-test"})}
     end
 
-    test "offers the prompt", %{conn: conn} do
-      {:ok, live, html} = live(conn, ~p"/terminal")
+    test "offers the composer", %{conn: conn} do
+      {:ok, live, _html} = live(conn, ~p"/terminal")
 
-      assert has_element?(live, "form")
-      assert html =~ "Ask about Condukt"
+      assert has_element?(live, "#agent-form")
+      assert has_element?(live, "#agent-prompt")
     end
 
     # The tools belong to the page, so the session waits for them rather than
@@ -78,7 +78,7 @@ defmodule ConduktSiteWeb.TerminalLiveTest do
     test "a prompt without declared tools still starts a session", %{conn: conn} do
       {:ok, live, _html} = live(conn, ~p"/terminal")
 
-      live |> form("form", %{"prompt" => "hello"}) |> render_submit()
+      render_hook(live, "submit", %{"prompt" => "hello"})
 
       assert Condukt.Sessions.alive?(session_id(live))
     end
@@ -86,11 +86,7 @@ defmodule ConduktSiteWeb.TerminalLiveTest do
     test "echoes what was asked before the answer arrives", %{conn: conn} do
       {:ok, live, _html} = live(conn, ~p"/terminal")
 
-      html =
-        live
-        |> declare_tools()
-        |> form("form", %{"prompt" => "what is in lib?"})
-        |> render_submit()
+      html = render_hook(declare_tools(live), "submit", %{"prompt" => "what is in lib?"})
 
       assert html =~ "what is in lib?"
     end
@@ -98,9 +94,9 @@ defmodule ConduktSiteWeb.TerminalLiveTest do
     test "an empty prompt submits nothing", %{conn: conn} do
       {:ok, live, _html} = live(conn, ~p"/terminal")
 
-      html = live |> form("form", %{"prompt" => "   "}) |> render_submit()
+      html = render_hook(live, "submit", %{"prompt" => "   "})
 
-      refute html =~ ~s(data-kind="prompt")
+      refute html =~ ~s(data-role="user")
     end
 
     # Streamed text arrives in fragments; one answer should read as one block
