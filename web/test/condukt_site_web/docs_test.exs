@@ -1,5 +1,7 @@
 defmodule ConduktSiteWeb.DocsTest do
-  use ExUnit.Case, async: false
+  # The docs cache is shared and read-through, and every assertion here reads.
+  # Concurrent reads of an idempotent cache need no serialising.
+  use ExUnit.Case, async: true
 
   alias ConduktSiteWeb.Docs
   alias ConduktSiteWeb.Docs.Markdown

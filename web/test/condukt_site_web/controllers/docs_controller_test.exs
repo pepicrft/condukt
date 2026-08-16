@@ -1,5 +1,5 @@
 defmodule ConduktSiteWeb.DocsControllerTest do
-  use ConduktSiteWeb.ConnCase
+  use ConduktSiteWeb.ConnCase, async: true
 
   test "GET /docs presents the two documentation journeys", %{conn: conn} do
     body = conn |> get(~p"/docs") |> html_response(200)

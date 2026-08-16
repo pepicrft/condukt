@@ -1,5 +1,5 @@
 defmodule ConduktSiteWeb.PageControllerTest do
-  use ConduktSiteWeb.ConnCase
+  use ConduktSiteWeb.ConnCase, async: true
 
   test "GET /", %{conn: conn} do
     conn = get(conn, ~p"/")

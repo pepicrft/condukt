@@ -108,6 +108,39 @@
   `%{ok: true, result: result}` or
   `%{ok: false, error: %{code: code, message: message}}`.
 
+## Sessions
+
+- `Condukt.Sessions` starts sessions under the library's own supervisor and
+  registers them by id, so `Condukt.Sessions.via(id)` is accepted anywhere a
+  session is. Prefer it to calling an agent's `start_link/1` directly: without a
+  registry there is no way to reattach a reconnecting caller, count what is
+  running, or shut a set down in order.
+- Sessions are `:temporary`. A conversation that crashed must not be silently
+  restarted underneath the person having it, because it would come back without
+  the turn it died in. Restarting is the caller's decision.
+- `Condukt.Session` state that belongs to the running turn lives in
+  `Condukt.Session.Turn`, and translation to and from ReqLLM lives in
+  `Condukt.Session.Translate`. Keep adding to those rather than to the session
+  module, which was a single 1,371-line file holding eight unrelated jobs and is
+  the reason both exist. The session struct is also near the 32-key limit that
+  decides whether the virtual machine stores it as a flat map: group related
+  fields rather than adding another.
+- Session events reach the caller that subscribed. `Condukt.Notifier` is the
+  seam for delivering them anywhere else, and `Condukt.Notifiers.PubSub` is the
+  implementation for many viewers or more than one node. Subscribers are
+  monitored, so a viewer that crashes is dropped rather than accumulating.
+
+## Persistence
+
+- `Condukt.SessionStore` is a snapshot cache, not a repository: no listing, no
+  querying, no tenancy, and `save/2` replaces the whole snapshot. Its moduledoc
+  says so, and it should stay that way. Anything needing to ask questions across
+  sessions owns its own persistence.
+- `Condukt.SessionStore.Snapshot` carries `:version`, and every load goes
+  through `Snapshot.migrate/1`. When the shape changes, raise the version and
+  add a clause; never change a field's meaning in place, because snapshots
+  written by older builds exist on real disks.
+
 ## Sub-agents
 
 - Agents can declare `subagents/0` as `role: AgentModule` or

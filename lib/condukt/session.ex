@@ -29,7 +29,6 @@ defmodule Condukt.Session do
     Compactor,
     Context,
     Message,
-    Redactor,
     Retry,
     Sandbox,
     Secrets,
@@ -40,11 +39,12 @@ defmodule Condukt.Session do
   }
 
   alias Condukt.MCP
+  alias Condukt.Notifier
+  alias Condukt.Session.Translate
+  alias Condukt.Session.Turn
   alias Condukt.SessionStore.Snapshot
   alias Condukt.Tool.Inline
   alias Condukt.Tools.Subagent
-  alias ReqLLM.Message.ContentPart
-  alias ReqLLM.ToolCall
 
   require Logger
 
@@ -53,6 +53,8 @@ defmodule Condukt.Session do
 
   defstruct [
     :id,
+    :actor,
+    :created_at,
     :pid,
     :agent_module,
     :runtime,
@@ -67,6 +69,7 @@ defmodule Condukt.Session do
     :sandbox,
     :secrets,
     :mcp_registry,
+    :notifier,
     :api_key,
     :base_url,
     :session_store,
@@ -77,11 +80,7 @@ defmodule Condukt.Session do
     :project_context,
     :user_state,
     messages: [],
-    streaming: false,
-    abort_ref: nil,
-    steering_messages: [],
-    follow_up_messages: [],
-    subscribers: [],
+    turn: %Condukt.Session.Turn{},
     assigns: %{}
   ]
 
@@ -365,6 +364,12 @@ defmodule Condukt.Session do
           state =
             %__MODULE__{
               id: id,
+              # Opaque to Condukt and persisted with the snapshot, so a host
+              # holding sessions for more than one person can tell whose is
+              # whose after a restart.
+              actor: Keyword.get(opts, :actor),
+              notifier: Keyword.get(opts, :notifier),
+              created_at: (snapshot && snapshot.created_at) || DateTime.utc_now(),
               pid: self(),
               agent_module: agent_module,
               runtime: runtime,
@@ -496,10 +501,10 @@ defmodule Condukt.Session do
 
   @impl true
   def handle_call({:run, prompt, opts}, from, state) do
-    if state.streaming do
+    if state.turn.streaming do
       {:reply, {:error, :already_streaming}, state}
     else
-      state = %{state | streaming: true, abort_ref: make_ref()}
+      state = %{state | turn: Turn.start(state.turn)}
       parent = self()
 
       Task.start(fn ->
@@ -512,7 +517,12 @@ defmodule Condukt.Session do
   end
 
   def handle_call({:subscribe, pid, ref}, _from, state) do
-    {:reply, :ok, %{state | subscribers: [{pid, ref} | state.subscribers]}}
+    # Monitored, because the only other way out of this list is an explicit
+    # unsubscribe and a subscriber that crashes never sends one. Without this a
+    # session accumulates dead pids for as long as it lives and keeps sending
+    # to every one of them.
+    monitor = Process.monitor(pid)
+    {:reply, :ok, %{state | turn: Turn.subscribe(state.turn, pid, ref, monitor)}}
   end
 
   def handle_call(:history, _from, state) do
@@ -530,7 +540,7 @@ defmodule Condukt.Session do
   end
 
   def handle_call(:abort, _from, state) do
-    {:reply, :ok, %{state | abort_ref: make_ref(), streaming: false}}
+    {:reply, :ok, %{state | turn: Turn.abort(state.turn)}}
   end
 
   def handle_call(:compact, _from, state) do
@@ -541,30 +551,31 @@ defmodule Condukt.Session do
 
   def handle_call({:steer, message}, _from, state) do
     msg = Message.user(message)
-    {:reply, :ok, %{state | steering_messages: state.steering_messages ++ [msg]}}
+    {:reply, :ok, %{state | turn: Turn.steer(state.turn, msg)}}
   end
 
   def handle_call({:follow_up, message}, _from, state) do
     msg = Message.user(message)
-    {:reply, :ok, %{state | follow_up_messages: state.follow_up_messages ++ [msg]}}
+    {:reply, :ok, %{state | turn: Turn.follow_up(state.turn, msg)}}
   end
 
   @impl true
-  def handle_cast({:stream, _prompt, _opts, subscriber_ref}, %{streaming: true} = state) do
+  def handle_cast({:stream, _prompt, _opts, subscriber_ref}, %{turn: %{streaming: true}} = state) do
     broadcast(state, subscriber_ref, {:error, :already_streaming})
     broadcast(state, subscriber_ref, :done)
     {:noreply, state}
   end
 
   def handle_cast({:stream, prompt, opts, subscriber_ref}, state) do
-    state = %{state | streaming: true, abort_ref: make_ref()}
+    state = %{state | turn: Turn.start(state.turn)}
     start_stream_task(state, prompt, opts, subscriber_ref)
     {:noreply, state}
   end
 
   def handle_cast({:unsubscribe, pid, ref}, state) do
-    subscribers = Enum.reject(state.subscribers, fn {p, r} -> p == pid and r == ref end)
-    {:noreply, %{state | subscribers: subscribers}}
+    {turn, monitors} = Turn.unsubscribe(state.turn, pid, ref)
+    Enum.each(monitors, &Process.demonitor(&1, [:flush]))
+    {:noreply, %{state | turn: turn}}
   end
 
   def handle_cast({:broadcast_event, event, ref}, state) do
@@ -574,22 +585,29 @@ defmodule Condukt.Session do
 
   def handle_cast({:run_complete, from, {result, messages, assigns}}, state) do
     GenServer.reply(from, result)
-    state = %{state | streaming: false, messages: messages, assigns: assigns} |> maybe_compact()
+    state = %{state | turn: Turn.finish(state.turn), messages: messages, assigns: assigns} |> maybe_compact()
     persist_snapshot(state)
     {:noreply, state}
   end
 
   def handle_cast({:stream_complete, ref, {:ok, messages, _response, assigns}}, state) do
     broadcast(state, ref, :done)
-    state = %{state | streaming: false, messages: messages, assigns: assigns} |> maybe_compact()
+    state = %{state | turn: Turn.finish(state.turn), messages: messages, assigns: assigns} |> maybe_compact()
     persist_snapshot(state)
     {:noreply, state}
   end
 
   def handle_cast({:stream_complete, ref, _result}, state) do
     broadcast(state, ref, :done)
-    {:noreply, %{state | streaming: false}}
+    {:noreply, %{state | turn: Turn.finish(state.turn)}}
   end
+
+  @impl true
+  def handle_info({:DOWN, monitor, :process, _pid, _reason}, state) do
+    {:noreply, %{state | turn: Turn.drop_monitored(state.turn, monitor)}}
+  end
+
+  def handle_info(_message, state), do: {:noreply, state}
 
   @impl true
   def terminate(_reason, state) do
@@ -716,9 +734,9 @@ defmodule Condukt.Session do
   end
 
   defp agent_loop(state, messages, max_turns, turn) do
-    context = build_context(state, messages)
+    context = Translate.context(messages, outbound_redactor(state), state.system_prompt)
     tools = build_req_llm_tools(state.tools, state)
-    llm_opts = build_llm_opts(state, tools)
+    llm_opts = Translate.llm_opts(llm_config(state), tools)
 
     result =
       Telemetry.span(
@@ -736,7 +754,7 @@ defmodule Condukt.Session do
 
     case result do
       {:ok, response} ->
-        assistant_message = response_to_message(response)
+        assistant_message = Translate.response_to_message(response)
         messages = messages ++ [assistant_message]
 
         if Message.has_tool_calls?(assistant_message) do
@@ -759,7 +777,7 @@ defmodule Condukt.Session do
     {:ok, messages, response, state.assigns}
   end
 
-  defp streaming_loop(%{abort_ref: abort_ref} = state, messages, max_turns, turn, emit, abort_ref) do
+  defp streaming_loop(%{turn: %{abort_ref: abort_ref}} = state, messages, max_turns, turn, emit, abort_ref) do
     emit.(:turn_start)
     stream_turn(state, messages, max_turns, turn, emit, abort_ref)
   end
@@ -770,7 +788,7 @@ defmodule Condukt.Session do
 
   defp start_stream_task(state, prompt, opts, subscriber_ref) do
     parent = self()
-    abort_ref = state.abort_ref
+    abort_ref = state.turn.abort_ref
 
     Task.start(fn ->
       result =
@@ -791,9 +809,9 @@ defmodule Condukt.Session do
   end
 
   defp stream_turn(state, messages, max_turns, turn, emit, abort_ref) do
-    context = build_context(state, messages)
+    context = Translate.context(messages, outbound_redactor(state), state.system_prompt)
     tools = build_req_llm_tools(state.tools, state)
-    llm_opts = build_llm_opts(state, tools)
+    llm_opts = Translate.llm_opts(llm_config(state), tools)
 
     emitted_counter = :counters.new(1, [:atomics])
     emitted? = fn -> :counters.get(emitted_counter, 1) > 0 end
@@ -823,7 +841,7 @@ defmodule Condukt.Session do
   end
 
   defp handle_stream_response(state, response, messages, max_turns, turn, emit, abort_ref) do
-    assistant_message = response_to_message(response)
+    assistant_message = Translate.response_to_message(response)
     text = ReqLLM.Response.text(response) || ""
     messages = messages ++ [assistant_message]
     emit.(:turn_end)
@@ -831,7 +849,7 @@ defmodule Condukt.Session do
     case Message.has_tool_calls?(assistant_message) do
       true ->
         {tool_results, messages, assigns_diff} =
-          execute_tool_calls_streaming(state, assistant_message, messages, emit)
+          execute_tool_calls(state, assistant_message, messages, emit)
 
         state = %{state | assigns: Map.merge(state.assigns, assigns_diff)}
         streaming_loop(state, messages ++ tool_results, max_turns, turn + 1, emit, abort_ref)
@@ -856,23 +874,6 @@ defmodule Condukt.Session do
     {:error, reason}
   end
 
-  defp build_context(state, messages) do
-    context_messages =
-      state
-      |> outbound_redactor()
-      |> Redactor.redact_messages(messages)
-      |> Enum.map(&message_to_req_llm/1)
-      |> List.flatten()
-
-    if state.system_prompt do
-      ReqLLM.Context.new([
-        ReqLLM.Context.system(state.system_prompt) | context_messages
-      ])
-    else
-      ReqLLM.Context.new(context_messages)
-    end
-  end
-
   defp outbound_redactor(state) do
     [
       Secrets.redactor(state.secrets),
@@ -882,56 +883,14 @@ defmodule Condukt.Session do
   end
 
   @doc false
-  # Public for tests. Translates a Condukt.Message into the shape ReqLLM
-  # expects (a Message with optional list of ContentPart structs).
-  def message_to_req_llm(%Message{role: :user, content: content, images: []}) do
-    ReqLLM.Context.user(content)
+  # Kept as a delegate: `Condukt.Session.message_to_req_llm/1` is called
+  # directly by the test suite, and moving the implementation should not be a
+  # breaking change for anyone who reached for it the same way.
+  defdelegate message_to_req_llm(message), to: Translate
+
+  defp llm_config(state) do
+    [api_key: state.api_key, base_url: state.base_url, thinking_level: state.thinking_level]
   end
-
-  def message_to_req_llm(%Message{role: :user, content: content, images: images}) when images != [] do
-    # ReqLLM 1.x represents multi-part user content as a list of
-    # `%ContentPart{}` structs. Build the text part plus one image-url part
-    # per attached image, encoded as a base64 data URL.
-    image_parts =
-      Enum.map(images, fn img ->
-        ContentPart.image_url("data:#{img.media_type};base64,#{img.data}")
-      end)
-
-    ReqLLM.Context.user([ContentPart.text(content) | image_parts])
-  end
-
-  def message_to_req_llm(%Message{role: :assistant, content: content}) when is_binary(content) do
-    ReqLLM.Context.assistant(content)
-  end
-
-  def message_to_req_llm(%Message{role: :assistant, content: blocks}) when is_list(blocks) do
-    text =
-      blocks
-      |> Enum.filter(&match?({:text, _}, &1))
-      |> Enum.map_join("", fn {:text, t} -> t end)
-
-    tool_calls =
-      blocks
-      |> Enum.filter(&match?({:tool_call, _, _, _}, &1))
-      |> Enum.map(fn {:tool_call, id, name, arguments} ->
-        %{id: id, name: name, arguments: arguments}
-      end)
-
-    if tool_calls == [] do
-      ReqLLM.Context.assistant(text)
-    else
-      ReqLLM.Context.assistant(text, tool_calls: tool_calls)
-    end
-  end
-
-  def message_to_req_llm(%Message{role: :tool_result, tool_call_id: id, content: content}) do
-    result = encode_tool_result(content)
-    ReqLLM.Context.tool_result(id, result)
-  end
-
-  defp encode_tool_result(content) when is_binary(content), do: content
-  defp encode_tool_result({:error, reason}), do: "Error: #{inspect(reason)}"
-  defp encode_tool_result(content), do: JSON.encode!(content)
 
   defp build_req_llm_tools(tools, state) do
     Enum.map(tools, fn tool_spec ->
@@ -940,7 +899,7 @@ defmodule Condukt.Session do
       ReqLLM.tool(
         name: spec.name,
         description: spec.description,
-        parameter_schema: normalize_json_schema(spec.parameters),
+        parameter_schema: Translate.normalize_json_schema(spec.parameters),
         callback: fn args ->
           emit_secret_access(state, spec.name)
           context = tool_context(state, [])
@@ -957,112 +916,39 @@ defmodule Condukt.Session do
     end)
   end
 
-  defp normalize_json_schema(schema) when is_map(schema) do
-    Map.new(schema, fn {key, value} -> {to_string(key), normalize_json_schema(value)} end)
-  end
-
-  defp normalize_json_schema(schema) when is_list(schema), do: Enum.map(schema, &normalize_json_schema/1)
-  defp normalize_json_schema(value), do: value
-
-  defp build_llm_opts(state, tools) do
-    opts = []
-
-    opts = if state.api_key, do: Keyword.put(opts, :api_key, state.api_key), else: opts
-    opts = if state.base_url, do: Keyword.put(opts, :base_url, state.base_url), else: opts
-    opts = if tools == [], do: opts, else: Keyword.put(opts, :tools, tools)
-
-    # Add thinking level for supported providers
-    opts =
-      case state.thinking_level do
-        :off ->
-          Keyword.put(opts, :reasoning_effort, :none)
-
-        level when level in [:minimal, :low, :medium, :high] ->
-          Keyword.put(opts, :reasoning_effort, level)
-
-        _ ->
-          opts
-      end
-
-    opts
-  end
-
-  defp response_to_message(response) do
-    thinking_blocks =
-      case ReqLLM.Response.thinking(response) do
-        nil -> []
-        "" -> []
-        thinking -> [{:thinking, thinking}]
-      end
-
-    text_blocks =
-      case ReqLLM.Response.text(response) do
-        nil -> []
-        "" -> []
-        text -> [{:text, text}]
-      end
-
-    tool_calls =
-      response
-      |> ReqLLM.Response.tool_calls()
-      |> Enum.map(fn call ->
-        normalized = ToolCall.from_map(call)
-        {:tool_call, normalized.id, normalized.name, normalized.arguments}
-      end)
-
-    blocks = thinking_blocks ++ text_blocks ++ tool_calls
-
-    if blocks == [] do
-      Message.assistant("")
-    else
-      Message.assistant(blocks)
-    end
-  end
-
-  defp execute_tool_calls(state, assistant_message, messages) do
+  # One path for both callers. The streaming one differs only in announcing the
+  # calls before they run and each result as it lands, so it passes an emitter
+  # rather than duplicating the pipeline; the plain one passes a no-op.
+  defp execute_tool_calls(state, assistant_message, messages, emit \\ &noop_emit/1) do
     tool_calls = Message.tool_calls(assistant_message)
     tool_map = build_tool_map(state.tools)
+
+    Enum.each(tool_calls, fn {id, name, args} -> emit.({:tool_call, name, id, args}) end)
 
     {tool_results, assigns_diff} =
       tool_calls
       |> Task.async_stream(
         fn tool_call -> execute_tool_call(tool_map, tool_call, state) end,
         ordered: true,
-        timeout: :infinity
-      )
-      |> Enum.zip(tool_calls)
-      |> Enum.map(&task_result_to_tool_result/1)
-      |> split_results_and_assigns()
-
-    {tool_results, messages, assigns_diff}
-  end
-
-  defp execute_tool_calls_streaming(state, assistant_message, messages, emit) do
-    tool_calls = Message.tool_calls(assistant_message)
-    tool_map = build_tool_map(state.tools)
-
-    Enum.each(tool_calls, fn {id, name, args} ->
-      emit.({:tool_call, name, id, args})
-    end)
-
-    {tool_results, assigns_diff} =
-      tool_calls
-      |> Task.async_stream(
-        fn tool_call -> execute_tool_call(tool_map, tool_call, state) end,
-        ordered: true,
-        timeout: :infinity
+        timeout: tool_timeout(state)
       )
       |> Enum.zip(tool_calls)
       |> Enum.map(&task_result_to_tool_result/1)
       |> Enum.map(fn {result, assigns} ->
         emit.({:tool_result, result.tool_call_id, Message.tool_result_content(result)})
-
         {result, assigns}
       end)
       |> split_results_and_assigns()
 
     {tool_results, messages, assigns_diff}
   end
+
+  defp noop_emit(_event), do: :ok
+
+  # A tool that never returns used to hang the turn forever, which a person at
+  # a terminal can interrupt and a server-side run cannot. Bounded by the
+  # session's own timeout, since a turn outliving it has nobody left to answer.
+  defp tool_timeout(state), do: Map.get(state, :tool_timeout) || @default_timeout
 
   defp split_results_and_assigns(results_with_assigns) do
     Enum.reduce(results_with_assigns, {[], %{}}, fn {result, assigns}, {acc, merged} ->
@@ -1096,7 +982,7 @@ defmodule Condukt.Session do
     %{
       agent: state.agent_module,
       session_id: state.id,
-      model: model_identifier(state.model),
+      model: Translate.model_identifier(state.model),
       turn: turn,
       streaming?: streaming?,
       messages: messages,
@@ -1107,7 +993,7 @@ defmodule Condukt.Session do
   defp llm_turn_stop_metadata({:ok, response}) do
     %{
       status: :ok,
-      assistant_message: response_to_message(response),
+      assistant_message: Translate.response_to_message(response),
       usage: Map.get(response, :usage),
       finish_reason: Map.get(response, :finish_reason)
     }
@@ -1116,9 +1002,6 @@ defmodule Condukt.Session do
   defp llm_turn_stop_metadata({:error, reason}) do
     %{status: :error, error: reason}
   end
-
-  defp model_identifier(model) when is_binary(model), do: model
-  defp model_identifier(model), do: inspect(model)
 
   defp task_result_to_tool_result({{:ok, {message, assigns}}, _tool_call}), do: {message, assigns}
 
@@ -1228,9 +1111,11 @@ defmodule Condukt.Session do
   end
 
   defp broadcast(state, ref, event) do
-    for {pid, ^ref} <- state.subscribers do
+    for pid <- Turn.listeners(state.turn, ref) do
       send(pid, {ref, event})
     end
+
+    Notifier.publish(state.notifier, state.id, event)
   end
 
   defp maybe_dispatch_event(state, event) do
@@ -1239,7 +1124,7 @@ defmodule Condukt.Session do
         %{state | user_state: user_state}
 
       {:stop, _reason, user_state} ->
-        %{state | user_state: user_state, streaming: false}
+        %{state | user_state: user_state, turn: Turn.finish(state.turn)}
     end
   end
 
@@ -1265,14 +1150,28 @@ defmodule Condukt.Session do
 
   defp load_snapshot(session_store, opts) do
     case SessionStore.load(session_store, session_store_opts(opts)) do
-      {:ok, %Snapshot{} = snapshot} ->
-        snapshot
+      {:ok, loaded} ->
+        migrate_snapshot(loaded)
 
       :not_found ->
         nil
 
       {:error, reason} ->
         Logger.warning("failed to load session snapshot: #{inspect(reason)}")
+        nil
+    end
+  end
+
+  # Every store hands its term through the same migration, so a snapshot
+  # written by an older build is read the same way whether it came off disk or
+  # out of a table.
+  defp migrate_snapshot(loaded) do
+    case Snapshot.migrate(loaded) do
+      {:ok, snapshot} ->
+        snapshot
+
+      {:error, reason} ->
+        Logger.warning("ignoring unreadable session snapshot: #{inspect(reason)}")
         nil
     end
   end
@@ -1293,12 +1192,16 @@ defmodule Condukt.Session do
   defp persist_snapshot(%__MODULE__{session_store: nil}), do: :ok
 
   defp persist_snapshot(state) do
-    snapshot = %Snapshot{
-      messages: state.messages,
-      model: state.model,
-      thinking_level: state.thinking_level,
-      system_prompt: state.configured_system_prompt
-    }
+    snapshot =
+      Snapshot.new(%{
+        id: state.id,
+        actor: state.actor,
+        messages: state.messages,
+        model: state.model,
+        thinking_level: state.thinking_level,
+        system_prompt: state.configured_system_prompt,
+        created_at: state.created_at
+      })
 
     case SessionStore.save(state.session_store, snapshot, session_store_opts(state)) do
       :ok ->

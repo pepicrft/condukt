@@ -43,6 +43,10 @@ defmodule Condukt.MixProject do
       # Command execution with child process shutdown propagation
       {:muontrap, "~> 1.7"},
       {:plug, "~> 1.16", optional: true},
+
+      # Fan-out for `Condukt.Notifiers.PubSub`. Optional: a project that
+      # delivers session events some other way should not carry it.
+      {:phoenix_pubsub, "~> 2.1", optional: true},
       {:bandit, "~> 1.5", optional: true},
 
       # Telemetry

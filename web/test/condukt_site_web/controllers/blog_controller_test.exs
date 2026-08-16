@@ -1,5 +1,5 @@
 defmodule ConduktSiteWeb.BlogControllerTest do
-  use ConduktSiteWeb.ConnCase
+  use ConduktSiteWeb.ConnCase, async: true
 
   alias ConduktSiteWeb.Blog
 
