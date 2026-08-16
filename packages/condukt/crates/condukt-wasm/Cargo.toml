@@ -2,7 +2,7 @@
 name = "condukt-wasm"
 version.workspace = true
 edition.workspace = true
-license-file = "../../LICENSE.md"
+license.workspace = true
 description = "Host-driven Condukt agent sessions for WebAssembly environments"
 repository = "https://github.com/tuist/condukt"
 

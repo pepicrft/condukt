@@ -176,4 +176,15 @@ API reference.
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT, except the server.
+
+- Everything at the root is MIT: the Elixir library, the terminal agent, the
+  Rust crates, and the browser package. See [LICENSE](LICENSE).
+- [`web/`](web/), the Phoenix server that runs
+  [condukt.tuist.dev](https://condukt.tuist.dev), is Mozilla Public License 2.0.
+  See [web/LICENSE](web/LICENSE).
+
+A file's licence is the one in the nearest enclosing directory, so nothing you
+depend on, embed, or ship carries the server's terms. The documentation under
+[`web/priv/docs/`](web/priv/docs) is MIT for the same reason: it is published
+with the library.

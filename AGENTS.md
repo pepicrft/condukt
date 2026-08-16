@@ -240,6 +240,24 @@ The published npm package `@tuist/condukt` is generated from the `condukt-wasm` 
   processes, unique temporary paths, and local options so affected tests can run
   with `async: true`.
 
+## Licensing
+
+- The repository is MIT, and `LICENSE` at the root is what covers the library,
+  the terminal agent, the Rust crates, and the browser package. `MIT.md` is a
+  copy of the same text shipped inside the Hex package.
+- `web/` is Mozilla Public License 2.0 and carries its own `web/LICENSE`, which
+  is the canonical text unmodified. A file is covered by the licence in its
+  nearest enclosing directory, so the server's terms stop at that directory and
+  never reach anything a consumer depends on.
+- One exception, and it matters: `web/priv/docs/` carries its own MIT `LICENSE`.
+  The Hex package ships `web/priv/docs/framework/elixir` as the ExDoc extras, so
+  without it an MIT package would contain files from an MPL-2.0 tree. If the
+  package's `files` list ever grows another path under `web/`, check which
+  licence covers it before adding it.
+- When adding a manifest, declare the licence that matches its directory rather
+  than defaulting to MIT, and never point `license-file` at a path outside the
+  crate's own tree.
+
 ## Marketing site (`web/`)
 
 The marketing site, public docs, and browser inference endpoint live under `web/` as a Phoenix application named `condukt_site` (modules under `ConduktSite.*`). It serves the install story, hosts the documentation pages, and proxies the browser-side agent through a same-origin `/api/completions` endpoint.
