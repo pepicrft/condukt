@@ -43,6 +43,4 @@ using idiomatic Elixir patterns.
 | Run an agent as an endpoint | [HTTP Routes](http-routes.md) |
 | Keep a conversation alive over time | [Sessions and Persistence](sessions-and-persistence.md) |
 
-The same agent model exists in Rust for native hosts and browsers. This library
-is the fuller implementation; the Rust crates are the portable core the terminal
-coding agent and the WebAssembly package are built on.
+

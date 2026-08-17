@@ -1,27 +1,8 @@
 # syntax=docker/dockerfile:1.7
 #
-# The build context is the repository root. The image produces a release of
-# the Phoenix web app at web/ together with the WASM package produced from
-# the Rust workspace at cli/.
-
-FROM docker.io/library/rust:1.91-slim-bookworm AS wasm-builder
-
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl pkg-config libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN rustup target add wasm32-unknown-unknown \
-    && cargo install wasm-pack --version 0.13.1 --locked
-
-WORKDIR /src
-COPY cli/Cargo.toml cli/Cargo.lock ./
-COPY cli/crates ./crates
-
-RUN wasm-pack build crates/condukt-wasm \
-    --target web \
-    --out-dir /build/condukt-wasm \
-    --out-name condukt_wasm \
-    --release
+# The build context is the repository root, because the site depends on the
+# Condukt library at the root as a path dependency: the terminal on the home
+# page runs a real session rather than a copy of the loop.
 
 FROM docker.io/library/elixir:1.19.5-otp-28-slim AS web-builder
 
@@ -35,6 +16,13 @@ ENV ERL_FLAGS="+JPperf true" \
 RUN mix local.hex --force && mix local.rebar --force
 WORKDIR /src/web
 
+# The library, as the path dependency resolves it. Its two Rust crates are
+# disabled from web/mix.exs, so no Rust toolchain is needed here; see the
+# comment there for why the site never starts those sandboxes.
+COPY mix.exs mix.lock /src/
+COPY lib /src/lib
+COPY native /src/native
+
 COPY web/mix.exs web/mix.lock ./
 COPY web/config ./config
 RUN mix deps.get --only prod && mix deps.compile
@@ -46,12 +34,7 @@ COPY web/rel ./rel
 
 RUN chmod 755 rel/overlays/bin/migrate rel/overlays/bin/server
 
-RUN rm -rf priv/static/assets priv/static/condukt priv/static/cache_manifest.json \
-    && mkdir -p priv/static/condukt/generated
-
-COPY packages/condukt/index.js ./priv/static/condukt/index.js
-COPY --from=wasm-builder /build/condukt-wasm/condukt_wasm.js ./priv/static/condukt/generated/condukt_wasm.js
-COPY --from=wasm-builder /build/condukt-wasm/condukt_wasm_bg.wasm ./priv/static/condukt/generated/condukt_wasm_bg.wasm
+RUN rm -rf priv/static/assets priv/static/cache_manifest.json
 
 RUN mix compile \
     && mix esbuild.install --if-missing \

@@ -17,7 +17,7 @@ defmodule ConduktSiteWeb do
   those modules here.
   """
 
-  def static_paths, do: ~w(assets fonts images condukt favicon.ico robots.txt)
+  def static_paths, do: ~w(assets fonts images favicon.ico robots.txt)
 
   def router do
     quote do
@@ -26,6 +26,7 @@ defmodule ConduktSiteWeb do
       # Import common connection and controller functions to use in pipelines
       import Plug.Conn
       import Phoenix.Controller
+      import Phoenix.LiveView.Router
     end
   end
 

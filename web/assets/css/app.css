@@ -307,7 +307,9 @@ code {
   width: 22%;
 }
 
-condukt-browser-agent {
+/* The LiveView's container, named by live_render so the #terminal anchor and
+   this rule survived the move off the browser agent. */
+#terminal {
   display: block;
   scroll-margin-top: 80px;
 }
@@ -589,7 +591,7 @@ noora-card[data-part="terminal"]::part(body) {
 [data-part="products-grid"] {
   display: grid;
   gap: 24px;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
 [data-part="product"] {
@@ -684,9 +686,8 @@ condukt-install-command {
 
 [data-part="install-command-row"] {
   align-items: center;
-  display: grid;
+  display: flex;
   gap: 14px;
-  grid-template-columns: auto minmax(0, 1fr) auto;
   min-height: 68px;
   padding: 0 18px;
 }
@@ -694,7 +695,9 @@ condukt-install-command {
 [data-part="install-card"] code {
   color: var(--terminal-text);
   display: block;
+  flex: 1;
   font-size: 14px;
+  min-width: 0;
   overflow-x: auto;
   padding: 18px 0;
   white-space: nowrap;
@@ -708,8 +711,13 @@ condukt-install-command {
   color: #86efac;
 }
 
-[data-part="install-card"] [data-token="target"] {
+[data-part="install-card"] [data-token="target"],
+[data-part="install-card"] [data-token="atom"] {
   color: #93c5fd;
+}
+
+[data-part="install-card"] [data-token="string"] {
+  color: #86efac;
 }
 
 [data-part="install-prompt"] {

@@ -10,9 +10,6 @@ git-cliff = "2.12.0"
 node = "22"
 aube = "1.6.2"
 rust = "1.91"
-"cargo:wasm-pack" = "0.13.1"
-zig = "0.15.2"
-
 # Deployment tooling. Declared here rather than inline in the workflow so the
 # version CI installs is the version a local `helm upgrade` would run.
 helm = "4.2.4"

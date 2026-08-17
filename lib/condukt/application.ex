@@ -18,9 +18,13 @@ defmodule Condukt.Application do
   def start(_type, _args) do
     register_providers()
 
-    children = [
-      {DynamicSupervisor, name: @control_channel_supervisor, strategy: :one_for_one, max_restarts: 10, max_seconds: 60}
-    ]
+    children =
+      [Condukt.SessionStore.Memory.Table] ++
+        Condukt.Sessions.child_specs() ++
+        [
+          {DynamicSupervisor,
+           name: @control_channel_supervisor, strategy: :one_for_one, max_restarts: 10, max_seconds: 60}
+        ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Condukt.Supervisor)
   end

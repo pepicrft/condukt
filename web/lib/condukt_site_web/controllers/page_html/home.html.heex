@@ -3,26 +3,23 @@
     <header data-part="hero">
       <div data-part="hero-content">
         <noora-badge appearance="light-fill" color="primary" size="large" dot>
-          Coding agent · Framework · MIT licensed
+          Elixir framework · Hex package · MIT licensed
         </noora-badge>
 
-        <h1>One agent.<br /><span>Every surface.</span></h1>
+        <h1>Agents you can<br /><span>actually let run.</span></h1>
         <p>
-          Condukt is a coding agent for the terminal and a framework for building
-          agent runtimes. The same portable agent loop powers the CLI, the
-          Elixir library, and the WebAssembly package that ships to browsers.
+          Condukt is an Elixir framework for building agents that do real work
+          on your infrastructure. Every session is a supervised process whose
+          tools run in a sandbox, on a network you decide, with secrets it
+          never gets to print.
         </p>
 
         <div data-part="hero-actions">
-          <noora-button variant="primary" size="large" href="#install">
-            Install the coding agent
+          <noora-button variant="primary" size="large" href={~p"/docs/framework"}>
+            Build an agent
           </noora-button>
-          <noora-button
-            variant="secondary"
-            size="large"
-            href={~p"/docs/framework"}
-          >
-            Read the framework docs
+          <noora-button variant="secondary" size="large" href="#install">
+            Install
           </noora-button>
         </div>
       </div>
@@ -36,45 +33,50 @@
       </div>
     </header>
 
-    <condukt-browser-agent
-      id="terminal"
-      connected={@connected}
-      provider="OpenRouter"
-      model={@inference_model}
-      inference-endpoint="/api/completions"
-      connect-url={~p"/auth/openrouter?#{%{return_to: "/#terminal"}}"}
-      disconnect-url={~p"/auth/openrouter"}
-      csrf-token={get_csrf_token()}
-    >
-    </condukt-browser-agent>
+    <div id="terminal">
+      {live_render(@conn, ConduktSiteWeb.TerminalLive)}
+    </div>
 
     <section id="products" data-part="products">
       <div data-part="products-copy">
-        <p data-part="eyebrow">Two ways to use it</p>
-        <h2>Run the agent, or build your own.</h2>
+        <p data-part="eyebrow">Why a framework and not a loop</p>
+        <h2>The agent loop is the easy part.</h2>
       </div>
 
       <div data-part="products-grid">
         <article data-part="product">
-          <noora-icon name="device_desktop" label="Coding agent"></noora-icon>
-          <h3>Coding agent</h3>
+          <noora-icon name="lock" label="Isolation"></noora-icon>
+          <h3>Contain the work</h3>
           <p>
-            A single Rust binary that puts a coding agent in your shell, with a
-            TUI for conversations and <code>condukt exec</code>
-            for one-off tasks in scripts and CI.
+            Tools run through a sandbox, not your filesystem. Take the
+            in-memory one, a microVM, or a dedicated Kubernetes pod per session,
+            behind one interface, so where the work runs is a deployment
+            decision rather than a rewrite.
           </p>
-          <a href="#install">Install the coding agent</a>
+          <a href={~p"/docs/framework/elixir/sandbox"}>Read about sandboxes</a>
         </article>
 
         <article data-part="product">
-          <noora-icon name="devices_code" label="Framework"></noora-icon>
-          <h3>Framework</h3>
+          <noora-icon name="server" label="Network policy"></noora-icon>
+          <h3>Decide what it can reach</h3>
           <p>
-            Build your own agent on the same loop: an Elixir library for OTP
-            applications, Rust crates, and the <code>@tuist/condukt</code>
-            WebAssembly package for browsers.
+            Per-session egress rules, audited and enforced outside the agent.
+            Allow and deny by host, or hand the decision to another agent when
+            a rule cannot say. Secrets resolve separately and are redacted from
+            transcripts.
           </p>
-          <a href={~p"/docs/framework"}>Read the framework docs</a>
+          <a href={~p"/docs/framework/elixir/network-policy"}>Read about network policy</a>
+        </article>
+
+        <article data-part="product">
+          <noora-icon name="subtask" label="OTP"></noora-icon>
+          <h3>Let the platform do its job</h3>
+          <p>
+            Sessions are supervised processes, so streaming, backpressure,
+            cancellation, and restarts come from OTP rather than from code you
+            wrote. Sub-agents are children with typed inputs and outputs.
+          </p>
+          <a href={~p"/docs/framework/elixir/sessions-and-persistence"}>Read about sessions</a>
         </article>
       </div>
     </section>
@@ -82,13 +84,13 @@
     <section id="install" data-part="install">
       <div data-part="install-copy">
         <p data-part="eyebrow">Install</p>
-        <h2>Take Condukt to the terminal.</h2>
+        <h2>Add it to your application.</h2>
         <p>
-          Install the coding agent globally with mise, then run <code>condukt</code>
-          from any project.
+          Condukt is a Hex package. Add it to <code>mix.exs</code>, define an
+          agent module, and run it inside your own supervision tree.
         </p>
       </div>
-      <condukt-install-command command="mise use -g github:tuist/condukt">
+      <condukt-install-command language="elixir" command={~s({:condukt, "~> 1.10"})}>
       </condukt-install-command>
     </section>
   </section>

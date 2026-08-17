@@ -10,30 +10,30 @@ defmodule ConduktSiteWeb.DocsHTML do
   def persona_cards do
     [
       %{
-        eyebrow: "Coding agent",
-        title: "Use Condukt",
+        eyebrow: "Start here",
+        title: "Build an agent",
         description:
-          "Install Condukt and put its terminal coding agent to work in your projects.",
+          "Define an agent module, give it tools, and run it inside your own supervision tree.",
         steps: [
-          "Install and connect",
-          "Choose a terminal or editor workflow",
-          "Automate repeatable tasks"
-        ],
-        cta: "Start using Condukt",
-        href: "/docs/cli"
-      },
-      %{
-        eyebrow: "Agent framework",
-        title: "Build your own agent",
-        description:
-          "Build an agent on Condukt's own primitives, in Elixir on the BEAM or in Rust and the browser.",
-        steps: [
-          "Learn the agent loop and the host boundary",
-          "Build an OTP agent with the Elixir library",
-          "Embed the portable session in a browser or native host"
+          "Install the Hex package",
+          "Define an agent and give it tools",
+          "Stream a conversation and keep it alive"
         ],
         cta: "Start building an agent",
         href: "/docs/framework"
+      },
+      %{
+        eyebrow: "Run it safely",
+        title: "Contain the work",
+        description:
+          "Decide where an agent's tools run and what they can reach, separately from what the agent is asked to do.",
+        steps: [
+          "Run tools in a sandbox rather than on the host",
+          "Set per-session network policy",
+          "Resolve secrets and keep them out of transcripts"
+        ],
+        cta: "Read about sandboxes",
+        href: "/docs/framework/elixir/sandbox"
       }
     ]
   end

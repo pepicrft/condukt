@@ -27,6 +27,11 @@ jobs:
         uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
           cache: true
+          # Only what this job builds with. mise.toml also pins deployment
+          # tooling for the chart, and installing all of it here means a broken
+          # download for helm or kubectl fails the library's build, which is
+          # exactly how this job went red.
+          install_args: "erlang elixir rust"
 
       - name: Install Hex and Rebar
         run: |
@@ -71,6 +76,11 @@ jobs:
         uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
           cache: true
+          # Only what this job builds with. mise.toml also pins deployment
+          # tooling for the chart, and installing all of it here means a broken
+          # download for helm or kubectl fails the library's build, which is
+          # exactly how this job went red.
+          install_args: "erlang elixir rust"
 
       - name: Install Hex and Rebar
         run: |
@@ -263,6 +273,11 @@ jobs:
         uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
           cache: true
+          # Only what this job builds with. mise.toml also pins deployment
+          # tooling for the chart, and installing all of it here means a broken
+          # download for helm or kubectl fails the library's build, which is
+          # exactly how this job went red.
+          install_args: "erlang elixir rust"
 
       - name: Install Hex and Rebar
         run: |
@@ -296,6 +311,11 @@ jobs:
         uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
         with:
           cache: true
+          # Only what this job builds with. mise.toml also pins deployment
+          # tooling for the chart, and installing all of it here means a broken
+          # download for helm or kubectl fails the library's build, which is
+          # exactly how this job went red.
+          install_args: "erlang elixir rust"
 
       - name: Install Hex and Rebar
         run: |

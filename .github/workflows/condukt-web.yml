@@ -3,18 +3,20 @@ name: Condukt web
 on:
   pull_request:
     paths:
-      - "cli/**"
       - "web/**"
-      - "packages/condukt/**"
+      - "lib/**"
+      - "mix.exs"
+      - "mix.lock"
       - "infra/**"
       - "mise.toml"
       - ".github/workflows/condukt-web.yml"
   push:
     branches: [main]
     paths:
-      - "cli/**"
       - "web/**"
-      - "packages/condukt/**"
+      - "lib/**"
+      - "mix.exs"
+      - "mix.lock"
       - "infra/**"
       - "mise.toml"
       - ".github/workflows/condukt-web.yml"
@@ -56,16 +58,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
         with:
-          install_args: "rust node elixir erlang cargo:wasm-pack"
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
-        with:
-          shared-key: web-test
-      - name: Add WebAssembly target
-        run: rustup target add wasm32-unknown-unknown
+          install_args: "node elixir erlang"
       - name: Install dependencies
         run: mix deps.get --check-locked
       - name: Test
         run: mix test
+      # The terminal's tools run in the browser, so half of that contract is
+      # JavaScript. These pin the page's side of it against what the LiveView
+      # tests assert on the server's.
+      - name: Test the browser tools
+        run: node --test "assets/js/*.test.mjs"
 
   release-image:
     name: Release image

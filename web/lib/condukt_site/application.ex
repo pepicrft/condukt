@@ -15,6 +15,8 @@ defmodule ConduktSite.Application do
           ConduktSiteWeb.Blog.Cache,
           {DNSCluster, query: Application.get_env(:condukt_site, :dns_cluster_query) || :ignore},
           {Phoenix.PubSub, name: ConduktSite.PubSub},
+          # Agent turns run here, off the LiveView process that renders them.
+          {Task.Supervisor, name: ConduktSite.TaskSupervisor},
           ConduktSiteWeb.Endpoint
         ]
 

@@ -4,7 +4,10 @@
 artifacts
 dist
 target
-cli/target
+packages/condukt/target
+cli/_build
+cli/deps
+cli/burrito_out
 web/_build
 web/deps
 packages/condukt/generated

@@ -13,6 +13,14 @@ defmodule ConduktSiteWeb.Endpoint do
     same_site: "Lax"
   ]
 
+  # The terminal's agent runs here rather than in the page, and its tools run
+  # in the page rather than here, so both directions of this socket carry the
+  # conversation. It takes the session options because the LiveView reads the
+  # visitor's OpenRouter credential out of the session at mount.
+  socket "/live", Phoenix.LiveView.Socket,
+    websocket: [connect_info: [session: @session_options]],
+    longpoll: [connect_info: [session: @session_options]]
+
   # Serve at "/" the static files from "priv/static" directory.
   #
   # When code reloading is disabled (e.g., in production),

@@ -1,33 +1,31 @@
 # Build your own agent with Condukt
 
-Condukt is a framework for building agents, not only the coding agent that ships with it. It comes in two implementations that share the same model of what an agent is: an Elixir library for services on the BEAM, and Rust crates with a WebAssembly package for native hosts and browsers.
+Condukt is an Elixir framework for building agents that do real work on your infrastructure. The agent loop is the easy part of that and the least of what this gives you: every session is a supervised process whose tools run in a sandbox, on a network you decide, with secrets it never gets to print.
 
-## Pick your stack
+Agents here are the imperative half of the picture. A model decides what to do next, turn by turn, which is the right shape when the steps are not known in advance. It composes with a declarative workflow engine rather than replacing one: let the workflow own the steps you can name, and give an agent the ones you cannot.
 
-| You are building | Use | Start here |
-| --- | --- | --- |
-| An agent inside an Elixir or Phoenix application | The `condukt` Hex package | [Elixir library](/framework/elixir) |
-| An agent in a web page or a native Rust host | The `condukt` crates and `@tuist/condukt` | [Rust and browser](/framework/rust) |
+## Start here
 
-Both stacks run the same loop: the session owns conversation history and the order of model and tool turns, while the surrounding application owns credentials, tools, isolation, and presentation. Read [architecture](/framework/architecture) once and the vocabulary carries across both.
+| You are building | Start here |
+| --- | --- |
+| An agent inside an Elixir or Phoenix application | [Elixir library](/framework/elixir) |
+| Your first agent, end to end | [Getting started](/framework/elixir/getting-started) |
+| An agent whose loop you drive yourself | [Architecture](/framework/architecture) |
+| To contain what an agent can do | [Sandboxes](/framework/elixir/sandbox) and [network policy](/framework/elixir/network-policy) |
 
-## What each stack gives you
+The session owns conversation history and the order of model and tool turns, while the surrounding application owns credentials, tools, isolation, and presentation. Read [architecture](/framework/architecture) once and the vocabulary carries through the rest.
 
-The Elixir library is the fuller of the two. Agents are OTP processes, so they inherit supervision, streaming, and backpressure from the platform:
+## What you get
 
-- Agents and sub-agents as supervised processes, with typed inputs and outputs.
+- Agents and [sub-agents](/framework/elixir/subagents) as supervised processes, with typed inputs and outputs.
 - [Tools](/framework/elixir/tools) for files, shell, and your own domain, executed through a [sandbox](/framework/elixir/sandbox) rather than the host filesystem.
 - [MCP servers](/framework/elixir/mcp) as tool sources, and [HTTP routes](/framework/elixir/http-routes) that expose an agent as a JSON endpoint.
 - [Network policy](/framework/elixir/network-policy), [secrets](/framework/elixir/secrets), and [redaction](/framework/elixir/redaction) for agents that run untrusted work.
 - [Sessions and persistence](/framework/elixir/sessions-and-persistence), [compaction](/framework/elixir/compaction), and [telemetry](/framework/elixir/telemetry) for long-running conversations.
 
-The Rust side is the portable core. It has no opinion about where inference or tools come from, which is what makes it embeddable:
+## Agents outside a process
 
-- A host-driven session that produces completion requests and validates every transition.
-- A [host interface](/framework/rust/host-interface) your application drives from any runtime.
-- The [`@tuist/condukt`](/framework/rust/browser-package) WebAssembly package for browsers, with [inference](/framework/rust/inference) and [tools](/framework/rust/tools) supplied by the page.
-- Focused [crates](/framework/rust/crates) so a host links only what it needs.
+Not every host wants Condukt to own the provider call. `Condukt.HostSession` is the same loop with the caller doing the work: it holds conversation state and says what should happen next, while you perform inference and run tools. No processes, no input or output, no dependencies. Use it when the caller owns the provider call, and `Condukt.Session` when Condukt should.
 
-## How the coding agent fits
+The terminal on the home page is a version of this idea: the loop runs on the server as a `Condukt.Session`, and its tools run in the visitor's browser, reached back over the LiveView socket. The agent's reach is whatever the page grants it.
 
-The terminal coding agent is one application built on the Rust crates. It is a useful reference for what a complete host looks like: it owns provider sign-in, workspace tools, cancellation, and presentation, and leaves conversation state to the session. If you want to use it rather than build on it, follow the [coding agent journey](/cli) instead.

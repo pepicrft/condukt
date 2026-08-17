@@ -12,22 +12,33 @@
   <a href="https://github.com/tuist/condukt/commits/main"><img src="https://img.shields.io/github/last-commit/tuist/condukt.svg" alt="Last commit" /></a>
 </p>
 
-Condukt is a cross-platform agent framework and coding agent.
+Condukt is an Elixir framework for building agents that do real work on your
+infrastructure.
 
-It ships as three surfaces from one repository:
+The agent loop is the easy part of that and the least of what this gives you.
+Every session is a supervised process whose tools run in a sandbox, on a
+network you decide, with secrets it never gets to print:
 
-- An **Elixir library** for OTP-native agents with sub-agents, MCP, sandboxes,
-  network policy, redaction, compaction, and HTTP routes.
-- A **terminal CLI** that runs the same agent loop in Rust with a ratatui TUI,
-  slash commands, an ACP backend, and headless `exec` for scripts and CI.
-- A **browser package** (`@tuist/condukt`) that ships the portable session as
-  WebAssembly so any page can host an agent that only inherits the tools it
-  explicitly registers.
+- **Sandboxes** so tools run somewhere other than your filesystem: in memory,
+  in a microVM, or in a dedicated Kubernetes pod per session, behind one
+  interface.
+- **Network policy** per session, audited and enforced outside the agent, with
+  allow and deny rules by host and a decider agent for the cases a rule cannot
+  settle.
+- **Secrets** resolved separately from the conversation and redacted from
+  transcripts.
+- **OTP** doing what it is good at: supervision, streaming, backpressure,
+  cancellation, and sub-agents as children with typed inputs and outputs.
+
+Agents are the imperative half of the picture. They compose with a declarative
+workflow engine rather than replacing one: let the workflow own the steps you
+can name, and give an agent the ones you cannot.
 
 A marketing and documentation site lives under [`web/`](web/) and serves both
-the install story and the public docs. The same `Message` history and
-`ToolDefinition` shape crosses every surface, so the same conversation can move
-between them when a host chooses to do so.
+the install story and the public docs. The terminal on its home page runs a
+real session on the server and calls its tools in the visitor's browser, which
+is the shortest demonstration of the split the library is built around: the
+loop is Condukt's, the reach is the host's.
 
 ## Library
 
@@ -77,91 +88,37 @@ end
 
 Read the [library documentation on HexDocs](https://hexdocs.pm/condukt/overview.html).
 
-## CLI
-
-Install the terminal coding agent globally with [mise](https://mise.jdx.dev/):
-
-```sh
-mise use -g github:tuist/condukt
-```
-
-Run `condukt`, then type `/connect` and follow the sign-in flow. Once
-connected, type a request and press Enter. Use `/` to browse the available
-commands. If you already signed in to Pi with OpenRouter, import its access
-credential without printing it:
-
-```sh
-condukt import-pi-credentials
-```
-
-For scripts and continuous integration, run one task without the terminal
-interface:
-
-```sh
-condukt exec "Run the test suite and summarize any failures"
-```
-
-`condukt -p "..."` is a shorthand, and a prompt can also arrive on standard
-input. The command uses the saved OpenRouter credential, or
-`CONDUKT_OPENROUTER_API_KEY` when set. Pass `--verbose` to show tool activity
-on standard error and `--json` for a machine-readable final response.
-
-## Browser
-
-Add the npm package to a JavaScript or TypeScript application:
-
-```sh
-npm install @tuist/condukt
-```
-
-```js
-import {createAgent, createHttpInference} from "@tuist/condukt"
-
-const agent = await createAgent({
-  inference: createHttpInference({model: "openrouter/auto"}),
-  tools: [{
-    name: "read_page",
-    description: "Read the public content on this page",
-    parameters: {type: "object", properties: {}},
-    execute: () => document.querySelector("main").innerText,
-  }],
-})
-```
-
-The page supplies both the inference configuration and the tool allowlist. The
-public Condukt site demonstrates the same package against a Phoenix endpoint
-that signs developers in with OpenRouter and proxies the completion request.
-
 ## Repository layout
 
 ```
 condukt/
 ├── lib/                  # Elixir library
 ├── native/               # Rust NIFs (bashkit, microsandbox, egress)
-├── cli/                  # Rust workspace for the terminal CLI
-│   └── crates/
-│       ├── condukt/         # binary
-│       ├── condukt-inference/
-│       ├── condukt-openrouter/
-│       ├── condukt-protocol/
-│       ├── condukt-session/
-│       ├── condukt-tools/
-│       └── condukt-wasm/
-├── web/                  # Phoenix marketing site, documentation source, browser endpoint
+├── web/                  # Phoenix marketing site and documentation source
 │   └── priv/docs/           # single source for docs and the ExDoc extras
-├── packages/condukt/     # @tuist/condukt npm package
 ├── infra/                # Helm chart and cluster configuration for the site
-└── .github/workflows/    # CI for library, CLI, and web
+└── .github/workflows/    # CI for the library and the web application
 ```
 
 ## Documentation
 
 All documentation lives in `web/priv/docs`. Read it on
-[the site](https://condukt.dev/docs), which covers the coding agent, the
-Elixir library, and the Rust and browser surfaces. The Elixir pages are also
+[the site](https://condukt.dev/docs), which covers the coding agent and the
+Elixir library. The Elixir pages are also
 published to [HexDocs](https://hexdocs.pm/condukt/overview.html) alongside the
 API reference.
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT, except the server.
+
+- Everything at the root is MIT: the Elixir library and the Rust native
+  implemented functions under `native/`. See [LICENSE](LICENSE).
+- [`web/`](web/), the Phoenix server that runs
+  [condukt.tuist.dev](https://condukt.tuist.dev), is Mozilla Public License 2.0.
+  See [web/LICENSE](web/LICENSE).
+
+A file's licence is the one in the nearest enclosing directory, so nothing you
+depend on, embed, or ship carries the server's terms. The documentation under
+[`web/priv/docs/`](web/priv/docs) is MIT for the same reason: it is published
+with the library.

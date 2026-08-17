@@ -25,39 +25,6 @@ defmodule ConduktSite.OpenRouterTest do
     refute authorization.url =~ authorization.verifier
   end
 
-  test "translates the public browser contract to the provider contract" do
-    body =
-      OpenRouter.completion_body(%{
-        "model" => "example/model",
-        "messages" => [
-          %{"role" => "user", "content" => "hello"},
-          %{
-            "role" => "assistant",
-            "content" => "",
-            "toolCalls" => [
-              %{"id" => "call-1", "name" => "read_page", "arguments" => "{}"}
-            ]
-          },
-          %{"role" => "tool", "content" => "page", "toolCallId" => "call-1"}
-        ],
-        "tools" => [
-          %{
-            "name" => "read_page",
-            "description" => "Read the page",
-            "parameters" => %{"type" => "object", "properties" => %{}}
-          }
-        ]
-      })
-
-    assert body["model"] == "example/model"
-
-    assert get_in(body, ["messages", Access.at(1), "tool_calls", Access.at(0), "function", "name"]) ==
-             "read_page"
-
-    assert get_in(body, ["messages", Access.at(2), "tool_call_id"]) == "call-1"
-    assert get_in(body, ["tools", Access.at(0), "function", "name"]) == "read_page"
-  end
-
   test "handles provider error objects without raising" do
     Req.Test.expect(OpenRouter, fn request ->
       request

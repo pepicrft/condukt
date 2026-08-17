@@ -28,14 +28,16 @@ node_modules/
 # macOS Finder metadata.
 .DS_Store
 
-# Cargo build artifacts for the native NIF crates and the CLI workspace.
+# Cargo build artifacts for the native NIF crates and the browser workspace.
 native/*/target/
-cli/target/
+packages/condukt/target/
 
 # Compiled NIF binaries placed by Rustler. Built from source on dev,
 # downloaded from GitHub releases by consumers; never source-controlled.
 priv/native/
 
-# Build output for the CLI release pipeline.
-cli/dist/
+# Build output for the terminal agent: Mix artifacts and the wrapped binaries.
+cli/_build/
+cli/deps/
+cli/burrito_out/
 

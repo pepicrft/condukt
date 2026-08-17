@@ -8,7 +8,10 @@ defmodule Condukt.MixProject do
     [
       app: :condukt,
       version: @version,
-      elixir: "~> 1.17",
+      # 1.18 is the floor because the library uses the built-in `JSON` module,
+      # which shipped in that release. Declaring 1.17 promised a version the
+      # code cannot compile on.
+      elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       docs: docs(),
@@ -43,6 +46,10 @@ defmodule Condukt.MixProject do
       # Command execution with child process shutdown propagation
       {:muontrap, "~> 1.7"},
       {:plug, "~> 1.16", optional: true},
+
+      # Fan-out for `Condukt.Notifiers.PubSub`. Optional: a project that
+      # delivers session events some other way should not carry it.
+      {:phoenix_pubsub, "~> 2.1", optional: true},
       {:bandit, "~> 1.5", optional: true},
 
       # Telemetry
