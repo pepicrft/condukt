@@ -57,7 +57,7 @@ export class ConduktInstallCommand extends LitElement {
   }
 
   renderCommand() {
-    if (this.language !== "shell") return this.command
+    if (this.language === "elixir") return this.renderElixir()
 
     return this.command
       .trim()
@@ -69,6 +69,21 @@ export class ConduktInstallCommand extends LitElement {
           >
         `,
       )
+  }
+
+  // Enough of Elixir to colour a dependency line: an atom and a string. The
+  // shell tokeniser splits on whitespace, which would treat `{:condukt,` as one
+  // word and colour the brace with it.
+  renderElixir() {
+    return this.command
+      .trim()
+      .split(/(:[a-zA-Z_][a-zA-Z0-9_?!]*|"[^"]*")/)
+      .map((part) => {
+        if (!part) return nothing
+        if (part.startsWith(":")) return html`<span data-token="atom">${part}</span>`
+        if (part.startsWith('"')) return html`<span data-token="string">${part}</span>`
+        return part
+      })
   }
 }
 
