@@ -4,15 +4,28 @@ defmodule ConduktSiteWeb.PageControllerTest do
   test "GET /", %{conn: conn} do
     conn = get(conn, ~p"/")
     body = html_response(conn, 200)
-    assert body =~ "One agent."
-    assert body =~ "Every surface."
-    assert body =~ "Coding agent · Framework · MIT licensed"
-    assert body =~ "Coding agent"
-    assert body =~ "Framework"
+    assert body =~ "Agents you can"
+    assert body =~ "Elixir framework · Hex package · MIT licensed"
     assert body =~ ~s(<noora-icon name="brand_github")
     assert body =~ ~s(href="/docs">Docs</a>)
-    assert body =~ "condukt-install-command"
+  end
+
+  # The framework is what this page sells, so the Hex dependency is the install
+  # and the coding agent follows it rather than leading.
+  test "GET / leads with the framework", %{conn: conn} do
+    body = conn |> get(~p"/") |> html_response(200)
+
+    # The dependency line is an attribute, so its quotes arrive escaped.
+    assert body =~ "{:condukt,"
     assert body =~ "mise use -g github:tuist/condukt"
+
+    hex = :binary.match(body, "{:condukt,") |> elem(0)
+    binary = :binary.match(body, "mise use -g") |> elem(0)
+    assert hex < binary
+
+    # The differentiated capabilities, not the loop.
+    assert body =~ "sandbox"
+    assert body =~ "network"
   end
 
   # The terminal is a LiveView embedded in this page, so the controller's job

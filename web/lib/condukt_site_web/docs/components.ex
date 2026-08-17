@@ -34,18 +34,18 @@ defmodule ConduktSiteWeb.Docs.Components do
             aria-label="Documentation sections"
           >
             <a
-              href={~p"/docs/cli"}
-              data-part="docs-tab"
-              data-selected={@tab == :use_condukt}
-            >
-              Use Condukt
-            </a>
-            <a
               href={~p"/docs/framework"}
               data-part="docs-tab"
               data-selected={@tab == :build_agents}
             >
               Build agents
+            </a>
+            <a
+              href={~p"/docs/cli"}
+              data-part="docs-tab"
+              data-selected={@tab == :use_condukt}
+            >
+              Use Condukt
             </a>
           </div>
         </div>
@@ -130,10 +130,10 @@ defmodule ConduktSiteWeb.Docs.Components do
               </a>
 
               <div data-part="docs-mobile-journeys" aria-label="Documentation journeys">
-                <a href={~p"/docs/cli"} data-selected={@tab == :use_condukt}>Use Condukt</a>
                 <a href={~p"/docs/framework"} data-selected={@tab == :build_agents}>
                   Build agents
                 </a>
+                <a href={~p"/docs/cli"} data-selected={@tab == :use_condukt}>Use Condukt</a>
               </div>
 
               <section :for={group <- @tree} data-part="docs-nav-section">

@@ -5,8 +5,8 @@ defmodule ConduktSiteWeb.DocsControllerTest do
     body = conn |> get(~p"/docs") |> html_response(200)
 
     assert body =~ "What do you want to do with Condukt?"
-    assert body =~ "Use Condukt"
-    assert body =~ "Build your own agent"
+    assert body =~ "Build an agent"
+    assert body =~ "Use the terminal agent"
     assert body =~ ~s(id="docs-sidebar")
     refute body =~ ~s(id="docs-toc")
     assert body =~ ~s(data-surface="docs")

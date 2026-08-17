@@ -5,7 +5,7 @@ defmodule ConduktSiteWeb.PageController do
   # itself at mount, so neither is assigned here any more.
   def home(conn, _params) do
     conn
-    |> assign(:page_title, "One agent. Every surface.")
+    |> assign(:page_title, "Agents you can actually let run")
     |> render(:home)
   end
 end

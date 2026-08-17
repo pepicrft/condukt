@@ -33,21 +33,21 @@ defmodule ConduktSiteWeb.Docs.Navigation do
   def home_tree do
     [
       %Group{
-        label: "Use Condukt",
-        icon: "device_desktop",
-        items: [
-          %Item{label: "Coding agent overview", slug: "/docs/cli"},
-          %Item{label: "Install and connect", slug: "/docs/cli/getting-started"},
-          %Item{label: "Terminal coding agent", slug: "/docs/cli/terminal"}
-        ]
-      },
-      %Group{
         label: "Build agents",
         icon: "subtask",
         items: [
           %Item{label: "Framework overview", slug: "/docs/framework"},
           %Item{label: "Architecture", slug: "/docs/framework/architecture"},
           %Item{label: "Elixir library", slug: "/docs/framework/elixir"}
+        ]
+      },
+      %Group{
+        label: "Use Condukt",
+        icon: "device_desktop",
+        items: [
+          %Item{label: "Coding agent overview", slug: "/docs/cli"},
+          %Item{label: "Install and connect", slug: "/docs/cli/getting-started"},
+          %Item{label: "Terminal coding agent", slug: "/docs/cli/terminal"}
         ]
       }
     ]

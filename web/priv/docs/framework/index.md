@@ -1,6 +1,8 @@
 # Build your own agent with Condukt
 
-Condukt is a framework for building agents, not only the coding agent that ships with it. It is an Elixir library: agents are OTP processes, so they inherit supervision, streaming, and backpressure from the platform rather than reimplementing them.
+Condukt is an Elixir framework for building agents that do real work on your infrastructure. The agent loop is the easy part of that and the least of what this gives you: every session is a supervised process whose tools run in a sandbox, on a network you decide, with secrets it never gets to print.
+
+Agents here are the imperative half of the picture. A model decides what to do next, turn by turn, which is the right shape when the steps are not known in advance. It composes with a declarative workflow engine rather than replacing one: let the workflow own the steps you can name, and give an agent the ones you cannot.
 
 ## Start here
 

@@ -12,15 +12,32 @@
   <a href="https://github.com/tuist/condukt/commits/main"><img src="https://img.shields.io/github/last-commit/tuist/condukt.svg" alt="Last commit" /></a>
 </p>
 
-Condukt is a cross-platform agent framework and coding agent.
+Condukt is an Elixir framework for building agents that do real work on your
+infrastructure.
 
-It ships as three surfaces from one repository:
+The agent loop is the easy part of that and the least of what this gives you.
+Every session is a supervised process whose tools run in a sandbox, on a
+network you decide, with secrets it never gets to print:
 
-- An **Elixir library** for OTP-native agents with sub-agents, MCP, sandboxes,
-  network policy, redaction, compaction, and HTTP routes.
-- A **terminal CLI** built on that library, with a ratatui interface, slash
-  commands, an ACP backend, and headless `exec` for scripts and CI. It ships as
-  a single self-contained binary per platform.
+- **Sandboxes** so tools run somewhere other than your filesystem: in memory,
+  in a microVM, or in a dedicated Kubernetes pod per session, behind one
+  interface.
+- **Network policy** per session, audited and enforced outside the agent, with
+  allow and deny rules by host and a decider agent for the cases a rule cannot
+  settle.
+- **Secrets** resolved separately from the conversation and redacted from
+  transcripts.
+- **OTP** doing what it is good at: supervision, streaming, backpressure,
+  cancellation, and sub-agents as children with typed inputs and outputs.
+
+Agents are the imperative half of the picture. They compose with a declarative
+workflow engine rather than replacing one: let the workflow own the steps you
+can name, and give an agent the ones you cannot.
+
+A **terminal coding agent** built on the library ships from this repository
+too, as a single self-contained binary per platform. It is the fullest worked
+example of a host.
+
 A marketing and documentation site lives under [`web/`](web/) and serves both
 the install story and the public docs. The terminal on its home page runs a
 real session on the server and calls its tools in the visitor's browser, which
