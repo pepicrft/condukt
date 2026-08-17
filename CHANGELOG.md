@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [1.11.0] - 2026-08-17
+
+### Features
+
+- rewrite the terminal agent in Elixir and retire the Rust and WebAssembly builds
+
+
 ## [1.10.1] - 2026-08-16
 
 ### Bug Fixes
