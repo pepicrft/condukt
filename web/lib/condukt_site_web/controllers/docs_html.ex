@@ -26,11 +26,11 @@ defmodule ConduktSiteWeb.DocsHTML do
         eyebrow: "Agent framework",
         title: "Build your own agent",
         description:
-          "Build an agent on Condukt's own primitives, in Elixir on the BEAM or in Rust and the browser.",
+          "Build an agent on the same Elixir library the coding agent runs on, with supervised sessions and sandboxed tools.",
         steps: [
           "Learn the agent loop and the host boundary",
           "Build an OTP agent with the Elixir library",
-          "Embed the portable session in a browser or native host"
+          "Control what an agent can reach with sandboxes and network policy"
         ],
         cta: "Start building an agent",
         href: "/docs/framework"
