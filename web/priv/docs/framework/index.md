@@ -11,6 +11,7 @@ Agents here are the imperative half of the picture. A model decides what to do n
 | An agent inside an Elixir or Phoenix application | [Elixir library](/framework/elixir) |
 | Your first agent, end to end | [Getting started](/framework/elixir/getting-started) |
 | An agent whose loop you drive yourself | [Architecture](/framework/architecture) |
+| To contain what an agent can do | [Sandboxes](/framework/elixir/sandbox) and [network policy](/framework/elixir/network-policy) |
 
 The session owns conversation history and the order of model and tool turns, while the surrounding application owns credentials, tools, isolation, and presentation. Read [architecture](/framework/architecture) once and the vocabulary carries through the rest.
 
@@ -28,6 +29,3 @@ Not every host wants Condukt to own the provider call. `Condukt.HostSession` is 
 
 The terminal on the home page is a version of this idea: the loop runs on the server as a `Condukt.Session`, and its tools run in the visitor's browser, reached back over the LiveView socket. The agent's reach is whatever the page grants it.
 
-## How the coding agent fits
-
-The terminal coding agent is one application built on this library. It is a useful reference for what a complete host looks like: it owns provider sign-in, workspace tools, cancellation, and presentation, and leaves conversation state to the session. If you want to use it rather than build on it, follow the [coding agent journey](/cli) instead.

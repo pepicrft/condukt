@@ -34,10 +34,6 @@ Agents are the imperative half of the picture. They compose with a declarative
 workflow engine rather than replacing one: let the workflow own the steps you
 can name, and give an agent the ones you cannot.
 
-A **terminal coding agent** built on the library ships from this repository
-too, as a single self-contained binary per platform. It is the fullest worked
-example of a host.
-
 A marketing and documentation site lives under [`web/`](web/) and serves both
 the install story and the public docs. The terminal on its home page runs a
 real session on the server and calls its tools in the visitor's browser, which
@@ -92,60 +88,16 @@ end
 
 Read the [library documentation on HexDocs](https://hexdocs.pm/condukt/overview.html).
 
-## CLI
-
-The terminal coding agent is the library with a terminal in front of it: the
-same session, tools, and turn loop the examples above use. Install it globally
-with [mise](https://mise.jdx.dev/):
-
-```sh
-mise use -g "ubi:tuist/condukt[matching=condukt-,exe=condukt]"
-```
-
-The release also carries the library's precompiled native artifacts, several of
-which name the same platform, so `matching=condukt-` is what points mise at the
-agent rather than at one of those.
-
-Every release attaches a self-contained binary per platform, so you can
-download one directly instead:
-
-```sh
-curl -Lo condukt https://github.com/tuist/condukt/releases/latest/download/condukt-aarch64-apple-darwin
-chmod +x condukt
-```
-
-Run `condukt`, then type `/connect` and follow the sign-in flow. Once
-connected, type a request and press Enter. Use `/` to browse the available
-commands. If you already signed in to Pi with OpenRouter, import its access
-credential without printing it:
-
-```sh
-condukt import-pi-credentials
-```
-
-For scripts and continuous integration, run one task without the terminal
-interface:
-
-```sh
-condukt exec "Run the test suite and summarize any failures"
-```
-
-`condukt -p "..."` is a shorthand, and a prompt can also arrive on standard
-input. The command uses the saved OpenRouter credential, or
-`CONDUKT_OPENROUTER_API_KEY` when set. Pass `--verbose` to show tool activity
-on standard error and `--json` for a machine-readable final response.
-
 ## Repository layout
 
 ```
 condukt/
 ├── lib/                  # Elixir library
 ├── native/               # Rust NIFs (bashkit, microsandbox, egress)
-├── cli/                  # Elixir terminal coding agent, packaged with Burrito
 ├── web/                  # Phoenix marketing site and documentation source
 │   └── priv/docs/           # single source for docs and the ExDoc extras
 ├── infra/                # Helm chart and cluster configuration for the site
-└── .github/workflows/    # CI for library, CLI, and web
+└── .github/workflows/    # CI for the library and the web application
 ```
 
 ## Documentation
@@ -160,8 +112,8 @@ API reference.
 
 MIT, except the server.
 
-- Everything at the root is MIT: the Elixir library, the terminal agent, and
-  the Rust NIFs under `native/`. See [LICENSE](LICENSE).
+- Everything at the root is MIT: the Elixir library and the Rust native
+  implemented functions under `native/`. See [LICENSE](LICENSE).
 - [`web/`](web/), the Phoenix server that runs
   [condukt.tuist.dev](https://condukt.tuist.dev), is Mozilla Public License 2.0.
   See [web/LICENSE](web/LICENSE).

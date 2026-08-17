@@ -10,22 +10,20 @@ defmodule ConduktSiteWeb.PageControllerTest do
     assert body =~ ~s(href="/docs">Docs</a>)
   end
 
-  # The framework is what this page sells, so the Hex dependency is the install
-  # and the coding agent follows it rather than leading.
+  # The framework is what this page sells, so the Hex dependency is the install.
   test "GET / leads with the framework", %{conn: conn} do
     body = conn |> get(~p"/") |> html_response(200)
 
     # The dependency line is an attribute, so its quotes arrive escaped.
     assert body =~ "{:condukt,"
-    assert body =~ "mise use -g github:tuist/condukt"
-
-    hex = :binary.match(body, "{:condukt,") |> elem(0)
-    binary = :binary.match(body, "mise use -g") |> elem(0)
-    assert hex < binary
 
     # The differentiated capabilities, not the loop.
     assert body =~ "sandbox"
     assert body =~ "network"
+
+    # There is no terminal agent to install any more.
+    refute body =~ "mise use -g"
+    refute body =~ "condukt exec"
   end
 
   # The terminal is a LiveView embedded in this page, so the controller's job

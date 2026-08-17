@@ -222,44 +222,6 @@
   and `checksum-Elixir.Condukt.Microsandbox.NIF.exs` in the package
   source. See `.github/workflows/release.yml` for the build matrix.
 
-## Terminal agent (`cli/`)
-
-The terminal coding agent is an Elixir Mix project under `cli/`, application `:condukt_cli`, modules under `Condukt.CLI.*`. It is a layer over the library, not a second agent: it depends on the root project through `{:condukt, path: ".."}`, and the turn loop, tool dispatch, sandboxing, retries, telemetry, and project instructions all come from `Condukt.Session`. The binary is `condukt`.
-
-- Structure: `Condukt.CLI.App` is a pure state machine. Transitions return `{app, effects}`, where an effect is a term like `{:open_browser, url}` or `{:submit_prompt, prompt}`. `Condukt.CLI.TUI` is the only module that owns processes, sockets, and the renderer; it runs those effects. Keep new interface behaviour in `App` so it stays testable without a terminal.
-- Rendering: [ex_ratatui](https://hexdocs.pm/ex_ratatui) (`use ExRatatui.App`, callback runtime). Widgets are plain structs rebuilt every frame; `render/2` returns the whole screen as `[{widget, %Rect{}}]`. Key event fields are lowercase strings (`%Event.Key{code: "up", modifiers: ["ctrl"]}`), never atoms.
-- Build and check: `cd cli && mix deps.get`, then `mix compile --warnings-as-errors`, `mix format --check-formatted`, `mix credo --strict`, and `mix test` must all be green. Credo and the formatter use the repository-root `.credo.exs`; `cli/credo` is a symlink to `../credo` so its `requires` resolve with `cli/` as the working directory. Do not add a second `.credo.exs` under `cli/`: two configs in the tree crash Quokka's Credo reader during `mix format`.
-- Run it from the checkout with `mix condukt`, `mix condukt exec "..."`, `mix condukt files`. Outside a wrapped binary the supervision-tree entry point is inert, so `mix test` and `iex -S mix` never start the interface.
-- A released binary must be silent on both streams unless it has something the
-  user asked for. Two things are set up for that and should stay: `cli/config/config.exs`
-  turns off the logger's default handler, and `cli/rel/vm.args.eex` sets
-  `ERL_CRASH_DUMP_SECONDS 0` so a crash cannot drop a multi-megabyte
-  `erl_crash.dump` into someone else's project. Check both streams when adding
-  anything that shells out or logs.
-- `--log-level none|error|warning|info|debug` is the supported way to get
-  diagnostics out of a released binary; `none` is the default and
-  `Condukt.CLI.configure_logging/1` attaches the handler. It writes to standard
-  error so `--json` and the protocol server's stdout stay machine-readable.
-- One line is outside our control: on the first run after an upgrade, burrito's
-  wrapper prints `[l] Uninstalled older version (vX.Y.Z)`. Its logger has no
-  suppression switch in 1.6.0, the latest. It goes to standard error, so
-  `--json` output and the protocol server's stdout are unaffected. Elixir's
-  logger cannot reach it, and neither can `--log-level`: the wrapper writes it
-  from a native process before it starts the virtual machine, so there is no
-  BEAM, no logger, and no module to filter. Fixing it properly means
-  upstreaming a quiet flag; do not patch the dependency's Zig source at build
-  time to hide it.
-- Burrito reuses an already-extracted payload when the version has not changed, so a rebuilt binary keeps running the previous code. After `mix release`, delete `~/Library/Application Support/.burrito/condukt_erts-*_<version>` (or the platform's equivalent) before testing, or a local check will silently pass against stale code. Continuous integration is unaffected: every runner starts empty.
-- Packaging: [Burrito](https://github.com/burrito-elixir/burrito) wraps the release into one self-extracting binary per platform. `MIX_ENV=prod BURRITO_TARGET=<target> mix release --overwrite` writes `cli/burrito_out/condukt_<target>`. Zig 0.16.0 and `xz` must be on `PATH`; the zig version is pinned in `mise.toml` and burrito checks it exactly.
-- Targets are `linux`, `linux_arm`, `macos`, and `macos_silicon`. Each is built on a host with the same operating system and CPU, because ex_ratatui's NIF is a precompiled artifact resolved from the build host's triple. Linux also needs `TARGET_ABI=musl`: burrito's linux wrapper runs a musl runtime, and `ExRatatui.Burrito.verify_linux_nif/1` fails the build rather than shipping a glibc library. There is no Windows target; ex_ratatui publishes no Windows artifact.
-- `cli/mix.exs` sets `CONDUKT_BASHKIT_DISABLE=1` and `CONDUKT_MICROSANDBOX_DISABLE=1` itself, so nothing has to be exported to build or run the agent. The agent works in the user's real workspace and never starts those sandboxes; the library force-builds their crates from source in `:dev` and `:test`, which would cost minutes here for code the agent never calls. It is also a requirement, not a convenience: neither crate publishes a musl artifact, and a release loads every module at boot, so a linux binary that bundled them would fail to start. Leave the flags out of workflows so continuous integration exercises the same path a contributor does.
-- Images reach a turn three ways, and only one of them needs anything installed: `/image <path>` and dragging a file onto the terminal both go through `Condukt.CLI.Attachment`, `condukt exec -i <path>` does the same for automation, and Ctrl+V reads the clipboard where the host can. Prefer extending the path routes: they work over SSH and in containers, where there is no clipboard at all.
-- Clipboard: `Condukt.CLI.Clipboard` reads images and text from the system clipboard, bound to Ctrl+V. A terminal never delivers image bytes, so the interface fetches them: AppleScript on macOS, `wl-paste` on Wayland, `xclip` on X11. An attached image becomes a `[image #N]` marker in the prompt and travels as `:images` on the user message, which `Condukt.Session` turns into a base64 data URL content part.
-- `Condukt.CLI.Attachment` is the route that needs nothing installed: pasted or dragged text that is entirely paths to image files is attached rather than typed, with the format read from the file's leading bytes rather than its extension. Dragging is how a terminal types a path, and it is the only way to attach an image over a remote connection, where there is no clipboard at all. Keep it all-or-nothing: a line that mixes paths with words stays text, because attaching the images and dropping the words would lose the question.
-- Every host tool the interface runs goes through `Condukt.CLI.Command`, which captures standard error. This is load-bearing, not tidiness: an uncaptured child writes onto the terminal the interface is drawing on, scrolling the frame so that every later redraw lands a row off. Never call `System.cmd/3` or `MuonTrap.cmd/3` directly from the interface.
-- Auth: OpenRouter is the only provider today, reached through ReqLLM as `openrouter:<model>`. Credentials live under `$XDG_CONFIG_HOME/condukt` (or `~/.config/condukt`) and can be overridden through `CONDUKT_OPENROUTER_API_KEY` and `CONDUKT_CREDENTIAL_DIR`. Import Pi credentials with `condukt import-pi-credentials`; set `CONDUKT_PI_AUTH_FILE` to override the source path.
-- CI: `.github/workflows/condukt-cli.yml` compiles, formats, lints, and tests the agent and builds the linux binary end to end. `.github/workflows/release.yml` builds one binary per target and attaches them to the GitHub release named after their target triple (`condukt-aarch64-apple-darwin` and so on). The same release carries the NIF tarballs, several of which name the same platform, so the documented install is `mise use -g "ubi:tuist/condukt[matching=condukt-,exe=condukt]"`: ubi's `matching` is a tiebreaker among assets that already match the host, and `condukt-` is the prefix only the agent binaries have. Keep that prefix if the artifact naming ever changes.
-
 ## Git
 
 - After every change, create a git commit and push it to the current branch.
@@ -285,7 +247,7 @@ The terminal coding agent is an Elixir Mix project under `cli/`, application `:c
 ## Licensing
 
 - The repository is MIT, and `LICENSE` at the root is what covers the library,
-  the terminal agent, and the Rust NIFs under `native/`. `MIT.md` is a
+  and the Rust NIFs under `native/`. `MIT.md` is a
   copy of the same text shipped inside the Hex package.
 - `web/` is Mozilla Public License 2.0 and carries its own `web/LICENSE`, which
   is the canonical text unmodified. A file is covered by the licence in its
@@ -333,7 +295,6 @@ The site runs on Kubernetes and is served at https://condukt.dev.
 
 All prose documentation has a single source under `web/priv/docs/`, served by the Phoenix site and, for the Elixir pages, published to HexDocs by ExDoc. There is no `guides/` directory.
 
-- `web/priv/docs/cli/`: the terminal coding agent journey ("Use Condukt").
 - `web/priv/docs/framework/`: the framework journey ("Build agents"), with `elixir/` for the Hex library.
 - The Elixir pages under `web/priv/docs/framework/elixir/` are also the ExDoc extras. They are listed in `mix.exs` under `extras` and `groups_for_extras`, and the root mix `package` includes that directory.
 - Cross-link rules: pages that are ExDoc extras link to their siblings with relative Markdown paths (`tools.md`, `sandbox.md#custom`) so both surfaces resolve them. Site-only pages link with root-relative paths (`/framework/rust/browser`), which the site rewrites to `/docs/...`.

@@ -8,29 +8,24 @@ defmodule ConduktSiteWeb.DocsTest do
   alias ConduktSiteWeb.Docs.Navigation
 
   test "resolves a Markdown page and rejects traversal" do
-    assert {:ok, page} = Docs.get_page(["cli", "getting-started"])
-    assert page.title == "Install and connect"
-    assert page.markdown =~ "mise use -g"
-    assert page.source_path == "cli/getting-started.md"
+    assert {:ok, page} = Docs.get_page(["framework", "elixir", "getting-started"])
+    assert page.source_path == "framework/elixir/getting-started.md"
 
-    assert {:ok, index_page} = Docs.get_page(["cli"])
-    assert index_page.source_path == "cli/index.md"
+    assert {:ok, index_page} = Docs.get_page(["framework"])
+    assert index_page.source_path == "framework/index.md"
 
     assert {:ok, elixir_page} = Docs.get_page(["framework", "elixir", "tools"])
     assert elixir_page.source_path == "framework/elixir/tools.md"
 
     assert :error = Docs.source_path(["..", "README"])
-    assert :error = Docs.source_path(["cli/getting-started"])
+    assert :error = Docs.source_path(["framework/elixir/tools"])
   end
 
-  test "routes pages into persona-based navigation" do
+  test "routes pages into navigation" do
     assert Navigation.tab_for_slug("/docs") == :home
-    assert Navigation.tab_for_slug("/docs/cli") == :use_condukt
-    assert Navigation.tab_for_slug("/docs/cli/terminal") == :use_condukt
-    assert Navigation.tab_for_slug("/docs/cli/command-line") == :use_condukt
     assert Navigation.tab_for_slug("/docs/framework") == :build_agents
     assert Navigation.tab_for_slug("/docs/framework/elixir/tools") == :build_agents
-    assert Navigation.tab_for_slug("/docs/framework/rust/browser") == :build_agents
+    assert Navigation.tab_for_slug("/docs/anything-else") == :home
   end
 
   test "renders headings, links, and copyable code windows" do
@@ -40,7 +35,7 @@ defmodule ConduktSiteWeb.DocsTest do
 
       ## Run it
 
-      [Read the guide](/cli/getting-started).
+      [Read the guide](/framework/elixir/getting-started).
 
       ```sh
       condukt --help
@@ -50,7 +45,7 @@ defmodule ConduktSiteWeb.DocsTest do
     assert page.title == "Example"
     assert page.headings == [%{level: 2, id: "run-it", text: "Run it"}]
     assert page.html =~ ~s(data-part="heading-anchor")
-    assert page.html =~ ~s(href="/docs/cli/getting-started")
+    assert page.html =~ ~s(href="/docs/framework/elixir/getting-started")
     assert page.html =~ ~s(class="code-window")
     assert page.html =~ ~s(<template data-part="copy-source">condukt --help</template>)
   end

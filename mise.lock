@@ -56,12 +56,10 @@ checksum = "sha256:564de2191b881e9f71b5606b25345821ea1682f06ab90499d3ab22b530176
 url = "https://get.helm.sh/helm-v4.2.4-linux-arm64.tar.gz"
 
 [tools.helm."platforms.linux-x64"]
-checksum = "sha256:c306b46f719b0a4da32d0f78ee21bf90ce8d602f15b22ab753f0674d1670a7f3"
-url = "https://get.helm.sh/helm-v4.2.4-linux-amd64.tar.gz"
+url = "https://get.helm.sh/helm-4.2.4-linux-amd64.tar.gz"
 
 [tools.helm."platforms.macos-arm64"]
-checksum = "sha256:d747eb4e28bd2727173d15b759fa0a17822291ec09db7ced3d55af290a3661a2"
-url = "https://get.helm.sh/helm-v4.2.4-darwin-arm64.tar.gz"
+url = "https://get.helm.sh/helm-4.2.4-darwin-arm64.tar.gz"
 
 [tools.helm."platforms.macos-x64"]
 checksum = "sha256:6c163d687ca03c3b5c01928e53bbbcf9518278f47ce7a2f249a5a08e8bdaa2bc"
@@ -100,12 +98,10 @@ checksum = "sha256:a49a439f83f504e6bc051f516a8baf8d2220d74110f7f9bcaf25feac69e36
 url = "https://dl.k8s.io/v1.34.6/bin/linux/arm64/kubectl"
 
 [tools.kubectl."platforms.linux-x64"]
-checksum = "sha256:3166155b17198c0af34ff5a360bd4d9d58db98bafadc6f3c2a57ae560563cd6b"
-url = "https://dl.k8s.io/v1.34.6/bin/linux/amd64/kubectl"
+url = "https://dl.k8s.io/1.34.6/bin/linux/amd64/kubectl"
 
 [tools.kubectl."platforms.macos-arm64"]
-checksum = "sha256:5629f4f9c82c58092c617d18deca543f7dec388aed28d22aade18e183c794e0f"
-url = "https://dl.k8s.io/v1.34.6/bin/darwin/arm64/kubectl"
+url = "https://dl.k8s.io/1.34.6/bin/darwin/arm64/kubectl"
 
 [tools.kubectl."platforms.macos-x64"]
 checksum = "sha256:3bde7b469f34195c0654a251453106409dd1ff970a0e2bcd143155f6685f4c5a"
@@ -134,35 +130,3 @@ url = "https://nodejs.org/dist/v22.22.3/node-v22.22.3-darwin-x64.tar.gz"
 [[tools.rust]]
 version = "1.91.1"
 backend = "core:rust"
-
-[[tools.zig]]
-version = "0.16.0"
-backend = "core:zig"
-
-[tools.zig."platforms.linux-arm64"]
-checksum = "sha256:ea4b09bfb22ec6f6c6ceac57ab63efb6b46e17ab08d21f69f3a48b38e1534f17"
-url = "https://ziglang.org/download/0.16.0/zig-aarch64-linux-0.16.0.tar.xz"
-
-[tools.zig."platforms.linux-arm64-musl"]
-checksum = "sha256:ea4b09bfb22ec6f6c6ceac57ab63efb6b46e17ab08d21f69f3a48b38e1534f17"
-url = "https://ziglang.org/download/0.16.0/zig-aarch64-linux-0.16.0.tar.xz"
-
-[tools.zig."platforms.linux-x64"]
-checksum = "sha256:70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00"
-url = "https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz"
-
-[tools.zig."platforms.linux-x64-musl"]
-checksum = "sha256:70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00"
-url = "https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz"
-
-[tools.zig."platforms.macos-arm64"]
-checksum = "sha256:b23d70deaa879b5c2d486ed3316f7eaa53e84acf6fc9cc747de152450d401489"
-url = "https://ziglang.org/download/0.16.0/zig-aarch64-macos-0.16.0.tar.xz"
-
-[tools.zig."platforms.macos-x64"]
-checksum = "sha256:0387557ed1877bc6a2e1802c8391953baddba76081876301c522f52977b52ba7"
-url = "https://ziglang.org/download/0.16.0/zig-x86_64-macos-0.16.0.tar.xz"
-
-[tools.zig."platforms.windows-x64"]
-checksum = "sha256:68659eb5f1e4eb1437a722f1dd889c5a322c9954607f5edcf337bc3684a75a7e"
-url = "https://ziglang.org/download/0.16.0/zig-x86_64-windows-0.16.0.zip"

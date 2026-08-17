@@ -20,15 +20,13 @@ defmodule ConduktSiteWeb.Docs.Navigation do
 
   alias __MODULE__.{Group, Item}
 
-  @spec tab_for_slug(String.t()) :: :home | :use_condukt | :build_agents
-  def tab_for_slug("/docs/cli" <> _), do: :use_condukt
+  @spec tab_for_slug(String.t()) :: :home | :build_agents
   def tab_for_slug("/docs/framework" <> _), do: :build_agents
   def tab_for_slug(_), do: :home
 
-  @spec tree_for_tab(:home | :use_condukt | :build_agents) :: [Group.t()]
+  @spec tree_for_tab(:home | :build_agents) :: [Group.t()]
   def tree_for_tab(:home), do: home_tree()
-  def tree_for_tab(:build_agents), do: build_agents_tree()
-  def tree_for_tab(_), do: use_condukt_tree()
+  def tree_for_tab(_), do: build_agents_tree()
 
   def home_tree do
     [
@@ -39,51 +37,6 @@ defmodule ConduktSiteWeb.Docs.Navigation do
           %Item{label: "Framework overview", slug: "/docs/framework"},
           %Item{label: "Architecture", slug: "/docs/framework/architecture"},
           %Item{label: "Elixir library", slug: "/docs/framework/elixir"}
-        ]
-      },
-      %Group{
-        label: "Use Condukt",
-        icon: "device_desktop",
-        items: [
-          %Item{label: "Coding agent overview", slug: "/docs/cli"},
-          %Item{label: "Install and connect", slug: "/docs/cli/getting-started"},
-          %Item{label: "Terminal coding agent", slug: "/docs/cli/terminal"}
-        ]
-      }
-    ]
-  end
-
-  def use_condukt_tree do
-    [
-      %Group{
-        label: "Start here",
-        icon: "book_2",
-        items: [
-          %Item{label: "Overview", slug: "/docs/cli"},
-          %Item{label: "Install and connect", slug: "/docs/cli/getting-started"}
-        ]
-      },
-      %Group{
-        label: "Work with Condukt",
-        icon: "device_desktop",
-        items: [
-          %Item{label: "Terminal coding agent", slug: "/docs/cli/terminal"},
-          %Item{label: "Editor integration", slug: "/docs/cli/editor"},
-          %Item{label: "Automation", slug: "/docs/cli/automation"}
-        ]
-      },
-      %Group{
-        label: "Configuration",
-        icon: "settings",
-        items: [
-          %Item{label: "Providers and credentials", slug: "/docs/cli/credentials"}
-        ]
-      },
-      %Group{
-        label: "Reference",
-        icon: "list_tree",
-        items: [
-          %Item{label: "Command-line reference", slug: "/docs/cli/command-line"}
         ]
       }
     ]

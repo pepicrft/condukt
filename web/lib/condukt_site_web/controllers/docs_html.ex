@@ -10,30 +10,30 @@ defmodule ConduktSiteWeb.DocsHTML do
   def persona_cards do
     [
       %{
-        eyebrow: "Agent framework",
+        eyebrow: "Start here",
         title: "Build an agent",
         description:
-          "Build an agent in Elixir whose tools run in a sandbox, on a network you decide, inside your own supervision tree.",
+          "Define an agent module, give it tools, and run it inside your own supervision tree.",
         steps: [
+          "Install the Hex package",
           "Define an agent and give it tools",
-          "Contain the work with sandboxes and network policy",
-          "Keep a conversation alive with sessions and persistence"
+          "Stream a conversation and keep it alive"
         ],
         cta: "Start building an agent",
         href: "/docs/framework"
       },
       %{
-        eyebrow: "Coding agent",
-        title: "Use the terminal agent",
+        eyebrow: "Run it safely",
+        title: "Contain the work",
         description:
-          "Install the coding agent built on the library, the fullest worked example of a host.",
+          "Decide where an agent's tools run and what they can reach, separately from what the agent is asked to do.",
         steps: [
-          "Install and connect",
-          "Choose a terminal or editor workflow",
-          "Automate repeatable tasks"
+          "Run tools in a sandbox rather than on the host",
+          "Set per-session network policy",
+          "Resolve secrets and keep them out of transcripts"
         ],
-        cta: "Start using Condukt",
-        href: "/docs/cli"
+        cta: "Read about sandboxes",
+        href: "/docs/framework/elixir/sandbox"
       }
     ]
   end

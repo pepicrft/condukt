@@ -3,8 +3,8 @@ defmodule ConduktSite.DemoAgent do
   The agent behind the terminal on the home page.
 
   It is a real `Condukt` agent, not a demonstration of one: the same session,
-  the same turn loop, the same tool dispatch the terminal agent and any
-  consumer of the library use.
+  the same turn loop and the same tool dispatch any consumer of the library
+  uses.
 
   It declares no tools. What it can reach is whatever the visitor's page
   declares when it connects, built into tools by `ConduktSite.BrowserTools` and

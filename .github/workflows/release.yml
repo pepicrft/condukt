@@ -179,85 +179,6 @@ jobs:
           if-no-files-found: error
 
   # ============================================================================
-  # build_cli
-  # Wraps the Elixir terminal agent into a single-file binary per platform with
-  # Burrito. Each target is built on a host with the same operating system and
-  # CPU: the renderer's NIF is a precompiled artifact resolved from the build
-  # host's triple, so a cross-host build would bundle a library the wrapper
-  # cannot load. Artifacts are renamed to their target triple so `mise use -g
-  # github:tuist/condukt` can pick the right one.
-  # ============================================================================
-  build_cli:
-    name: Build CLI (${{ matrix.triple }})
-    needs: plan
-    if: needs.plan.outputs.should_release == 'true'
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    defaults:
-      run:
-        working-directory: cli
-
-    env:
-      MIX_ENV: prod
-      BURRITO_TARGET: ${{ matrix.target }}
-      # Burrito's linux wrapper runs a musl runtime, so the linux targets have
-      # to bundle the musl renderer. Empty elsewhere, where the host triple is
-      # already the right one.
-      TARGET_ABI: ${{ matrix.abi }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { target: linux, triple: x86_64-unknown-linux-musl, abi: musl, os: ubuntu-22.04 }
-          - { target: linux_arm, triple: aarch64-unknown-linux-musl, abi: musl, os: ubuntu-24.04-arm }
-          - { target: macos, triple: x86_64-apple-darwin, abi: "", os: macos-15-intel }
-          - { target: macos_silicon, triple: aarch64-apple-darwin, abi: "", os: macos-14 }
-          # No Windows target: ex_ratatui publishes no Windows artifact, so the
-          # terminal renderer would have nothing to load there.
-
-    steps:
-      - name: Check out the repository
-        uses: actions/checkout@v4
-
-      # Only the tools this job needs: the repository also pins cluster and
-      # release tooling that has nothing to do with wrapping the agent, and some
-      # of it has no build for every runner architecture.
-      - name: Install tooling with mise
-        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db
-        with:
-          cache: true
-          install_args: "erlang elixir zig"
-
-      - name: Install Hex and Rebar
-        run: |
-          mix local.hex --force
-          mix local.rebar --force
-
-      - name: Set the release version
-        working-directory: .
-        run: elixir scripts/version.exs set "${{ needs.plan.outputs.next_version }}"
-
-      - name: Fetch dependencies
-        run: mix deps.get
-
-      - name: Build the wrapped binary
-        run: mix release --overwrite
-
-      - name: Name the artifact after its target triple
-        run: mv "burrito_out/condukt_${{ matrix.target }}" "burrito_out/condukt-${{ matrix.triple }}"
-
-      - name: Check the binary answers
-        run: ./burrito_out/condukt-${{ matrix.triple }} --version
-
-      - name: Upload the binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: condukt-${{ matrix.triple }}
-          path: cli/burrito_out/condukt-${{ matrix.triple }}
-          if-no-files-found: error
-
-  # ============================================================================
   # publish
   # Bundles the NIF artifacts, computes the checksum file, publishes the
   # source-only hex package (which now includes the checksum file), tags
@@ -266,7 +187,7 @@ jobs:
   # ============================================================================
   publish:
     name: Publish to Hex.pm and create GitHub release
-    needs: [plan, build_nifs, build_cli]
+    needs: [plan, build_nifs]
     if: needs.plan.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -320,13 +241,6 @@ jobs:
           pattern: "*condukt_microsandbox-*.tar.gz"
           merge-multiple: true
 
-      - name: Download CLI binaries
-        uses: actions/download-artifact@v4
-        with:
-          path: cli-artifacts
-          pattern: "condukt-*-*"
-          merge-multiple: true
-
       - name: Generate checksum files
         run: |
           set -euo pipefail
@@ -372,16 +286,13 @@ jobs:
       # source. Publishing second means a failure here leaves a version nobody
       # can depend on yet, which is recoverable, instead of a broken one
       # everybody can.
-      - name: Create GitHub release with NIF and CLI artifacts
+      - name: Create GitHub release with NIF artifacts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
           mapfile -t nif_files < <(find nif-artifacts -type f -name '*.tar.gz' | sort)
-          # The CLI binaries are named after their target triple so `mise use -g
-          # github:tuist/condukt` resolves the right one for the host.
-          mapfile -t cli_files < <(find cli-artifacts -type f -name 'condukt-*' | sort)
 
           # An empty set here would publish a release the library cannot resolve
           # against, which is the failure this ordering exists to prevent.
@@ -390,15 +301,13 @@ jobs:
             exit 1
           fi
 
-          chmod +x "${cli_files[@]}"
-
           gh release create "${{ needs.plan.outputs.next_version }}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "${{ steps.publish.outputs.release_commit }}" \
             --title "${{ needs.plan.outputs.next_version }}" \
             --latest \
             --notes-file RELEASE_NOTES.md \
-            "${nif_files[@]}" "${cli_files[@]}"
+            "${nif_files[@]}"
 
       # Confirms the URLs the library will actually request, rather than
       # assuming the upload put them where `base_url` looks.
