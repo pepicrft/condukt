@@ -1,8 +1,8 @@
 %{
-  "libcondukt_microsandbox-v1.11.0-nif-2.16-aarch64-apple-darwin.so.tar.gz" => "sha256:49f22513bc227482b3bace742e52b1e8418819b2196e16c49fc9121215e20032",
-  "libcondukt_microsandbox-v1.11.0-nif-2.16-aarch64-unknown-linux-gnu.so.tar.gz" => "sha256:ee94aa771e85eb3375abc5e0620afa75ad1e6585a7fdc20e2db9648266c685d4",
-  "libcondukt_microsandbox-v1.11.0-nif-2.16-x86_64-unknown-linux-gnu.so.tar.gz" => "sha256:c5173e67c42e5d4fbe5b4f12e93beae5eb18736694fc245ba5d8d0d446c447a0",
-  "libcondukt_microsandbox-v1.11.0-nif-2.17-aarch64-apple-darwin.so.tar.gz" => "sha256:352a2f9e88ffd2ca7ce26bf8736532aa65f713d9b7547b874683811fc80b03d6",
-  "libcondukt_microsandbox-v1.11.0-nif-2.17-aarch64-unknown-linux-gnu.so.tar.gz" => "sha256:e657ccb4013c777dcaccc9698152c09aa68513070028b3f96256045f6502cfd7",
-  "libcondukt_microsandbox-v1.11.0-nif-2.17-x86_64-unknown-linux-gnu.so.tar.gz" => "sha256:4dc050d7ca51e0143f80e5589baa169faa65f4baca70362ff73ab448f0af879e"
+  "libcondukt_microsandbox-v1.12.0-nif-2.16-aarch64-apple-darwin.so.tar.gz" => "sha256:d9a0ac4102371031402963719482c98ba9e5bf8598a8929ddd23219bd7374cc9",
+  "libcondukt_microsandbox-v1.12.0-nif-2.16-aarch64-unknown-linux-gnu.so.tar.gz" => "sha256:e4ee05e5b15b49a1e49800a1832625faffd2b07874394e020f5a46c15d905941",
+  "libcondukt_microsandbox-v1.12.0-nif-2.16-x86_64-unknown-linux-gnu.so.tar.gz" => "sha256:e6c7c86a4eedd1863cf42e05937694dec4bbdf3bc56bf0bbe29ce94d026c1d16",
+  "libcondukt_microsandbox-v1.12.0-nif-2.17-aarch64-apple-darwin.so.tar.gz" => "sha256:4ed228410e5c69ba0010e88aa5ebdeee63a30719d1c65a08c7748dfd77b77ea3",
+  "libcondukt_microsandbox-v1.12.0-nif-2.17-aarch64-unknown-linux-gnu.so.tar.gz" => "sha256:20708a04880e1dab6d1f6d1313594446ed17ea6bd83670918077e2ceb7a6fd3b",
+  "libcondukt_microsandbox-v1.12.0-nif-2.17-x86_64-unknown-linux-gnu.so.tar.gz" => "sha256:5173a688d69630e4cf06b4fdb5be5abcb16a1271ceb5eb78b0f1653191382a80"
 }

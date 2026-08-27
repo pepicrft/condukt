@@ -1,6 +1,13 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [1.12.0] - 2026-08-27
+
+### Features
+
+- cap the output tokens of one call with :max_tokens
+
+
 ## [1.11.0] - 2026-08-17
 
 ### Features
