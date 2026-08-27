@@ -633,6 +633,55 @@ defmodule Condukt.SessionTest do
     GenServer.stop(pid)
   end
 
+  # A reasoning model spends the output budget thinking before it writes any
+  # answer, so a ceiling sized for the answer alone truncates the response
+  # mid-thought and comes back with empty content.
+  test "sends the configured output-token ceiling to the provider" do
+    {model, model_id} = LLMProvider.model([LLMProvider.text_response("done")])
+
+    {:ok, pid} =
+      ConfigAgent.start_link(
+        model: model,
+        max_tokens: 16_384,
+        load_project_instructions: false
+      )
+
+    assert {:ok, "done"} = Condukt.run(pid, "hello")
+    assert_receive {LLMProvider, :request, ^model_id, _context, opts}
+    assert opts[:max_tokens] == 16_384
+
+    GenServer.stop(pid)
+  end
+
+  test "leaves the output-token ceiling to the provider when unset" do
+    {model, model_id} = LLMProvider.model([LLMProvider.text_response("done")])
+
+    {:ok, pid} = ConfigAgent.start_link(model: model, load_project_instructions: false)
+
+    assert {:ok, "done"} = Condukt.run(pid, "hello")
+    assert_receive {LLMProvider, :request, ^model_id, _context, opts}
+    refute Keyword.has_key?(opts, :max_tokens)
+
+    GenServer.stop(pid)
+  end
+
+  test "reads the output-token ceiling from config when the option is omitted" do
+    {model, model_id} = LLMProvider.model([LLMProvider.text_response("done")])
+
+    {:ok, pid} =
+      ConfigAgent.start_link(
+        model: model,
+        config: [max_tokens: 4_096],
+        load_project_instructions: false
+      )
+
+    assert {:ok, "done"} = Condukt.run(pid, "hello")
+    assert_receive {LLMProvider, :request, ^model_id, _context, opts}
+    assert opts[:max_tokens] == 4_096
+
+    GenServer.stop(pid)
+  end
+
   test "uses config defaults when options are omitted" do
     {:ok, pid} =
       ConfigAgent.start_link(

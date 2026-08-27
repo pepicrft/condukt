@@ -119,13 +119,14 @@ defmodule Condukt.Session.Translate do
   @doc """
   Builds the provider options for one call.
 
-  `config` carries `:api_key`, `:base_url`, and `:thinking_level`; each is
-  omitted when unset so a provider's own default applies.
+  `config` carries `:api_key`, `:base_url`, `:thinking_level`, and
+  `:max_tokens`; each is omitted when unset so a provider's own default applies.
   """
   def llm_opts(config, tools) do
     []
     |> put_present(:api_key, config[:api_key])
     |> put_present(:base_url, config[:base_url])
+    |> put_present(:max_tokens, config[:max_tokens])
     |> put_tools(tools)
     |> put_reasoning(config[:thinking_level])
   end

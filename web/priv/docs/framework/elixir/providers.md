@@ -69,6 +69,24 @@ A few rules of thumb:
 * Lower the `:thinking_level` (`:low`, `:minimal`, `:off`) on cheap models
   that do not benefit from extended reasoning.
 
+## Capping the output of one call
+
+`:max_tokens` sets the ceiling on the output tokens a single call may produce.
+It is left unset by default, so the provider's own default applies.
+
+```elixir
+MyApp.Agent.start_link(model: "openai:my-reasoning-model", max_tokens: 16_384)
+```
+
+Reasoning models are the case that makes this matter. They spend the output
+budget thinking before writing a single character of the answer, so a ceiling
+sized for the answer alone stops the response mid-thought and returns empty
+content with a `length` finish reason rather than a short answer. If a model
+answers with nothing at all, raise the ceiling before suspecting the prompt.
+
+Not every gateway accepts `reasoning_effort` for turning that thinking off, so
+a wider ceiling is sometimes the only lever available.
+
 ## Switching mid project
 
 Because the model is a runtime option, you can swap it without touching the
