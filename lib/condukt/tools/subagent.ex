@@ -359,6 +359,7 @@ defmodule Condukt.Tools.Subagent do
     |> put_new_present(:secrets, Map.get(context, :secrets))
     |> put_new_present(:model, Map.get(context, :model))
     |> put_new_present(:thinking_level, Map.get(context, :thinking_level))
+    |> put_new_present(:max_tokens, Map.get(context, :max_tokens))
     |> put_new_present(:api_key, Map.get(context, :api_key))
     |> put_new_present(:base_url, Map.get(context, :base_url))
   end

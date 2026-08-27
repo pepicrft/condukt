@@ -102,6 +102,13 @@ defmodule Condukt do
   @callback thinking_level() :: :off | :minimal | :low | :medium | :high
 
   @doc """
+  Returns the default output-token ceiling for one call.
+
+  `nil` leaves the ceiling to the provider and to ReqLLM's own model defaults.
+  """
+  @callback max_tokens() :: pos_integer() | nil
+
+  @doc """
   Returns the default sandbox spec for this agent.
 
   Accepts a module, `{module, opts}`, an already-built `Condukt.Sandbox` struct,
@@ -136,6 +143,7 @@ defmodule Condukt do
     subagents: 0,
     model: 0,
     thinking_level: 0,
+    max_tokens: 0,
     sandbox: 0,
     secrets: 0,
     init: 1,
@@ -180,6 +188,9 @@ defmodule Condukt do
       def thinking_level, do: :medium
 
       @impl Condukt
+      def max_tokens, do: nil
+
+      @impl Condukt
       def sandbox, do: nil
 
       @impl Condukt
@@ -199,6 +210,7 @@ defmodule Condukt do
                      subagents: 0,
                      model: 0,
                      thinking_level: 0,
+                     max_tokens: 0,
                      sandbox: 0,
                      secrets: 0,
                      mcp_servers: 0,
@@ -216,6 +228,11 @@ defmodule Condukt do
       - `:system_prompt` - System prompt for the agent
       - `:load_project_instructions` - Auto-load `AGENTS.md`, `CLAUDE.md`, and local skills from the project root (default: `true`)
       - `:thinking_level` - Override the thinking level
+      - `:max_tokens` - Ceiling on the output tokens of one call. A reasoning
+        model spends this budget thinking before it writes any answer, so a
+        ceiling sized for the answer alone truncates the response mid-thought
+        and returns empty content. Defaults to `nil`, which leaves the ceiling
+        to the provider and to ReqLLM's own model defaults.
       - `:cwd` - Project working directory used for AGENTS.md/CLAUDE.md
         discovery and disk session storage (default: File.cwd!()). Note: tools
         no longer key off this value directly — they use the active sandbox.
@@ -382,7 +399,7 @@ defmodule Condukt do
   Anonymous and module-defined one-shot runs accept all the per-run options above (`:timeout`,
   `:max_turns`, `:images`) plus the session options accepted by an agent's
   `start_link/1` (`:model`, `:system_prompt`, `:api_key`, `:base_url`,
-  `:thinking_level`, `:tools`, `:sandbox`, `:cwd`, `:session_store`,
+  `:thinking_level`, `:max_tokens`, `:tools`, `:sandbox`, `:cwd`, `:session_store`,
   `:session_store_key`, `:session_store_opts`, `:subagents`, `:compactor`,
   `:redactor`, `:load_project_instructions`).
   `:load_project_instructions` defaults to `false` for anonymous runs and to

@@ -60,6 +60,7 @@ defmodule Condukt.Session do
     :runtime,
     :model,
     :thinking_level,
+    :max_tokens,
     :configured_system_prompt,
     :system_prompt,
     :tools,
@@ -128,6 +129,7 @@ defmodule Condukt.Session do
       |> put_configured_opt(config, :runtime, fn -> agent_runtime(agent_module) end)
       |> put_configured_opt(config, :model, fn -> agent_module.model() end)
       |> put_configured_opt(config, :thinking_level, fn -> agent_module.thinking_level() end)
+      |> put_configured_opt(config, :max_tokens, fn -> agent_max_tokens(agent_module) end)
       |> put_configured_opt(config, :system_prompt, fn -> agent_module.system_prompt() end)
       |> put_configured_opt(config, :load_project_instructions, fn -> true end)
       |> Keyword.put_new(:tools, agent_module.tools())
@@ -155,6 +157,12 @@ defmodule Condukt.Session do
         Application.get_env(:condukt, key, default_fun.())
       end)
     end)
+  end
+
+  # `max_tokens/0` postdates the behaviour, so an agent module compiled against
+  # an earlier version still resolves rather than failing to start.
+  defp agent_max_tokens(agent_module) do
+    if function_exported?(agent_module, :max_tokens, 0), do: agent_module.max_tokens()
   end
 
   defp agent_sandbox(agent_module) do
@@ -375,6 +383,7 @@ defmodule Condukt.Session do
               runtime: runtime,
               model: restore_value(opts, :model, snapshot && snapshot.model),
               thinking_level: restore_value(opts, :thinking_level, snapshot && snapshot.thinking_level),
+              max_tokens: Keyword.get(opts, :max_tokens),
               configured_system_prompt: configured_system_prompt,
               system_prompt: Context.compose_system_prompt(configured_system_prompt, project_context.prompt),
               tools: maybe_inject_subagent_tool(tools, subagents),
@@ -889,7 +898,12 @@ defmodule Condukt.Session do
   defdelegate message_to_req_llm(message), to: Translate
 
   defp llm_config(state) do
-    [api_key: state.api_key, base_url: state.base_url, thinking_level: state.thinking_level]
+    [
+      api_key: state.api_key,
+      base_url: state.base_url,
+      thinking_level: state.thinking_level,
+      max_tokens: state.max_tokens
+    ]
   end
 
   defp build_req_llm_tools(tools, state) do
@@ -1072,6 +1086,7 @@ defmodule Condukt.Session do
       subagent_supervisor: state.subagent_supervisor,
       model: state.model,
       thinking_level: state.thinking_level,
+      max_tokens: state.max_tokens,
       api_key: state.api_key,
       base_url: state.base_url,
       assigns: state.assigns
