@@ -19,6 +19,8 @@ defmodule Condukt.TraceContext do
   requirement for, an OpenTelemetry implementation.
   """
 
+  @compile {:no_warn_undefined, {:otel_propagator_text_map, :inject, 1}}
+
   @enforce_keys [:trace_id, :span_id]
   defstruct [:trace_id, :span_id, flags: "01", tracestate: nil, baggage: nil]
 
@@ -167,7 +169,10 @@ defmodule Condukt.TraceContext do
   def clear_current, do: Process.delete(@current_key)
 
   @doc false
-  def attach(nil), do: :ok
+  def attach(nil) do
+    clear_current()
+    :ok
+  end
 
   def attach(%__MODULE__{} = context) do
     Process.put(@current_key, context)
@@ -196,7 +201,7 @@ defmodule Condukt.TraceContext do
   defp baggage(existing, session_id) do
     existing
     |> without_baggage_key("condukt.session.id")
-    |> append_baggage("condukt.session.id=#{URI.encode_www_form(session_id)}")
+    |> append_baggage("condukt.session.id=#{URI.encode(session_id, &URI.char_unreserved?/1)}")
   end
 
   defp append_baggage(nil, entry), do: entry
@@ -274,7 +279,7 @@ defmodule Condukt.TraceContext do
   defp current_otel_headers! do
     case Code.ensure_loaded(:otel_propagator_text_map) do
       {:module, _module} ->
-        apply(:otel_propagator_text_map, :inject, [[]])
+        :otel_propagator_text_map.inject([])
 
       {:error, _reason} ->
         raise ArgumentError,

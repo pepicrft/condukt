@@ -40,6 +40,11 @@ defmodule Condukt.MixProject do
       # LLM client (supports Anthropic, OpenAI, Google, and 15+ more providers)
       {:req_llm, "~> 1.21"},
 
+      # ReqLLM's Amazon Bedrock provider uses this to sign requests. ReqLLM
+      # 1.21 makes it optional, but it was available to Condukt users before
+      # this upgrade and remains part of the supported provider surface.
+      {:ex_aws_auth, "~> 1.4"},
+
       # JSON Schema validation for operation input/output
       {:jsv, "~> 0.16"},
 

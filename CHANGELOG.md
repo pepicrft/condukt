@@ -11,6 +11,8 @@ All notable changes to this project will be documented in this file.
 ### Changes
 
 - require ReqLLM 1.21.0 or later so streaming OpenAI-compatible calls forward custom request headers
+- retain Amazon Bedrock request signing through `ex_aws_auth` after the ReqLLM upgrade
+- group internal `Condukt.Session` model settings under `:llm`; inspect session state through the public API rather than its process state
 
 ## [1.12.0] - 2026-08-27
 

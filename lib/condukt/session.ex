@@ -143,11 +143,21 @@ defmodule Condukt.Session do
       |> put_configured_opt(config, :redactor)
       |> put_configured_opt(config, :retry)
 
-    case link_mode do
-      :link -> GenServer.start_link(__MODULE__, agent_opts, gen_opts)
-      :nolink -> GenServer.start(__MODULE__, agent_opts, gen_opts)
+    with :ok <- validate_llm_request_options(agent_opts[:llm_request_options]) do
+      case link_mode do
+        :link -> GenServer.start_link(__MODULE__, agent_opts, gen_opts)
+        :nolink -> GenServer.start(__MODULE__, agent_opts, gen_opts)
+      end
     end
   end
+
+  defp validate_llm_request_options(nil), do: :ok
+
+  defp validate_llm_request_options(opts) when is_list(opts) do
+    if Keyword.keyword?(opts), do: :ok, else: {:error, {:invalid_llm_request_options, opts}}
+  end
+
+  defp validate_llm_request_options(opts), do: {:error, {:invalid_llm_request_options, opts}}
 
   defp put_configured_opt(opts, config, key, default_fun \\ fn -> nil end) do
     Keyword.put_new_lazy(opts, key, fn ->
@@ -257,11 +267,13 @@ defmodule Condukt.Session do
   Streams a prompt, returning an enumerable of events.
   """
   def stream(agent, prompt, opts \\ []) do
+    opts = attach_trace_context(opts)
+
     Stream.resource(
       fn ->
         ref = make_ref()
         :ok = GenServer.call(agent, {:subscribe, self(), ref})
-        :ok = GenServer.cast(agent, {:stream, prompt, attach_trace_context(opts), ref})
+        :ok = GenServer.cast(agent, {:stream, prompt, opts, ref})
         ref
       end,
       fn ref ->

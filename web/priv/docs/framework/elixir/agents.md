@@ -259,6 +259,9 @@ context = Condukt.TraceContext.new()
 Condukt.run(agent, "Review this change.", trace_context: context)
 ```
 
+Declared operations accept the same `:trace_context` and
+`:llm_request_options` call options.
+
 Pass `true` to create a new trace when no context is bound to the calling
 process. Omitting the option captures `Condukt.TraceContext.current/0`.
 Condukt forwards `traceparent`, optional `tracestate`, and `baggage`, adding

@@ -181,7 +181,8 @@ defmodule Condukt.Operation do
     |> maybe_put(:base_url, opts[:base_url])
     |> maybe_put(:model, opts[:model])
     |> maybe_put(:id, opts[:id])
-    |> Keyword.merge(Keyword.take(opts, [:timeout, :max_turns]))
+    |> maybe_put(:llm_request_options, opts[:llm_request_options])
+    |> Keyword.merge(Keyword.take(opts, [:timeout, :max_turns, :trace_context]))
   end
 
   defp maybe_put(opts, _key, nil), do: opts

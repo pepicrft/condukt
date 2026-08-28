@@ -3,6 +3,7 @@ defmodule Condukt.OperationTest do
 
   alias Condukt.Operation
   alias Condukt.Test.LLMProvider
+  alias Condukt.TraceContext
   alias ReqLLM.Message
   alias ReqLLM.ToolCall
 
@@ -160,6 +161,55 @@ defmodule Condukt.OperationTest do
   end
 
   describe "end-to-end happy path" do
+    test "passes trace context and request options through operations" do
+      submit =
+        ToolCall.new("call_1", "submit_result", JSON.encode!(%{"verdict" => "approve", "summary" => "Looks good."}))
+
+      {model, model_id} =
+        LLMProvider.model([
+          LLMProvider.response(%Message{role: :assistant, content: [], tool_calls: [submit]}, :tool_calls),
+          LLMProvider.text_response("Done.")
+        ])
+
+      assert {:ok, %{verdict: "approve", summary: "Looks good."}} =
+               ReviewAgent.review_pr(%{repo: "tuist/condukt", pr_number: 1},
+                 id: "operation-session",
+                 model: model,
+                 trace_context: trace_context(),
+                 llm_request_options: [req_http_options: [headers: [{"x-tenant", "atlas"}]]]
+               )
+
+      assert_receive {LLMProvider, :request, ^model_id, _context, opts}
+      headers = opts |> Keyword.fetch!(:req_http_options) |> Keyword.fetch!(:headers)
+
+      assert {"x-tenant", "atlas"} in headers
+      assert Enum.any?(headers, fn {name, _value} -> String.downcase(name) == "traceparent" end)
+      assert {"baggage", "upstream=value,condukt.session.id=operation-session"} in headers
+    end
+
+    test "lets operations opt out of a calling process trace context" do
+      submit =
+        ToolCall.new("call_1", "submit_result", JSON.encode!(%{"verdict" => "approve", "summary" => "Looks good."}))
+
+      {model, model_id} =
+        LLMProvider.model([
+          LLMProvider.response(%Message{role: :assistant, content: [], tool_calls: [submit]}, :tool_calls),
+          LLMProvider.text_response("Done.")
+        ])
+
+      TraceContext.put_current(trace_context())
+      on_exit(&TraceContext.clear_current/0)
+
+      assert {:ok, %{verdict: "approve", summary: "Looks good."}} =
+               ReviewAgent.review_pr(%{repo: "tuist/condukt", pr_number: 1},
+                 model: model,
+                 trace_context: false
+               )
+
+      assert_receive {LLMProvider, :request, ^model_id, _context, opts}
+      refute opts[:req_http_options]
+    end
+
     test "runs the agent loop, captures submit_result, validates, and returns atomized output" do
       submitted_args = %{"verdict" => "approve", "summary" => "Looks good."}
 
@@ -220,5 +270,13 @@ defmodule Condukt.OperationTest do
     context
     |> inspect()
     |> String.contains?(text)
+  end
+
+  defp trace_context do
+    TraceContext.new(
+      trace_id: "0123456789abcdef0123456789abcdef",
+      span_id: "0123456789abcdef",
+      baggage: "upstream=value"
+    )
   end
 end

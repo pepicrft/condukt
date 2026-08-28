@@ -119,10 +119,12 @@ defmodule Condukt.Test.LLMProvider do
   end
 
   defp owner(model_id) do
+    caller = self()
+
     Agent.get(@store, fn scripts ->
       case Map.fetch(scripts, model_id) do
         {:ok, {owner, _responses}} -> owner
-        :error -> self()
+        :error -> caller
       end
     end)
   end

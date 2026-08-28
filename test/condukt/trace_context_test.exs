@@ -47,6 +47,19 @@ defmodule Condukt.TraceContextTest do
     end
   end
 
+  test "percent-encodes the session identifier in baggage" do
+    headers = TraceContext.headers(context(), "session id/a+b")
+
+    assert header(headers, "baggage") == "upstream=value,condukt.session.id=session%20id%2Fa%2Bb"
+  end
+
+  test "clears a previously attached context when attaching nil" do
+    TraceContext.put_current(context())
+
+    assert :ok = TraceContext.attach(nil)
+    assert is_nil(TraceContext.current())
+  end
+
   test "injects trace context, session grouping, and caller headers into normal requests" do
     {model, model_id} = LLMProvider.model([LLMProvider.text_response("done")])
 
@@ -281,6 +294,23 @@ defmodule Condukt.TraceContextTest do
     assert {"x-tenant", "atlas"} in headers
     assert header(headers, "baggage") == "upstream=value,condukt.session.id=stream-session"
     assert String.starts_with?(header(headers, "traceparent"), "00-0123456789abcdef0123456789abcdef-")
+
+    GenServer.stop(agent)
+  end
+
+  test "captures the calling process context when a different process consumes a stream" do
+    {model, model_id} = LLMProvider.model([LLMProvider.text_response("unused")])
+    {:ok, agent} = Agent.start_link(id: "cross-process-stream", model: model, load_project_instructions: false)
+
+    TraceContext.put_current(context())
+    on_exit(&TraceContext.clear_current/0)
+
+    stream = Condukt.stream(agent, "go")
+    task = Task.async(fn -> Enum.to_list(stream) end)
+
+    assert Enum.any?(Task.await(task), &match?({:error, _}, &1))
+    assert_receive {LLMProvider, :stream_request, ^model_id, _stream_context, opts}
+    assert String.starts_with?(header(headers(opts), "traceparent"), "00-0123456789abcdef0123456789abcdef-")
 
     GenServer.stop(agent)
   end

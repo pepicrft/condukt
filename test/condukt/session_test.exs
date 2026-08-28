@@ -665,6 +665,11 @@ defmodule Condukt.SessionTest do
     GenServer.stop(pid)
   end
 
+  test "rejects invalid LLM request options before starting a session" do
+    assert {:error, {:invalid_llm_request_options, %{headers: []}}} =
+             ConfigAgent.start_link(llm_request_options: %{headers: []}, load_project_instructions: false)
+  end
+
   test "reads the output-token ceiling from config when the option is omitted" do
     {model, model_id} = LLMProvider.model([LLMProvider.text_response("done")])
 

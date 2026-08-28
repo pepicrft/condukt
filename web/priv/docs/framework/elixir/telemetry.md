@@ -16,6 +16,7 @@ Attach handlers to feed your existing observability stack: Logger,
 | `[:condukt, :tool_call, :stop]` | `duration` | `:tool`, `:tool_call_id`, `:args`, `:agent`, `:session_id`, `:status`, `:result` |
 | `[:condukt, :subagent, :start]` | `system_time` | `:agent`, `:role`, `:child_agent`, `:input?`, `:output?`, `:parent_session_id` |
 | `[:condukt, :subagent, :stop]` | `duration` | `:agent`, `:role`, `:child_agent`, `:input?`, `:output?`, `:status`, `:error`, `:parent_session_id`, `:session_id` |
+| `[:condukt, :subagent, :exception]` | `duration` | `:agent`, `:role`, `:child_agent`, `:input?`, `:output?`, `:parent_session_id`, `:kind`, `:reason`, `:stacktrace` |
 | `[:condukt, :operation, :start]` | `system_time` | `:agent`, `:operation`, `:session_id` |
 | `[:condukt, :operation, :stop]` | `duration` | `:agent`, `:operation`, `:session_id` |
 | `[:condukt, :run, :start]` | `system_time` | `:structured?`, `:input?`, `:session_id` |
