@@ -665,6 +665,11 @@ defmodule Condukt.SessionTest do
     GenServer.stop(pid)
   end
 
+  test "rejects invalid LLM request options before starting a session" do
+    assert {:error, {:invalid_llm_request_options, %{headers: []}}} =
+             ConfigAgent.start_link(llm_request_options: %{headers: []}, load_project_instructions: false)
+  end
+
   test "reads the output-token ceiling from config when the option is omitted" do
     {model, model_id} = LLMProvider.model([LLMProvider.text_response("done")])
 
@@ -697,10 +702,10 @@ defmodule Condukt.SessionTest do
 
     state = :sys.get_state(pid)
 
-    assert state.api_key == "config-key"
-    assert state.model == "openai:gpt-4o-mini"
+    assert state.llm.api_key == "config-key"
+    assert state.llm.model == "openai:gpt-4o-mini"
     assert state.system_prompt == "config prompt"
-    assert state.thinking_level == :low
+    assert state.llm.thinking_level == :low
     assert state.cwd == "/tmp/agent"
     assert state.user_state == :ok
 
@@ -721,7 +726,7 @@ defmodule Condukt.SessionTest do
 
     state = :sys.get_state(pid)
 
-    assert state.api_key == "option-key"
+    assert state.llm.api_key == "option-key"
     assert state.system_prompt == "option prompt"
     assert state.user_state == :ok
 
@@ -745,8 +750,8 @@ defmodule Condukt.SessionTest do
     state = :sys.get_state(pid)
 
     assert state.messages == snapshot.messages
-    assert state.model == snapshot.model
-    assert state.thinking_level == snapshot.thinking_level
+    assert state.llm.model == snapshot.model
+    assert state.llm.thinking_level == snapshot.thinking_level
     assert state.system_prompt == snapshot.system_prompt
 
     GenServer.stop(pid)
@@ -772,8 +777,8 @@ defmodule Condukt.SessionTest do
     state = :sys.get_state(pid)
 
     assert state.messages == snapshot.messages
-    assert state.model == "anthropic:claude-sonnet-4-20250514"
-    assert state.thinking_level == :high
+    assert state.llm.model == "anthropic:claude-sonnet-4-20250514"
+    assert state.llm.thinking_level == :high
     assert state.system_prompt == "explicit prompt"
 
     GenServer.stop(pid)
@@ -876,8 +881,7 @@ defmodule Condukt.SessionTest do
 
     state = %Condukt.Session{
       agent_module: ConfigAgent,
-      model: "openai:gpt-4o-mini",
-      thinking_level: :medium,
+      llm: %{model: "openai:gpt-4o-mini", thinking_level: :medium},
       configured_system_prompt: "prompt",
       system_prompt: "prompt",
       cwd: "/tmp/agent",
@@ -949,8 +953,7 @@ defmodule Condukt.SessionTest do
 
     state = %Condukt.Session{
       agent_module: ConfigAgent,
-      model: "openai:gpt-4o-mini",
-      thinking_level: :medium,
+      llm: %{model: "openai:gpt-4o-mini", thinking_level: :medium},
       configured_system_prompt: "prompt",
       system_prompt: "prompt\n\n## Project Instructions\n\nUse mix test.",
       cwd: "/tmp/agent",

@@ -443,6 +443,35 @@ defmodule Condukt.Tools.SubagentTest do
                     }}
   end
 
+  test "subagent telemetry emits an exception lifecycle when delegation raises" do
+    handler_id = "subagent-exception-telemetry-#{inspect(make_ref())}"
+    test_pid = self()
+
+    :telemetry.attach_many(
+      handler_id,
+      [[:condukt, :subagent, :start], [:condukt, :subagent, :exception]],
+      fn event, measurements, metadata, _config ->
+        send(test_pid, {:subagent_telemetry, event, measurements, metadata})
+      end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+
+    assert {:error, _} =
+             Tool.execute(
+               {Subagent, subagents: [researcher: ChildAgent]},
+               %{"role" => "researcher", "task" => "private task"},
+               %{agent: ParentAgent, subagent_supervisor: self()}
+             )
+
+    assert_receive {:subagent_telemetry, [:condukt, :subagent, :start], %{system_time: _}, _metadata}
+
+    assert_receive {:subagent_telemetry, [:condukt, :subagent, :exception], %{duration: _}, metadata}
+    assert %{kind: :error, reason: _reason, stacktrace: stacktrace} = metadata
+    assert is_list(stacktrace)
+  end
+
   test "returns an error for an unknown role" do
     assert {:error, "no sub-agent registered as writer"} =
              Tool.execute(

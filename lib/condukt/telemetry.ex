@@ -84,6 +84,10 @@ defmodule Condukt.Telemetry do
     - Metadata: `%{agent: module | pid, role: atom, child_agent: module, input?: boolean, output?: boolean, status: :ok | :error, parent_session_id: String.t() | nil, session_id: String.t() | nil}`
     - Error metadata: `%{error: atom}`
 
+  - `[:condukt, :subagent, :exception]` - Sub-agent delegation raised an exception
+    - Measurements: `%{duration: integer}`
+    - Metadata: `%{agent: module | pid, role: atom, child_agent: module, input?: boolean, output?: boolean, parent_session_id: String.t() | nil, kind: atom, reason: term, stacktrace: list}`
+
   `:parent_session_id` is the calling session's id; `:session_id` (only on
   `:stop`) is the child session's id, present when the child started
   successfully.
@@ -190,11 +194,7 @@ defmodule Condukt.Telemetry do
         :telemetry.execute(
           event_prefix ++ [:exception],
           %{duration: System.monotonic_time() - start_time},
-          Map.merge(metadata, %{
-            kind: kind,
-            reason: reason,
-            stacktrace: __STACKTRACE__
-          })
+          Map.merge(metadata, %{kind: kind, reason: reason, stacktrace: __STACKTRACE__})
         )
 
         :erlang.raise(kind, reason, __STACKTRACE__)

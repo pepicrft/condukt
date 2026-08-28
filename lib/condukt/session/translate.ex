@@ -119,16 +119,21 @@ defmodule Condukt.Session.Translate do
   @doc """
   Builds the provider options for one call.
 
-  `config` carries `:api_key`, `:base_url`, `:thinking_level`, and
-  `:max_tokens`; each is omitted when unset so a provider's own default applies.
+  `config` carries `:api_key`, `:base_url`, `:thinking_level`, `:max_tokens`,
+  and optional `:request_options`; each configured value is omitted when unset
+  so a provider's own default applies. `trace_headers` are merged into the
+  caller's Req options, including existing request headers.
   """
-  def llm_opts(config, tools) do
-    []
+  def llm_opts(config, tools, trace_headers \\ []) do
+    config
+    |> Keyword.get(:request_options)
+    |> Kernel.||([])
     |> put_present(:api_key, config[:api_key])
     |> put_present(:base_url, config[:base_url])
     |> put_present(:max_tokens, config[:max_tokens])
     |> put_tools(tools)
     |> put_reasoning(config[:thinking_level])
+    |> merge_trace_headers(trace_headers)
   end
 
   defp put_present(opts, _key, nil), do: opts
@@ -144,6 +149,101 @@ defmodule Condukt.Session.Translate do
   end
 
   defp put_reasoning(opts, _level), do: opts
+
+  defp merge_trace_headers(opts, []), do: opts
+
+  defp merge_trace_headers(opts, trace_headers) do
+    http_opts = Keyword.get(opts, :req_http_options, [])
+    headers = merge_headers(Keyword.get(http_opts, :headers, []), trace_headers)
+
+    opts
+    |> Keyword.put(:req_http_options, Keyword.put(http_opts, :headers, headers))
+  end
+
+  defp merge_headers(headers, trace_headers) do
+    trace_headers
+    |> Enum.reduce(normalize_headers(headers), fn {name, value}, acc ->
+      case String.downcase(name) do
+        "baggage" -> put_header(acc, name, merge_baggage(header_value(acc, name), value))
+        _ -> put_header(acc, name, value)
+      end
+    end)
+  end
+
+  defp normalize_headers(headers) when is_map(headers), do: normalize_headers(Map.to_list(headers))
+
+  defp normalize_headers(headers) when is_list(headers) do
+    Enum.flat_map(headers, &normalize_header/1)
+  end
+
+  defp normalize_headers(_headers), do: []
+
+  defp normalize_header({name, values}) when is_list(values) do
+    if Enum.all?(values, &is_binary/1) do
+      Enum.map(values, &{to_string(name), &1})
+    else
+      [{to_string(name), to_string(values)}]
+    end
+  end
+
+  defp normalize_header({name, value}) when is_binary(value), do: [{to_string(name), value}]
+  defp normalize_header({name, value}), do: [{to_string(name), to_string(value)}]
+  defp normalize_header(_header), do: []
+
+  defp put_header(headers, name, value) do
+    [{name, value} | Enum.reject(headers, &(String.downcase(elem(&1, 0)) == String.downcase(name)))]
+  end
+
+  defp header_value(headers, wanted) do
+    Enum.find_value(headers, fn {name, value} -> if String.downcase(name) == String.downcase(wanted), do: value end)
+  end
+
+  defp merge_baggage(nil, trace_baggage), do: trace_baggage
+  defp merge_baggage("", trace_baggage), do: trace_baggage
+
+  defp merge_baggage(user_baggage, trace_baggage) do
+    user_baggage = without_baggage_key(user_baggage, "condukt.session.id")
+
+    trace_baggage
+    |> without_baggage_keys(baggage_keys(user_baggage))
+    |> case do
+      "" -> user_baggage
+      nil -> user_baggage
+      baggage when user_baggage == "" -> baggage
+      baggage -> user_baggage <> "," <> baggage
+    end
+  end
+
+  defp without_baggage_key(baggage, key) do
+    without_baggage_keys(baggage, [key])
+  end
+
+  defp without_baggage_keys(nil, _keys), do: nil
+
+  defp without_baggage_keys(baggage, keys) do
+    baggage
+    |> String.split(",", trim: true)
+    |> Enum.reject(&(baggage_key(&1) in keys))
+    |> Enum.join(",")
+  end
+
+  defp baggage_keys(nil), do: []
+
+  defp baggage_keys(baggage) do
+    baggage
+    |> String.split(",", trim: true)
+    |> Enum.map(&baggage_key/1)
+  end
+
+  defp baggage_key(item) do
+    item
+    |> String.split(";", parts: 2)
+    |> hd()
+    |> String.split("=", parts: 2)
+    |> hd()
+    |> String.trim()
+    |> String.downcase()
+  end
 
   @doc """
   Normalizes a JSON Schema so its keys are strings.

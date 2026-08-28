@@ -16,6 +16,7 @@ Attach handlers to feed your existing observability stack: Logger,
 | `[:condukt, :tool_call, :stop]` | `duration` | `:tool`, `:tool_call_id`, `:args`, `:agent`, `:session_id`, `:status`, `:result` |
 | `[:condukt, :subagent, :start]` | `system_time` | `:agent`, `:role`, `:child_agent`, `:input?`, `:output?`, `:parent_session_id` |
 | `[:condukt, :subagent, :stop]` | `duration` | `:agent`, `:role`, `:child_agent`, `:input?`, `:output?`, `:status`, `:error`, `:parent_session_id`, `:session_id` |
+| `[:condukt, :subagent, :exception]` | `duration` | `:agent`, `:role`, `:child_agent`, `:input?`, `:output?`, `:parent_session_id`, `:kind`, `:reason`, `:stacktrace` |
 | `[:condukt, :operation, :start]` | `system_time` | `:agent`, `:operation`, `:session_id` |
 | `[:condukt, :operation, :stop]` | `duration` | `:agent`, `:operation`, `:session_id` |
 | `[:condukt, :run, :start]` | `system_time` | `:structured?`, `:input?`, `:session_id` |
@@ -27,34 +28,80 @@ Attach handlers to feed your existing observability stack: Logger,
 The exact set may grow over time. Attach broadly with `attach_many/4` so
 new events surface in your handlers without code changes.
 
-## LLM transcripts
+## Telemetry payloads
 
 Every iteration of the agent loop emits a `[:condukt, :llm_turn, :start]`
-and a `[:condukt, :llm_turn, :stop]`. `:messages` on `:start` is the
-conversation context the model received for this turn;
-`:assistant_message` on `:stop` is the model's response (including any
-tool calls it issued). Together with `[:condukt, :tool_call, :*]`
-events they make it possible to persist a complete transcript of an
-agentic run for auditing or replay.
+and a `[:condukt, :llm_turn, :stop]`. The start event includes the conversation
+context in `:messages`, and the stop event includes the model response in
+`:assistant_message`. Tool events include the model-supplied `:args`,
+`:tool_call_id`, `:status`, and `:result` after session-secret redaction.
 
 `:turn` starts at 0 and increments by one per loop iteration.
 `:streaming?` is `true` when the call went through `ReqLLM.stream_text`,
 `false` when it went through `ReqLLM.generate_text`. `:usage` is the
 provider-reported token usage map when available, `nil` otherwise.
 
-## Tool call payloads
+Exception events include `:kind`, `:reason`, and `:stacktrace`. Telemetry
+consumers that export metadata outside the application should redact, filter,
+or sample these payloads to match their data-handling policy.
 
-`[:condukt, :tool_call, :start]` and `:stop` events carry the parsed
-arguments the model passed to the tool (`:args`) and a stable
-`:tool_call_id` provided by the LLM. `:stop` also carries `:status`
-(`:ok` or `:error`) and `:result`, which is the tool's return value
-after session-secret redaction has been applied. This makes it possible
-to persist a full audit trail of every tool invocation for an agentic
-run.
+## Distributed trace propagation
 
-`:result` is whatever the tool returned (string, map, list, error
-tuple). Tools that produce large payloads should expect downstream
-consumers to truncate or sample.
+Condukt can propagate [World Wide Web Consortium Trace Context](https://www.w3.org/TR/trace-context/)
+headers to provider requests without requiring an OpenTelemetry software
+development kit or exporting telemetry. Pass `trace_context: true` to start a
+new trace for one run, pass a `Condukt.TraceContext`, or bind a context in the
+calling process:
+
+```elixir
+context = Condukt.TraceContext.new()
+
+Condukt.run(MyApp.Agent, "Summarize this report.",
+  trace_context: context
+)
+```
+
+For an inbound request, extract the headers at the request boundary and bind
+the result before calling Condukt:
+
+```elixir
+with {:ok, context} <- Condukt.TraceContext.from_headers(conn.req_headers) do
+  Condukt.TraceContext.put_current(context)
+end
+```
+
+Applications that already use the [OpenTelemetry](https://opentelemetry.io/)
+Elixir API can bind its current trace in one line instead:
+
+```elixir
+Condukt.TraceContext.put_current_from_otel!()
+```
+
+The bridge dynamically uses OpenTelemetry's configured text-map propagator to
+read the current trace and baggage, so Condukt does not add OpenTelemetry as a
+dependency. Call it at the request or job boundary before `Condukt.run/2`.
+
+Native provider requests receive `traceparent`, optional `tracestate`, and
+`baggage`. Condukt adds its opaque `condukt.session.id` baggage value. This makes a gateway able to attribute each
+request to both a distributed trace and its Condukt session without coupling
+the application to a particular gateway.
+
+Context is captured at every public run or stream boundary and carried through
+the session task, concurrent tool calls, sub-agent tasks, and child sessions.
+Each provider attempt gets a fresh child span identifier, including retries. Existing
+`:llm_request_options`, including request headers and baggage, are preserved;
+Condukt only owns the trace header names and its session grouping value.
+
+```elixir
+MyApp.Agent.start_link(
+  llm_request_options: [
+    req_http_options: [headers: [{"x-tenant", "acme"}]]
+  ]
+)
+```
+
+ReqLLM 1.21.0 and later forwards these request headers for both ordinary and
+streaming OpenAI-compatible calls.
 
 ## Session ids
 
@@ -83,7 +130,8 @@ Sub-agent events are value-free too. They identify the parent agent module,
 the delegated role, the child agent module, whether structured input and output
 contracts are configured, and whether delegation ended with `:ok` or `:error`.
 The `:error` metadata is an atom such as `:invalid_input`, not the rejected
-input or output payload.
+input or output payload. Delegation also uses the standard telemetry span
+lifecycle, so an unexpected exception emits `[:condukt, :subagent, :exception]`.
 
 ## Attaching a handler
 

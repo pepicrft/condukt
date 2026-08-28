@@ -11,6 +11,7 @@ defmodule Condukt.Tools.Subagent do
 
   alias Condukt.Operation.SubmitTool
   alias Condukt.Telemetry
+  alias Condukt.TraceContext
 
   @contract_keys [:input, :input_schema, :output, :output_schema]
   @run_opt_keys [:timeout, :max_turns, :images]
@@ -139,26 +140,26 @@ defmodule Condukt.Tools.Subagent do
 
   defp call_registered(args, context, role, task, registration) do
     base_metadata = subagent_metadata(context, role, registration)
-    start_time = System.monotonic_time()
 
-    Telemetry.emit([:subagent, :start], %{system_time: System.system_time()}, base_metadata)
-
-    {result, child_session_id} =
-      with {:ok, input} <- validate_input(args, registration.input_schema),
-           {:ok, supervisor} <- fetch_supervisor(context),
-           prepared = prepare_child(registration, context),
-           {:ok, child} <- start_child(supervisor, registration.agent_module, prepared.session_opts) do
-        child_id = safe_session_id(child)
-        {run_and_stop(supervisor, child, task, input, prepared), child_id}
-      else
-        error -> {error, nil}
-      end
-
-    Telemetry.emit(
-      [:subagent, :stop],
-      %{duration: System.monotonic_time() - start_time},
-      subagent_stop_metadata(result, maybe_put(base_metadata, :session_id, child_session_id))
-    )
+    {result, _child_session_id} =
+      Telemetry.span(
+        :subagent,
+        base_metadata,
+        fn ->
+          with {:ok, input} <- validate_input(args, registration.input_schema),
+               {:ok, supervisor} <- fetch_supervisor(context),
+               prepared = prepare_child(registration, context),
+               {:ok, child} <- start_child(supervisor, registration.agent_module, prepared.session_opts) do
+            child_id = safe_session_id(child)
+            {run_and_stop(supervisor, child, task, input, prepared), child_id}
+          else
+            error -> {error, nil}
+          end
+        end,
+        fn {result, child_session_id} ->
+          subagent_stop_metadata(result, maybe_put(base_metadata, :session_id, child_session_id))
+        end
+      )
 
     result
   end
@@ -299,6 +300,7 @@ defmodule Condukt.Tools.Subagent do
       session_opts: inherit(session_opts, context),
       run_opts: run_opts,
       output_schema: registration.output_schema,
+      trace_context: Map.get(context, :trace_context) || TraceContext.current(),
       ref: nil
     }
 
@@ -362,6 +364,7 @@ defmodule Condukt.Tools.Subagent do
     |> put_new_present(:max_tokens, Map.get(context, :max_tokens))
     |> put_new_present(:api_key, Map.get(context, :api_key))
     |> put_new_present(:base_url, Map.get(context, :base_url))
+    |> put_new_present(:llm_request_options, Map.get(context, :llm_request_options))
   end
 
   defp put_new_present(opts, _key, nil), do: opts
@@ -383,7 +386,7 @@ defmodule Condukt.Tools.Subagent do
   end
 
   defp run_and_stop(supervisor, child, task, input, prepared) do
-    result = run_child(child, child_prompt(task, input), prepared.run_opts)
+    result = run_child(child, child_prompt(task, input), prepared.run_opts, prepared.trace_context)
 
     terminate_child(supervisor, child)
 
@@ -394,12 +397,13 @@ defmodule Condukt.Tools.Subagent do
     end
   end
 
-  defp run_child(child, prompt, run_opts) do
+  defp run_child(child, prompt, run_opts, trace_context) do
     caller = self()
     ref = make_ref()
 
     pid =
       spawn(fn ->
+        TraceContext.attach(trace_context)
         send(caller, {ref, Condukt.run(child, prompt, run_opts)})
       end)
 

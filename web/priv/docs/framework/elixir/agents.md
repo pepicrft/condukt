@@ -228,6 +228,9 @@ MyApp.ResearchAgent.start_link(
   api_key: "sk-ant-...",                        # Provider key
   model: "anthropic:claude-sonnet-4-20250514",  # ReqLLM model id
   base_url: "http://localhost:11434/v1",        # Override provider URL
+  llm_request_options: [                         # Extra ReqLLM request options
+    req_http_options: [headers: [{"x-tenant", "acme"}]]
+  ],
   system_prompt: "You are helpful.",            # Static prompt
   thinking_level: :medium,                      # Thinking budget
   load_project_instructions: true,              # See Project Instructions guide
@@ -240,6 +243,30 @@ MyApp.ResearchAgent.start_link(
 ```
 
 ## Public API
+
+### Trace context and request headers
+
+Set `:llm_request_options` when every native provider call needs extra ReqLLM
+options, including trusted gateway headers. Condukt retains these options for
+ordinary and streaming calls. It merges trace headers with existing headers,
+so adding distributed tracing never drops application metadata.
+
+To opt into [World Wide Web Consortium Trace Context](https://www.w3.org/TR/trace-context/)
+propagation for one run, pass `:trace_context`:
+
+```elixir
+context = Condukt.TraceContext.new()
+Condukt.run(agent, "Review this change.", trace_context: context)
+```
+
+Declared operations accept the same `:trace_context` and
+`:llm_request_options` call options.
+
+Pass `true` to create a new trace when no context is bound to the calling
+process. Omitting the option captures `Condukt.TraceContext.current/0`.
+Condukt forwards `traceparent`, optional `tracestate`, and `baggage`, adding
+opaque session grouping through `condukt.session.id` baggage. It does not require or configure an
+OpenTelemetry software development kit.
 
 `Condukt.run/2` and `Condukt.run/3` support three call shapes:
 
