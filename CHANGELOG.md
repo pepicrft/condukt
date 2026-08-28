@@ -1,6 +1,12 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [1.13.0] - 2026-08-28
+
+### Features
+
+- propagate trace context
+
 
 ## [1.12.0] - 2026-08-27
 
