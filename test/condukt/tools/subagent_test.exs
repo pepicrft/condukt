@@ -443,7 +443,7 @@ defmodule Condukt.Tools.SubagentTest do
                     }}
   end
 
-  test "subagent telemetry emits a sanitized exception lifecycle when delegation raises" do
+  test "subagent telemetry emits an exception lifecycle when delegation raises" do
     handler_id = "subagent-exception-telemetry-#{inspect(make_ref())}"
     test_pid = self()
 
@@ -468,10 +468,8 @@ defmodule Condukt.Tools.SubagentTest do
     assert_receive {:subagent_telemetry, [:condukt, :subagent, :start], %{system_time: _}, _metadata}
 
     assert_receive {:subagent_telemetry, [:condukt, :subagent, :exception], %{duration: _}, metadata}
-    assert %{kind: :error, error: :error} = metadata
-    refute inspect(metadata) =~ "private task"
-    refute Map.has_key?(metadata, :reason)
-    refute Map.has_key?(metadata, :stacktrace)
+    assert %{kind: :error, reason: _reason, stacktrace: stacktrace} = metadata
+    assert is_list(stacktrace)
   end
 
   test "returns an error for an unknown role" do

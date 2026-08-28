@@ -10,10 +10,10 @@ Attach handlers to feed your existing observability stack: Logger,
 | ----- | ------------ | -------- |
 | `[:condukt, :agent, :start]` | `system_time` | `:agent`, `:session_id` |
 | `[:condukt, :agent, :stop]` | `duration` | `:agent`, `:session_id` |
-| `[:condukt, :llm_turn, :start]` | `system_time` | `:agent`, `:session_id`, `:model`, `:turn`, `:streaming?`, `:message_count`, `:tool_count` |
-| `[:condukt, :llm_turn, :stop]` | `duration` | same as `:start` plus `:status`, `:usage`, `:finish_reason`, `:error` |
-| `[:condukt, :tool_call, :start]` | `system_time` | `:tool`, `:tool_call_id`, `:agent`, `:session_id` |
-| `[:condukt, :tool_call, :stop]` | `duration` | `:tool`, `:tool_call_id`, `:agent`, `:session_id`, `:status` |
+| `[:condukt, :llm_turn, :start]` | `system_time` | `:agent`, `:session_id`, `:model`, `:turn`, `:streaming?`, `:messages`, `:tool_count` |
+| `[:condukt, :llm_turn, :stop]` | `duration` | same as `:start` plus `:status`, `:assistant_message`, `:usage`, `:finish_reason`, `:error` |
+| `[:condukt, :tool_call, :start]` | `system_time` | `:tool`, `:tool_call_id`, `:args`, `:agent`, `:session_id` |
+| `[:condukt, :tool_call, :stop]` | `duration` | `:tool`, `:tool_call_id`, `:args`, `:agent`, `:session_id`, `:status`, `:result` |
 | `[:condukt, :subagent, :start]` | `system_time` | `:agent`, `:role`, `:child_agent`, `:input?`, `:output?`, `:parent_session_id` |
 | `[:condukt, :subagent, :stop]` | `duration` | `:agent`, `:role`, `:child_agent`, `:input?`, `:output?`, `:status`, `:error`, `:parent_session_id`, `:session_id` |
 | `[:condukt, :operation, :start]` | `system_time` | `:agent`, `:operation`, `:session_id` |
@@ -27,21 +27,21 @@ Attach handlers to feed your existing observability stack: Logger,
 The exact set may grow over time. Attach broadly with `attach_many/4` so
 new events surface in your handlers without code changes.
 
-## Privacy-safe telemetry
+## Telemetry payloads
 
 Every iteration of the agent loop emits a `[:condukt, :llm_turn, :start]`
-and a `[:condukt, :llm_turn, :stop]`. The events carry counts and identifiers,
-not prompts, responses, tool arguments, tool results, or raw provider error
-payloads. `:error` is a stable atom such as `:provider_request`.
+and a `[:condukt, :llm_turn, :stop]`. The start event includes the conversation
+context, and the stop event includes the model response. Tool events include
+arguments and results after session-secret redaction.
 
 `:turn` starts at 0 and increments by one per loop iteration.
 `:streaming?` is `true` when the call went through `ReqLLM.stream_text`,
 `false` when it went through `ReqLLM.generate_text`. `:usage` is the
 provider-reported token usage map when available, `nil` otherwise.
 
-Exception events use the same privacy boundary. They include `:kind` and a
-safe `:error` name, rather than a reason or stack trace that could embed
-customer content.
+Exception events include `:kind`, `:reason`, and `:stacktrace`. Telemetry
+consumers that export metadata outside the application should redact, filter,
+or sample these payloads to match their data-handling policy.
 
 ## Distributed trace propagation
 

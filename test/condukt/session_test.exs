@@ -179,7 +179,7 @@ defmodule Condukt.SessionTest do
       GenServer.stop(pid)
     end
 
-    test "tool_call telemetry identifies calls without exposing arguments or results" do
+    test "tool_call telemetry includes args, tool_call_id, status and result on success" do
       handler_id = "tool-call-payload-ok-#{inspect(make_ref())}"
       test_pid = self()
 
@@ -217,18 +217,16 @@ defmodule Condukt.SessionTest do
 
       assert {:ok, "done"} = Condukt.run(pid, "go")
 
-      assert_receive {:tool_telemetry, [:condukt, :tool_call, :start], start_metadata}
-      assert %{tool: "echo", tool_call_id: "call_ok"} = start_metadata
-      refute Map.has_key?(start_metadata, :args)
+      assert_receive {:tool_telemetry, [:condukt, :tool_call, :start],
+                      %{tool: "echo", tool_call_id: "call_ok", args: %{"message" => "hi"}}}
 
-      assert_receive {:tool_telemetry, [:condukt, :tool_call, :stop], stop_metadata}
-      assert %{tool: "echo", tool_call_id: "call_ok", status: :ok} = stop_metadata
-      refute Map.has_key?(stop_metadata, :result)
+      assert_receive {:tool_telemetry, [:condukt, :tool_call, :stop],
+                      %{tool: "echo", tool_call_id: "call_ok", status: :ok, result: "echo: hi"}}
 
       GenServer.stop(pid)
     end
 
-    test "tool_call telemetry surfaces an error status without the error payload" do
+    test "tool_call telemetry surfaces :error status and the error tuple as :result" do
       handler_id = "tool-call-payload-error-#{inspect(make_ref())}"
       test_pid = self()
 
@@ -267,14 +265,13 @@ defmodule Condukt.SessionTest do
 
       Condukt.run(pid, "go", max_turns: 1)
 
-      assert_receive {:tool_telemetry, metadata}
-      assert %{tool: "boom", tool_call_id: "call_err", status: :error} = metadata
-      refute Map.has_key?(metadata, :result)
+      assert_receive {:tool_telemetry,
+                      %{tool: "boom", tool_call_id: "call_err", status: :error, result: {:error, "kaboom"}}}
 
       GenServer.stop(pid)
     end
 
-    test "emits :llm_turn events without conversation or response payloads" do
+    test "emits :llm_turn events with the conversation context and assistant response" do
       handler_id = "llm-turn-#{inspect(make_ref())}"
       test_pid = self()
 
@@ -302,16 +299,24 @@ defmodule Condukt.SessionTest do
                         session_id: ^id,
                         turn: 0,
                         streaming?: false,
-                        message_count: message_count,
+                        messages: messages,
                         tool_count: tool_count
                       }}
 
-      assert message_count == 1
+      assert is_list(messages)
       assert tool_count == 0
+      assert Enum.any?(messages, fn msg -> msg.role == :user and Message.text(msg) == "hi there" end)
 
-      assert_receive {:llm_turn, [:condukt, :llm_turn, :stop], stop_metadata}
-      assert %{agent: ConfigAgent, session_id: ^id, turn: 0, status: :ok} = stop_metadata
-      refute Map.has_key?(stop_metadata, :assistant_message)
+      assert_receive {:llm_turn, [:condukt, :llm_turn, :stop],
+                      %{
+                        agent: ConfigAgent,
+                        session_id: ^id,
+                        turn: 0,
+                        status: :ok,
+                        assistant_message: %Message{role: :assistant} = assistant_message
+                      }}
+
+      assert Message.text(assistant_message) == "hello back"
 
       GenServer.stop(pid)
     end
@@ -362,39 +367,7 @@ defmodule Condukt.SessionTest do
       GenServer.stop(pid)
     end
 
-    test "llm telemetry uses a safe provider error name instead of the provider payload" do
-      handler_id = "llm-turn-error-redacted-#{inspect(make_ref())}"
-      test_pid = self()
-
-      :telemetry.attach(
-        handler_id,
-        [:condukt, :llm_turn, :stop],
-        fn _event, _measurements, metadata, _ -> send(test_pid, {:llm_turn, metadata}) end,
-        nil
-      )
-
-      on_exit(fn -> :telemetry.detach(handler_id) end)
-
-      provider_error = %ReqLLM.Error.API.Request{
-        status: 400,
-        reason: "provider returned the prompt: private prompt",
-        response_body: %{"error" => "private provider body"}
-      }
-
-      {model, _} = LLMProvider.model([{:error, provider_error}])
-      {:ok, pid} = ConfigAgent.start_link(model: model, retry: false, load_project_instructions: false)
-
-      assert {:error, ^provider_error} = Condukt.run(pid, "private prompt")
-
-      assert_receive {:llm_turn, metadata}
-      assert %{status: :error, error: :provider_request} = metadata
-      refute inspect(metadata) =~ "private prompt"
-      refute inspect(metadata) =~ "private provider body"
-
-      GenServer.stop(pid)
-    end
-
-    test "tool_call telemetry omits results that could contain session secrets" do
+    test "tool_call telemetry redacts session secrets from the result" do
       handler_id = "tool-call-redacted-#{inspect(make_ref())}"
       test_pid = self()
 
@@ -438,10 +411,9 @@ defmodule Condukt.SessionTest do
 
       assert {:ok, "done"} = Condukt.run(pid, "go")
 
-      assert_receive {:tool_telemetry, metadata}
-      assert %{tool: "show_secret", status: :ok} = metadata
-      refute Map.has_key?(metadata, :result)
-      refute inspect(metadata) =~ "secret-token"
+      assert_receive {:tool_telemetry, %{tool: "show_secret", status: :ok, result: result}}
+      assert result == "[REDACTED:GH_TOKEN]"
+      refute inspect(result) =~ "secret-token"
 
       GenServer.stop(pid)
     end

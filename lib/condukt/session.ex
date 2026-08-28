@@ -1001,6 +1001,7 @@ defmodule Condukt.Session do
     metadata = %{
       tool: name,
       tool_call_id: id,
+      args: args,
       session_id: state.id,
       agent: state.agent_module
     }
@@ -1013,9 +1014,9 @@ defmodule Condukt.Session do
     )
   end
 
-  defp tool_call_stop_metadata({%Message{content: {:error, _error}}, _assigns}), do: %{status: :error}
+  defp tool_call_stop_metadata({%Message{content: {:error, _} = error}, _assigns}), do: %{status: :error, result: error}
 
-  defp tool_call_stop_metadata({%Message{}, _assigns}), do: %{status: :ok}
+  defp tool_call_stop_metadata({%Message{content: content}, _assigns}), do: %{status: :ok, result: content}
 
   defp llm_turn_metadata(state, messages, turn, streaming?) do
     %{
@@ -1024,7 +1025,7 @@ defmodule Condukt.Session do
       model: Translate.model_identifier(state.llm.model),
       turn: turn,
       streaming?: streaming?,
-      message_count: length(messages),
+      messages: messages,
       tool_count: length(state.tools)
     }
   end
@@ -1032,13 +1033,14 @@ defmodule Condukt.Session do
   defp llm_turn_stop_metadata({:ok, response}) do
     %{
       status: :ok,
+      assistant_message: Translate.response_to_message(response),
       usage: Map.get(response, :usage),
       finish_reason: Map.get(response, :finish_reason)
     }
   end
 
   defp llm_turn_stop_metadata({:error, reason}) do
-    %{status: :error, error: Telemetry.error_name(reason)}
+    %{status: :error, error: reason}
   end
 
   defp task_result_to_tool_result({{:ok, {message, assigns}}, _tool_call}), do: {message, assigns}
