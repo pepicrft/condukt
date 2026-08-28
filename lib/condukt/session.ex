@@ -35,7 +35,8 @@ defmodule Condukt.Session do
     SessionID,
     SessionStore,
     Telemetry,
-    Tool
+    Tool,
+    TraceContext
   }
 
   alias Condukt.MCP
@@ -58,9 +59,7 @@ defmodule Condukt.Session do
     :pid,
     :agent_module,
     :runtime,
-    :model,
-    :thinking_level,
-    :max_tokens,
+    :llm,
     :configured_system_prompt,
     :system_prompt,
     :tools,
@@ -71,8 +70,6 @@ defmodule Condukt.Session do
     :secrets,
     :mcp_registry,
     :notifier,
-    :api_key,
-    :base_url,
     :session_store,
     :session_store_opts,
     :compactor,
@@ -126,6 +123,7 @@ defmodule Condukt.Session do
       |> Keyword.put(:explicit_keys, explicit_keys)
       |> put_configured_opt(config, :api_key)
       |> put_configured_opt(config, :base_url)
+      |> put_configured_opt(config, :llm_request_options, fn -> [] end)
       |> put_configured_opt(config, :runtime, fn -> agent_runtime(agent_module) end)
       |> put_configured_opt(config, :model, fn -> agent_module.model() end)
       |> put_configured_opt(config, :thinking_level, fn -> agent_module.thinking_level() end)
@@ -209,7 +207,7 @@ defmodule Condukt.Session do
   """
   def run(agent, prompt, opts \\ []) do
     timeout = opts[:timeout] || @default_timeout
-    call_session(agent, {:run, prompt, opts}, timeout)
+    call_session(agent, {:run, prompt, attach_trace_context(opts)}, timeout)
   end
 
   defp call_session(agent, request, timeout) do
@@ -263,7 +261,7 @@ defmodule Condukt.Session do
       fn ->
         ref = make_ref()
         :ok = GenServer.call(agent, {:subscribe, self(), ref})
-        :ok = GenServer.cast(agent, {:stream, prompt, opts, ref})
+        :ok = GenServer.cast(agent, {:stream, prompt, attach_trace_context(opts), ref})
         ref
       end,
       fn ref ->
@@ -381,9 +379,14 @@ defmodule Condukt.Session do
               pid: self(),
               agent_module: agent_module,
               runtime: runtime,
-              model: restore_value(opts, :model, snapshot && snapshot.model),
-              thinking_level: restore_value(opts, :thinking_level, snapshot && snapshot.thinking_level),
-              max_tokens: Keyword.get(opts, :max_tokens),
+              llm: %{
+                model: restore_value(opts, :model, snapshot && snapshot.model),
+                thinking_level: restore_value(opts, :thinking_level, snapshot && snapshot.thinking_level),
+                max_tokens: Keyword.get(opts, :max_tokens),
+                api_key: opts[:api_key],
+                base_url: opts[:base_url],
+                request_options: opts[:llm_request_options]
+              },
               configured_system_prompt: configured_system_prompt,
               system_prompt: Context.compose_system_prompt(configured_system_prompt, project_context.prompt),
               tools: maybe_inject_subagent_tool(tools, subagents),
@@ -393,8 +396,6 @@ defmodule Condukt.Session do
               sandbox: sandbox,
               secrets: secrets,
               mcp_registry: mcp_registry,
-              api_key: opts[:api_key],
-              base_url: opts[:base_url],
               session_store: session_store,
               session_store_opts: session_store_opts(opts),
               compactor: opts[:compactor],
@@ -515,8 +516,10 @@ defmodule Condukt.Session do
     else
       state = %{state | turn: Turn.start(state.turn)}
       parent = self()
+      trace_context = TraceContext.capture(opts)
 
       Task.start(fn ->
+        TraceContext.attach(trace_context)
         result = do_run(state, prompt, opts)
         GenServer.cast(parent, {:run_complete, from, result})
       end)
@@ -693,6 +696,7 @@ defmodule Condukt.Session do
       system_prompt: state.system_prompt,
       project_context: state.project_context,
       runtime_opts: runtime_opts,
+      trace_context: TraceContext.current(),
       assigns: state.assigns,
       user_state: state.user_state
     }
@@ -745,7 +749,6 @@ defmodule Condukt.Session do
   defp agent_loop(state, messages, max_turns, turn) do
     context = Translate.context(messages, outbound_redactor(state), state.system_prompt)
     tools = build_req_llm_tools(state.tools, state)
-    llm_opts = Translate.llm_opts(llm_config(state), tools)
 
     result =
       Telemetry.span(
@@ -755,7 +758,7 @@ defmodule Condukt.Session do
           Retry.with_retry(
             state.retry,
             fn -> false end,
-            fn -> ReqLLM.generate_text(state.model, context, llm_opts) end
+            fn -> ReqLLM.generate_text(state.llm.model, context, llm_opts(state, tools)) end
           )
         end,
         &llm_turn_stop_metadata/1
@@ -798,8 +801,11 @@ defmodule Condukt.Session do
   defp start_stream_task(state, prompt, opts, subscriber_ref) do
     parent = self()
     abort_ref = state.turn.abort_ref
+    trace_context = TraceContext.capture(opts)
 
     Task.start(fn ->
+      TraceContext.attach(trace_context)
+
       result =
         do_stream(
           state,
@@ -820,7 +826,6 @@ defmodule Condukt.Session do
   defp stream_turn(state, messages, max_turns, turn, emit, abort_ref) do
     context = Translate.context(messages, outbound_redactor(state), state.system_prompt)
     tools = build_req_llm_tools(state.tools, state)
-    llm_opts = Translate.llm_opts(llm_config(state), tools)
 
     emitted_counter = :counters.new(1, [:atomics])
     emitted? = fn -> :counters.get(emitted_counter, 1) > 0 end
@@ -830,7 +835,7 @@ defmodule Condukt.Session do
       emit.(event)
     end
 
-    attempt = fn -> run_stream_attempt(state.model, context, llm_opts, tracked_emit) end
+    attempt = fn -> run_stream_attempt(state.llm.model, context, llm_opts(state, tools), tracked_emit) end
 
     result =
       Telemetry.span(
@@ -899,11 +904,28 @@ defmodule Condukt.Session do
 
   defp llm_config(state) do
     [
-      api_key: state.api_key,
-      base_url: state.base_url,
-      thinking_level: state.thinking_level,
-      max_tokens: state.max_tokens
+      api_key: state.llm.api_key,
+      base_url: state.llm.base_url,
+      thinking_level: state.llm.thinking_level,
+      max_tokens: state.llm.max_tokens,
+      request_options: state.llm.request_options
     ]
+  end
+
+  defp llm_opts(state, tools) do
+    trace_headers =
+      TraceContext.current()
+      |> TraceContext.child()
+      |> TraceContext.headers(state.id)
+
+    Translate.llm_opts(llm_config(state), tools, trace_headers)
+  end
+
+  defp attach_trace_context(opts) do
+    case TraceContext.capture(opts) do
+      nil -> Keyword.delete(opts, :trace_context)
+      context -> Keyword.put(opts, :trace_context, context)
+    end
   end
 
   defp build_req_llm_tools(tools, state) do
@@ -936,13 +958,17 @@ defmodule Condukt.Session do
   defp execute_tool_calls(state, assistant_message, messages, emit \\ &noop_emit/1) do
     tool_calls = Message.tool_calls(assistant_message)
     tool_map = build_tool_map(state.tools)
+    trace_context = TraceContext.current()
 
     Enum.each(tool_calls, fn {id, name, args} -> emit.({:tool_call, name, id, args}) end)
 
     {tool_results, assigns_diff} =
       tool_calls
       |> Task.async_stream(
-        fn tool_call -> execute_tool_call(tool_map, tool_call, state) end,
+        fn tool_call ->
+          TraceContext.attach(trace_context)
+          execute_tool_call(tool_map, tool_call, state)
+        end,
         ordered: true,
         timeout: tool_timeout(state)
       )
@@ -975,7 +1001,6 @@ defmodule Condukt.Session do
     metadata = %{
       tool: name,
       tool_call_id: id,
-      args: args,
       session_id: state.id,
       agent: state.agent_module
     }
@@ -988,18 +1013,18 @@ defmodule Condukt.Session do
     )
   end
 
-  defp tool_call_stop_metadata({%Message{content: {:error, _} = error}, _assigns}), do: %{status: :error, result: error}
+  defp tool_call_stop_metadata({%Message{content: {:error, _error}}, _assigns}), do: %{status: :error}
 
-  defp tool_call_stop_metadata({%Message{content: content}, _assigns}), do: %{status: :ok, result: content}
+  defp tool_call_stop_metadata({%Message{}, _assigns}), do: %{status: :ok}
 
   defp llm_turn_metadata(state, messages, turn, streaming?) do
     %{
       agent: state.agent_module,
       session_id: state.id,
-      model: Translate.model_identifier(state.model),
+      model: Translate.model_identifier(state.llm.model),
       turn: turn,
       streaming?: streaming?,
-      messages: messages,
+      message_count: length(messages),
       tool_count: length(state.tools)
     }
   end
@@ -1007,14 +1032,13 @@ defmodule Condukt.Session do
   defp llm_turn_stop_metadata({:ok, response}) do
     %{
       status: :ok,
-      assistant_message: Translate.response_to_message(response),
       usage: Map.get(response, :usage),
       finish_reason: Map.get(response, :finish_reason)
     }
   end
 
   defp llm_turn_stop_metadata({:error, reason}) do
-    %{status: :error, error: reason}
+    %{status: :error, error: Telemetry.error_name(reason)}
   end
 
   defp task_result_to_tool_result({{:ok, {message, assigns}}, _tool_call}), do: {message, assigns}
@@ -1084,11 +1108,13 @@ defmodule Condukt.Session do
       secrets: state.secrets,
       subagents: state.subagents,
       subagent_supervisor: state.subagent_supervisor,
-      model: state.model,
-      thinking_level: state.thinking_level,
-      max_tokens: state.max_tokens,
-      api_key: state.api_key,
-      base_url: state.base_url,
+      model: state.llm.model,
+      thinking_level: state.llm.thinking_level,
+      max_tokens: state.llm.max_tokens,
+      api_key: state.llm.api_key,
+      base_url: state.llm.base_url,
+      llm_request_options: state.llm.request_options,
+      trace_context: TraceContext.current(),
       assigns: state.assigns
     }
   end
@@ -1212,8 +1238,8 @@ defmodule Condukt.Session do
         id: state.id,
         actor: state.actor,
         messages: state.messages,
-        model: state.model,
-        thinking_level: state.thinking_level,
+        model: state.llm.model,
+        thinking_level: state.llm.thinking_level,
         system_prompt: state.configured_system_prompt,
         created_at: state.created_at
       })

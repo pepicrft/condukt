@@ -179,7 +179,7 @@ defmodule Condukt.SessionTest do
       GenServer.stop(pid)
     end
 
-    test "tool_call telemetry includes args, tool_call_id, status and result on success" do
+    test "tool_call telemetry identifies calls without exposing arguments or results" do
       handler_id = "tool-call-payload-ok-#{inspect(make_ref())}"
       test_pid = self()
 
@@ -217,16 +217,18 @@ defmodule Condukt.SessionTest do
 
       assert {:ok, "done"} = Condukt.run(pid, "go")
 
-      assert_receive {:tool_telemetry, [:condukt, :tool_call, :start],
-                      %{tool: "echo", tool_call_id: "call_ok", args: %{"message" => "hi"}}}
+      assert_receive {:tool_telemetry, [:condukt, :tool_call, :start], start_metadata}
+      assert %{tool: "echo", tool_call_id: "call_ok"} = start_metadata
+      refute Map.has_key?(start_metadata, :args)
 
-      assert_receive {:tool_telemetry, [:condukt, :tool_call, :stop],
-                      %{tool: "echo", tool_call_id: "call_ok", status: :ok, result: "echo: hi"}}
+      assert_receive {:tool_telemetry, [:condukt, :tool_call, :stop], stop_metadata}
+      assert %{tool: "echo", tool_call_id: "call_ok", status: :ok} = stop_metadata
+      refute Map.has_key?(stop_metadata, :result)
 
       GenServer.stop(pid)
     end
 
-    test "tool_call telemetry surfaces :error status and the error tuple as :result" do
+    test "tool_call telemetry surfaces an error status without the error payload" do
       handler_id = "tool-call-payload-error-#{inspect(make_ref())}"
       test_pid = self()
 
@@ -265,13 +267,14 @@ defmodule Condukt.SessionTest do
 
       Condukt.run(pid, "go", max_turns: 1)
 
-      assert_receive {:tool_telemetry,
-                      %{tool: "boom", tool_call_id: "call_err", status: :error, result: {:error, "kaboom"}}}
+      assert_receive {:tool_telemetry, metadata}
+      assert %{tool: "boom", tool_call_id: "call_err", status: :error} = metadata
+      refute Map.has_key?(metadata, :result)
 
       GenServer.stop(pid)
     end
 
-    test "emits :llm_turn events with the conversation context and assistant response" do
+    test "emits :llm_turn events without conversation or response payloads" do
       handler_id = "llm-turn-#{inspect(make_ref())}"
       test_pid = self()
 
@@ -299,24 +302,16 @@ defmodule Condukt.SessionTest do
                         session_id: ^id,
                         turn: 0,
                         streaming?: false,
-                        messages: messages,
+                        message_count: message_count,
                         tool_count: tool_count
                       }}
 
-      assert is_list(messages)
+      assert message_count == 1
       assert tool_count == 0
-      assert Enum.any?(messages, fn msg -> msg.role == :user and Message.text(msg) == "hi there" end)
 
-      assert_receive {:llm_turn, [:condukt, :llm_turn, :stop],
-                      %{
-                        agent: ConfigAgent,
-                        session_id: ^id,
-                        turn: 0,
-                        status: :ok,
-                        assistant_message: %Message{role: :assistant} = assistant_message
-                      }}
-
-      assert Message.text(assistant_message) == "hello back"
+      assert_receive {:llm_turn, [:condukt, :llm_turn, :stop], stop_metadata}
+      assert %{agent: ConfigAgent, session_id: ^id, turn: 0, status: :ok} = stop_metadata
+      refute Map.has_key?(stop_metadata, :assistant_message)
 
       GenServer.stop(pid)
     end
@@ -367,7 +362,39 @@ defmodule Condukt.SessionTest do
       GenServer.stop(pid)
     end
 
-    test "tool_call telemetry redacts session secrets from the result" do
+    test "llm telemetry uses a safe provider error name instead of the provider payload" do
+      handler_id = "llm-turn-error-redacted-#{inspect(make_ref())}"
+      test_pid = self()
+
+      :telemetry.attach(
+        handler_id,
+        [:condukt, :llm_turn, :stop],
+        fn _event, _measurements, metadata, _ -> send(test_pid, {:llm_turn, metadata}) end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      provider_error = %ReqLLM.Error.API.Request{
+        status: 400,
+        reason: "provider returned the prompt: private prompt",
+        response_body: %{"error" => "private provider body"}
+      }
+
+      {model, _} = LLMProvider.model([{:error, provider_error}])
+      {:ok, pid} = ConfigAgent.start_link(model: model, retry: false, load_project_instructions: false)
+
+      assert {:error, ^provider_error} = Condukt.run(pid, "private prompt")
+
+      assert_receive {:llm_turn, metadata}
+      assert %{status: :error, error: :provider_request} = metadata
+      refute inspect(metadata) =~ "private prompt"
+      refute inspect(metadata) =~ "private provider body"
+
+      GenServer.stop(pid)
+    end
+
+    test "tool_call telemetry omits results that could contain session secrets" do
       handler_id = "tool-call-redacted-#{inspect(make_ref())}"
       test_pid = self()
 
@@ -411,9 +438,10 @@ defmodule Condukt.SessionTest do
 
       assert {:ok, "done"} = Condukt.run(pid, "go")
 
-      assert_receive {:tool_telemetry, %{tool: "show_secret", status: :ok, result: result}}
-      assert result == "[REDACTED:GH_TOKEN]"
-      refute inspect(result) =~ "secret-token"
+      assert_receive {:tool_telemetry, metadata}
+      assert %{tool: "show_secret", status: :ok} = metadata
+      refute Map.has_key?(metadata, :result)
+      refute inspect(metadata) =~ "secret-token"
 
       GenServer.stop(pid)
     end
@@ -697,10 +725,10 @@ defmodule Condukt.SessionTest do
 
     state = :sys.get_state(pid)
 
-    assert state.api_key == "config-key"
-    assert state.model == "openai:gpt-4o-mini"
+    assert state.llm.api_key == "config-key"
+    assert state.llm.model == "openai:gpt-4o-mini"
     assert state.system_prompt == "config prompt"
-    assert state.thinking_level == :low
+    assert state.llm.thinking_level == :low
     assert state.cwd == "/tmp/agent"
     assert state.user_state == :ok
 
@@ -721,7 +749,7 @@ defmodule Condukt.SessionTest do
 
     state = :sys.get_state(pid)
 
-    assert state.api_key == "option-key"
+    assert state.llm.api_key == "option-key"
     assert state.system_prompt == "option prompt"
     assert state.user_state == :ok
 
@@ -745,8 +773,8 @@ defmodule Condukt.SessionTest do
     state = :sys.get_state(pid)
 
     assert state.messages == snapshot.messages
-    assert state.model == snapshot.model
-    assert state.thinking_level == snapshot.thinking_level
+    assert state.llm.model == snapshot.model
+    assert state.llm.thinking_level == snapshot.thinking_level
     assert state.system_prompt == snapshot.system_prompt
 
     GenServer.stop(pid)
@@ -772,8 +800,8 @@ defmodule Condukt.SessionTest do
     state = :sys.get_state(pid)
 
     assert state.messages == snapshot.messages
-    assert state.model == "anthropic:claude-sonnet-4-20250514"
-    assert state.thinking_level == :high
+    assert state.llm.model == "anthropic:claude-sonnet-4-20250514"
+    assert state.llm.thinking_level == :high
     assert state.system_prompt == "explicit prompt"
 
     GenServer.stop(pid)
@@ -876,8 +904,7 @@ defmodule Condukt.SessionTest do
 
     state = %Condukt.Session{
       agent_module: ConfigAgent,
-      model: "openai:gpt-4o-mini",
-      thinking_level: :medium,
+      llm: %{model: "openai:gpt-4o-mini", thinking_level: :medium},
       configured_system_prompt: "prompt",
       system_prompt: "prompt",
       cwd: "/tmp/agent",
@@ -949,8 +976,7 @@ defmodule Condukt.SessionTest do
 
     state = %Condukt.Session{
       agent_module: ConfigAgent,
-      model: "openai:gpt-4o-mini",
-      thinking_level: :medium,
+      llm: %{model: "openai:gpt-4o-mini", thinking_level: :medium},
       configured_system_prompt: "prompt",
       system_prompt: "prompt\n\n## Project Instructions\n\nUse mix test.",
       cwd: "/tmp/agent",

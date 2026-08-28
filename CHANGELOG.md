@@ -1,6 +1,18 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+
+## [Unreleased]
+
+### Features
+
+- propagate optional World Wide Web Consortium trace context and Condukt session grouping headers through native provider calls
+
+### Changes
+
+- keep prompts, tool payloads, and raw provider errors out of default telemetry metadata
+- require ReqLLM 1.9.0 or later so streaming OpenAI-compatible calls forward custom request headers
+
 ## [1.12.0] - 2026-08-27
 
 ### Features

@@ -25,7 +25,7 @@ defmodule Condukt.Telemetry do
 
   - `[:condukt, :agent, :exception]` - Agent raised an exception
     - Measurements: `%{duration: integer}`
-    - Metadata: `%{agent: module, session_id: String.t(), kind: atom, reason: term, stacktrace: list}`
+    - Metadata: `%{agent: module, session_id: String.t(), kind: atom, error: atom}`
 
   ### LLM Turn Events
 
@@ -36,39 +36,29 @@ defmodule Condukt.Telemetry do
 
   - `[:condukt, :llm_turn, :start]` - LLM call started
     - Measurements: `%{system_time: integer}`
-    - Metadata: `%{agent: module, session_id: String.t(), model: term, turn: non_neg_integer, streaming?: boolean, messages: [Condukt.Message.t()], tool_count: non_neg_integer}`
+    - Metadata: `%{agent: module, session_id: String.t(), model: term, turn: non_neg_integer, streaming?: boolean, message_count: non_neg_integer, tool_count: non_neg_integer}`
 
   - `[:condukt, :llm_turn, :stop]` - LLM call returned
     - Measurements: `%{duration: integer}`
-    - Metadata: same as `:start` plus `%{status: :ok | :error, assistant_message: Condukt.Message.t() | nil, usage: map | nil, finish_reason: atom | nil, error: term | nil}`
+    - Metadata: same as `:start` plus `%{status: :ok | :error, usage: map | nil, finish_reason: atom | nil, error: atom | nil}`
 
   - `[:condukt, :llm_turn, :exception]` - LLM call raised an exception
     - Measurements: `%{duration: integer}`
-    - Metadata: same as `:start` plus `%{kind: atom, reason: term, stacktrace: list}`
-
-  `:messages` is the conversation context handed to the model for this
-  turn. `:assistant_message` is the model's response, including any
-  tool calls it issued. Together they let downstream consumers persist
-  a complete transcript of an agentic run.
+    - Metadata: same as `:start` plus `%{kind: atom, error: atom}`
 
   ### Tool Events
 
   - `[:condukt, :tool_call, :start]` - Tool call started
     - Measurements: `%{system_time: integer}`
-    - Metadata: `%{tool: string, tool_call_id: string, args: map, agent: module, session_id: String.t()}`
+    - Metadata: `%{tool: string, tool_call_id: string, agent: module, session_id: String.t()}`
 
   - `[:condukt, :tool_call, :stop]` - Tool call completed
     - Measurements: `%{duration: integer}`
-    - Metadata: `%{tool: string, tool_call_id: string, args: map, agent: module, session_id: String.t(), status: :ok | :error, result: term}`
+    - Metadata: `%{tool: string, tool_call_id: string, agent: module, session_id: String.t(), status: :ok | :error}`
 
   - `[:condukt, :tool_call, :exception]` - Tool call raised an exception
     - Measurements: `%{duration: integer}`
-    - Metadata: `%{tool: string, tool_call_id: string, args: map, agent: module, session_id: String.t(), kind: atom, reason: term, stacktrace: list}`
-
-  `:args` is the parsed argument map the model passed to the tool. `:result`
-  on `:stop` is the tool's return value after session-secret redaction; on
-  errors it is the `{:error, reason}` tuple. Consumers that ship payloads to
-  external systems should size-limit or sample these fields themselves.
+    - Metadata: `%{tool: string, tool_call_id: string, agent: module, session_id: String.t(), kind: atom, error: atom}`
 
   ### Sub-agent Events
 
@@ -192,8 +182,7 @@ defmodule Condukt.Telemetry do
           %{duration: System.monotonic_time() - start_time},
           Map.merge(metadata, %{
             kind: kind,
-            reason: reason,
-            stacktrace: __STACKTRACE__
+            error: error_name(reason)
           })
         )
 
@@ -213,4 +202,13 @@ defmodule Condukt.Telemetry do
   def emit(event, measurements, metadata) when is_list(event) do
     :telemetry.execute([:condukt | event], measurements, metadata)
   end
+
+  @doc false
+  def error_name(%ReqLLM.Error.API.Request{}), do: :provider_request
+  def error_name(%ReqLLM.Error.API.Response{}), do: :provider_response
+  def error_name(%ReqLLM.Error.API.Stream{}), do: :provider_stream
+  def error_name({:invalid_input, _error}), do: :invalid_input
+  def error_name({:invalid_output, _error}), do: :invalid_output
+  def error_name(reason) when is_atom(reason), do: reason
+  def error_name(_reason), do: :error
 end

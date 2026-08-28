@@ -119,16 +119,20 @@ defmodule Condukt.Session.Translate do
   @doc """
   Builds the provider options for one call.
 
-  `config` carries `:api_key`, `:base_url`, `:thinking_level`, and
-  `:max_tokens`; each is omitted when unset so a provider's own default applies.
+  `config` carries `:api_key`, `:base_url`, `:thinking_level`, `:max_tokens`,
+  and optional `:request_options`; each configured value is omitted when unset
+  so a provider's own default applies. `trace_headers` are merged into the
+  caller's Req options, including existing request headers.
   """
-  def llm_opts(config, tools) do
-    []
+  def llm_opts(config, tools, trace_headers \\ []) do
+    config
+    |> Keyword.get(:request_options, [])
     |> put_present(:api_key, config[:api_key])
     |> put_present(:base_url, config[:base_url])
     |> put_present(:max_tokens, config[:max_tokens])
     |> put_tools(tools)
     |> put_reasoning(config[:thinking_level])
+    |> merge_trace_headers(trace_headers)
   end
 
   defp put_present(opts, _key, nil), do: opts
@@ -144,6 +148,76 @@ defmodule Condukt.Session.Translate do
   end
 
   defp put_reasoning(opts, _level), do: opts
+
+  defp merge_trace_headers(opts, []), do: opts
+
+  defp merge_trace_headers(opts, trace_headers) do
+    http_opts = Keyword.get(opts, :req_http_options, [])
+    headers = merge_headers(Keyword.get(http_opts, :headers, []), trace_headers)
+
+    opts
+    |> Keyword.put(:req_http_options, Keyword.put(http_opts, :headers, headers))
+  end
+
+  defp merge_headers(headers, trace_headers) do
+    trace_headers
+    |> Enum.reduce(normalize_headers(headers), fn {name, value}, acc ->
+      case String.downcase(name) do
+        "baggage" -> put_header(acc, name, merge_baggage(header_value(acc, name), value))
+        _ -> put_header(acc, name, value)
+      end
+    end)
+  end
+
+  defp normalize_headers(headers) when is_map(headers) do
+    Enum.map(headers, fn {name, value} -> {to_string(name), to_string(value)} end)
+  end
+
+  defp normalize_headers(headers) when is_list(headers) do
+    Enum.flat_map(headers, fn
+      {name, value} when is_binary(value) -> [{to_string(name), value}]
+      {name, value} -> [{to_string(name), to_string(value)}]
+      _ -> []
+    end)
+  end
+
+  defp normalize_headers(_headers), do: []
+
+  defp put_header(headers, name, value) do
+    [{name, value} | Enum.reject(headers, &(String.downcase(elem(&1, 0)) == String.downcase(name)))]
+  end
+
+  defp header_value(headers, wanted) do
+    Enum.find_value(headers, fn {name, value} -> if String.downcase(name) == String.downcase(wanted), do: value end)
+  end
+
+  defp merge_baggage(nil, trace_baggage), do: trace_baggage
+  defp merge_baggage("", trace_baggage), do: trace_baggage
+
+  defp merge_baggage(user_baggage, trace_baggage) do
+    user_baggage
+    |> without_baggage_key("condukt.session.id")
+    |> case do
+      "" -> trace_baggage
+      baggage -> baggage <> "," <> trace_baggage
+    end
+  end
+
+  defp without_baggage_key(baggage, key) do
+    baggage
+    |> String.split(",", trim: true)
+    |> Enum.reject(fn item ->
+      item
+      |> String.split(";", parts: 2)
+      |> hd()
+      |> String.split("=", parts: 2)
+      |> hd()
+      |> String.trim()
+      |> String.downcase()
+      |> Kernel.==(key)
+    end)
+    |> Enum.join(",")
+  end
 
   @doc """
   Normalizes a JSON Schema so its keys are strings.

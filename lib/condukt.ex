@@ -225,6 +225,11 @@ defmodule Condukt do
       - `:api_key` - API key for the LLM provider
       - `:model` - Override the default model (format: "provider:model")
       - `:base_url` - Override the provider's default base URL
+      - `:llm_request_options` - Additional ReqLLM request options merged into
+        every native provider call. Use
+        `req_http_options: [headers: [{"x-tenant", "acme"}]]` for trusted
+        gateway headers; Condukt preserves them while adding optional trace
+        propagation headers.
       - `:system_prompt` - System prompt for the agent
       - `:load_project_instructions` - Auto-load `AGENTS.md`, `CLAUDE.md`, and local skills from the project root (default: `true`)
       - `:thinking_level` - Override the thinking level
@@ -325,6 +330,9 @@ defmodule Condukt do
   - `:timeout` - Max time in ms (default: 300_000)
   - `:max_turns` - Max tool use cycles (default: 50)
   - `:images` - List of images to include
+  - `:trace_context` - A `Condukt.TraceContext`, `true` to create one when the
+    caller has none, or `false` to disable propagation for this run. When
+    omitted, Condukt captures `Condukt.TraceContext.current/0`.
 
   ## Anonymous run (no agent module)
 
@@ -399,7 +407,7 @@ defmodule Condukt do
   Anonymous and module-defined one-shot runs accept all the per-run options above (`:timeout`,
   `:max_turns`, `:images`) plus the session options accepted by an agent's
   `start_link/1` (`:model`, `:system_prompt`, `:api_key`, `:base_url`,
-  `:thinking_level`, `:max_tokens`, `:tools`, `:sandbox`, `:cwd`, `:session_store`,
+  `:llm_request_options`, `:thinking_level`, `:max_tokens`, `:tools`, `:sandbox`, `:cwd`, `:session_store`,
   `:session_store_key`, `:session_store_opts`, `:subagents`, `:compactor`,
   `:redactor`, `:load_project_instructions`).
   `:load_project_instructions` defaults to `false` for anonymous runs and to

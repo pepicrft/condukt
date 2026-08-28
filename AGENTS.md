@@ -129,6 +129,12 @@
   seam for delivering them anywhere else, and `Condukt.Notifiers.PubSub` is the
   implementation for many viewers or more than one node. Subscribers are
   monitored, so a viewer that crashes is dropped rather than accumulating.
+- Native ReqLLM calls accept `:llm_request_options`; optional World Wide Web
+  Consortium Trace Context is captured at each public run or stream boundary,
+  then forwarded through tasks, tools, and sub-agents without requiring an
+  OpenTelemetry exporter. The generated request headers are provider-neutral:
+  `traceparent`, optional `tracestate`, and `baggage`; the opaque
+  `condukt.session.id` baggage value provides session grouping metadata.
 
 ## Running the loop without a virtual machine
 

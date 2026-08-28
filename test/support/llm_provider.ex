@@ -14,6 +14,10 @@ defmodule Condukt.Test.LLMProvider do
   @impl true
   def prepare_request(:chat, model, context, opts) do
     case take_response(model.id) do
+      {:ok, owner, {:error, reason}} ->
+        send(owner, {__MODULE__, :request, model.id, context, opts})
+        {:error, reason}
+
       {:ok, owner, response} ->
         send(owner, {__MODULE__, :request, model.id, context, opts})
 
@@ -33,6 +37,12 @@ defmodule Condukt.Test.LLMProvider do
 
   def prepare_request(operation, _model, _context, _opts) do
     {:error, RuntimeError.exception("unexpected test provider operation: #{inspect(operation)}")}
+  end
+
+  @impl true
+  def attach_stream(model, context, opts, _finch_name) do
+    send(owner(model.id), {__MODULE__, :stream_request, model.id, context, opts})
+    {:error, RuntimeError.exception("test provider does not stream")}
   end
 
   def model(responses, opts \\ []) do
@@ -104,6 +114,15 @@ defmodule Condukt.Test.LLMProvider do
 
         :error ->
           {{:error, "no scripted ReqLLM responses for #{inspect(model_id)}"}, scripts}
+      end
+    end)
+  end
+
+  defp owner(model_id) do
+    Agent.get(@store, fn scripts ->
+      case Map.fetch(scripts, model_id) do
+        {:ok, {owner, _responses}} -> owner
+        :error -> self()
       end
     end)
   end
