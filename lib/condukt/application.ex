@@ -16,8 +16,6 @@ defmodule Condukt.Application do
 
   @impl true
   def start(_type, _args) do
-    register_providers()
-
     children =
       [Condukt.SessionStore.Memory.Table] ++
         Condukt.Sessions.child_specs() ++
@@ -27,9 +25,5 @@ defmodule Condukt.Application do
         ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Condukt.Supervisor)
-  end
-
-  defp register_providers do
-    ReqLLM.Providers.register(Condukt.Providers.Ollama)
   end
 end

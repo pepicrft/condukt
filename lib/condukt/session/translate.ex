@@ -126,7 +126,8 @@ defmodule Condukt.Session.Translate do
   """
   def llm_opts(config, tools, trace_headers \\ []) do
     config
-    |> Keyword.get(:request_options, [])
+    |> Keyword.get(:request_options)
+    |> Kernel.||([])
     |> put_present(:api_key, config[:api_key])
     |> put_present(:base_url, config[:base_url])
     |> put_present(:max_tokens, config[:max_tokens])
@@ -169,19 +170,25 @@ defmodule Condukt.Session.Translate do
     end)
   end
 
-  defp normalize_headers(headers) when is_map(headers) do
-    Enum.map(headers, fn {name, value} -> {to_string(name), to_string(value)} end)
-  end
+  defp normalize_headers(headers) when is_map(headers), do: normalize_headers(Map.to_list(headers))
 
   defp normalize_headers(headers) when is_list(headers) do
-    Enum.flat_map(headers, fn
-      {name, value} when is_binary(value) -> [{to_string(name), value}]
-      {name, value} -> [{to_string(name), to_string(value)}]
-      _ -> []
-    end)
+    Enum.flat_map(headers, &normalize_header/1)
   end
 
   defp normalize_headers(_headers), do: []
+
+  defp normalize_header({name, values}) when is_list(values) do
+    if Enum.all?(values, &is_binary/1) do
+      Enum.map(values, &{to_string(name), &1})
+    else
+      [{to_string(name), to_string(values)}]
+    end
+  end
+
+  defp normalize_header({name, value}) when is_binary(value), do: [{to_string(name), value}]
+  defp normalize_header({name, value}), do: [{to_string(name), to_string(value)}]
+  defp normalize_header(_header), do: []
 
   defp put_header(headers, name, value) do
     [{name, value} | Enum.reject(headers, &(String.downcase(elem(&1, 0)) == String.downcase(name)))]
@@ -195,28 +202,47 @@ defmodule Condukt.Session.Translate do
   defp merge_baggage("", trace_baggage), do: trace_baggage
 
   defp merge_baggage(user_baggage, trace_baggage) do
-    user_baggage
-    |> without_baggage_key("condukt.session.id")
+    user_baggage = without_baggage_key(user_baggage, "condukt.session.id")
+
+    trace_baggage
+    |> without_baggage_keys(baggage_keys(user_baggage))
     |> case do
-      "" -> trace_baggage
-      baggage -> baggage <> "," <> trace_baggage
+      "" -> user_baggage
+      nil -> user_baggage
+      baggage when user_baggage == "" -> baggage
+      baggage -> user_baggage <> "," <> baggage
     end
   end
 
   defp without_baggage_key(baggage, key) do
+    without_baggage_keys(baggage, [key])
+  end
+
+  defp without_baggage_keys(nil, _keys), do: nil
+
+  defp without_baggage_keys(baggage, keys) do
     baggage
     |> String.split(",", trim: true)
-    |> Enum.reject(fn item ->
-      item
-      |> String.split(";", parts: 2)
-      |> hd()
-      |> String.split("=", parts: 2)
-      |> hd()
-      |> String.trim()
-      |> String.downcase()
-      |> Kernel.==(key)
-    end)
+    |> Enum.reject(&(baggage_key(&1) in keys))
     |> Enum.join(",")
+  end
+
+  defp baggage_keys(nil), do: []
+
+  defp baggage_keys(baggage) do
+    baggage
+    |> String.split(",", trim: true)
+    |> Enum.map(&baggage_key/1)
+  end
+
+  defp baggage_key(item) do
+    item
+    |> String.split(";", parts: 2)
+    |> hd()
+    |> String.split("=", parts: 2)
+    |> hd()
+    |> String.trim()
+    |> String.downcase()
   end
 
   @doc """

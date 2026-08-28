@@ -47,9 +47,9 @@ MyApp.LocalAgent.start_link(
 
 ## Local models with Ollama
 
-Condukt ships with `Condukt.Providers.Ollama` for running prompts against a
-local [Ollama](https://ollama.ai) server. This is convenient for
-development, evaluation, or offline use:
+[ReqLLM](https://github.com/agentjido/req_llm) supports running prompts against
+a local [Ollama](https://ollama.com) server. This is convenient for development,
+evaluation, or offline use:
 
 ```elixir
 MyApp.LocalAgent.start_link(

@@ -38,7 +38,7 @@ defmodule Condukt.MixProject do
   defp deps do
     [
       # LLM client (supports Anthropic, OpenAI, Google, and 15+ more providers)
-      {:req_llm, "~> 1.9"},
+      {:req_llm, "~> 1.21"},
 
       # JSON Schema validation for operation input/output
       {:jsv, "~> 0.16"},

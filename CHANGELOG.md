@@ -10,7 +10,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changes
 
-- require ReqLLM 1.9.0 or later so streaming OpenAI-compatible calls forward custom request headers
+- require ReqLLM 1.21.0 or later so streaming OpenAI-compatible calls forward custom request headers
 
 ## [1.12.0] - 2026-08-27
 

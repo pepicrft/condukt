@@ -28,6 +28,25 @@ defmodule Condukt.TraceContextTest do
     assert extracted == context()
   end
 
+  test "accepts unsampled and forward-compatible trace headers" do
+    trace_id = "0123456789abcdef0123456789abcdef"
+    span_id = "0123456789abcdef"
+
+    assert %TraceContext{flags: "00"} = TraceContext.new(trace_id: trace_id, span_id: span_id, flags: "00")
+
+    assert {:ok, %TraceContext{trace_id: ^trace_id, span_id: ^span_id, flags: "00"}} =
+             TraceContext.from_headers([{"traceparent", "00-#{trace_id}-#{span_id}-00"}])
+
+    assert {:ok, %TraceContext{trace_id: ^trace_id, span_id: ^span_id, flags: "00"}} =
+             TraceContext.from_headers([{"traceparent", "01-#{trace_id}-#{span_id}-00-extra"}])
+  end
+
+  test "rejects invalid trace context options" do
+    assert_raise ArgumentError, ~r/trace_context must be/, fn ->
+      TraceContext.capture(trace_context: :invalid)
+    end
+  end
+
   test "injects trace context, session grouping, and caller headers into normal requests" do
     {model, model_id} = LLMProvider.model([LLMProvider.text_response("done")])
 
@@ -42,7 +61,7 @@ defmodule Condukt.TraceContextTest do
         load_project_instructions: false
       )
 
-    trace_context = context()
+    trace_context = %{context() | baggage: "upstream=value,tenant=from-context"}
 
     assert {:ok, "done"} = Condukt.run(agent, "go", trace_context: trace_context)
 
@@ -59,6 +78,83 @@ defmodule Condukt.TraceContextTest do
     assert span_id != trace_context.span_id
 
     GenServer.stop(agent)
+  end
+
+  test "propagates trace context through both one-shot call shapes" do
+    {module_model, module_model_id} = LLMProvider.model([LLMProvider.text_response("module done")])
+
+    assert {:ok, "module done"} =
+             Condukt.run(Agent, "go",
+               id: "module-session",
+               model: module_model,
+               trace_context: context(),
+               load_project_instructions: false
+             )
+
+    assert_receive {LLMProvider, :request, ^module_model_id, _context, module_opts}
+    assert header(headers(module_opts), "baggage") =~ "condukt.session.id=module-session"
+
+    {anonymous_model, anonymous_model_id} = LLMProvider.model([LLMProvider.text_response("anonymous done")])
+
+    assert {:ok, "anonymous done"} =
+             Condukt.run("go",
+               id: "anonymous-session",
+               model: anonymous_model,
+               trace_context: context(),
+               load_project_instructions: false
+             )
+
+    assert_receive {LLMProvider, :request, ^anonymous_model_id, _context, anonymous_opts}
+    assert header(headers(anonymous_opts), "baggage") =~ "condukt.session.id=anonymous-session"
+  end
+
+  test "allows one-shot runs to disable a calling process trace context" do
+    {model, model_id} = LLMProvider.model([LLMProvider.text_response("done")])
+
+    TraceContext.put_current(context())
+    on_exit(&TraceContext.clear_current/0)
+
+    assert {:ok, "done"} =
+             Condukt.run("go",
+               model: model,
+               trace_context: false,
+               load_project_instructions: false
+             )
+
+    assert_receive {LLMProvider, :request, ^model_id, _context, opts}
+    refute opts[:req_http_options]
+  end
+
+  test "handles nil request options and preserves multi-value headers" do
+    {nil_model, nil_model_id} = LLMProvider.model([LLMProvider.text_response("nil options done")])
+
+    {:ok, nil_options_agent} =
+      Agent.start_link(
+        model: nil_model,
+        llm_request_options: nil,
+        load_project_instructions: false
+      )
+
+    assert {:ok, "nil options done"} = Condukt.run(nil_options_agent, "go", trace_context: context())
+    assert_receive {LLMProvider, :request, ^nil_model_id, _context, nil_opts}
+    assert header(headers(nil_opts), "traceparent")
+
+    GenServer.stop(nil_options_agent)
+
+    {headers_model, headers_model_id} = LLMProvider.model([LLMProvider.text_response("headers done")])
+
+    {:ok, headers_agent} =
+      Agent.start_link(
+        model: headers_model,
+        llm_request_options: [req_http_options: [headers: %{"x-label" => ["one", "two"]}]],
+        load_project_instructions: false
+      )
+
+    assert {:ok, "headers done"} = Condukt.run(headers_agent, "go", trace_context: context())
+    assert_receive {LLMProvider, :request, ^headers_model_id, _context, request_opts}
+    assert [{"x-label", "one"}, {"x-label", "two"}] == Enum.filter(headers(request_opts), &(elem(&1, 0) == "x-label"))
+
+    GenServer.stop(headers_agent)
   end
 
   test "captures the calling process context across the session task and gives retries distinct child spans" do

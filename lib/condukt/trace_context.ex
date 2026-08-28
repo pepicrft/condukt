@@ -45,7 +45,8 @@ defmodule Condukt.TraceContext do
         baggage: present_string(Keyword.get(opts, :baggage))
       }
     else
-      raise ArgumentError, "trace context ids must be non-zero lowercase or uppercase hexadecimal strings"
+      raise ArgumentError,
+            "trace IDs and span IDs must be non-zero hexadecimal strings; trace flags must be hexadecimal"
     end
   end
 
@@ -74,6 +75,32 @@ defmodule Condukt.TraceContext do
   end
 
   @doc """
+  Binds the current OpenTelemetry trace to the calling process.
+
+  This is an optional integration point. It dynamically invokes the
+  OpenTelemetry text-map propagator, so using Condukt does not require an
+  OpenTelemetry dependency. When the application has no active OpenTelemetry
+  trace, it clears any Condukt trace context and returns `nil`.
+
+      Condukt.TraceContext.put_current_from_otel!()
+  """
+  def put_current_from_otel! do
+    headers = current_otel_headers!()
+
+    case from_headers(headers) do
+      {:ok, context} ->
+        put_current(context)
+
+      {:error, :missing_traceparent} ->
+        clear_current()
+        nil
+
+      {:error, :invalid_traceparent} ->
+        raise ArgumentError, "OpenTelemetry returned an invalid traceparent header"
+    end
+  end
+
+  @doc """
   Returns a fresh child context for one outbound operation.
   """
   def child(nil), do: nil
@@ -92,11 +119,24 @@ defmodule Condukt.TraceContext do
   """
   def capture(opts) when is_list(opts) do
     case Keyword.get(opts, :trace_context, :current) do
-      :current -> current()
-      true -> current() || new()
-      false -> nil
-      nil -> nil
-      %__MODULE__{} = context -> context
+      :current ->
+        current()
+
+      true ->
+        current() || new()
+
+      false ->
+        nil
+
+      nil ->
+        nil
+
+      %__MODULE__{} = context ->
+        context
+
+      _ ->
+        raise ArgumentError,
+              "trace_context must be true, false, nil, or a Condukt.TraceContext"
     end
   end
 
@@ -184,13 +224,12 @@ defmodule Condukt.TraceContext do
   end
 
   defp parse_traceparent(traceparent) when is_binary(traceparent) do
-    case String.split(traceparent, "-", parts: 4) do
-      ["00", trace_id, span_id, flags] ->
-        if valid_trace_id?(trace_id) and valid_span_id?(span_id) and valid_flags?(flags) do
-          {:ok, String.downcase(trace_id), String.downcase(span_id), String.downcase(flags)}
-        else
-          {:error, :invalid_traceparent}
-        end
+    case String.split(traceparent, "-") do
+      [version, trace_id, span_id, flags] ->
+        parse_traceparent_fields(version, trace_id, span_id, flags)
+
+      [version, trace_id, span_id, flags | _extra] when version != "00" ->
+        parse_traceparent_fields(version, trace_id, span_id, flags)
 
       _ ->
         {:error, :invalid_traceparent}
@@ -214,13 +253,34 @@ defmodule Condukt.TraceContext do
 
   defp valid_trace_id?(value), do: valid_hex?(value, 32)
   defp valid_span_id?(value), do: valid_hex?(value, 16)
-  defp valid_flags?(value), do: valid_hex?(value, 2)
+  defp valid_flags?(value), do: valid_hex_value?(value, 2)
+  defp valid_version?(value), do: valid_hex_value?(value, 2) and String.downcase(value) != "ff"
 
-  defp valid_hex?(value, length) when is_binary(value) and byte_size(value) == length do
-    value != String.duplicate("0", length) and String.match?(value, ~r/\A[[:xdigit:]]+\z/)
+  defp valid_hex?(value, length), do: valid_hex_value?(value, length) and value != String.duplicate("0", length)
+
+  defp valid_hex_value?(value, length) when is_binary(value) and byte_size(value) == length,
+    do: String.match?(value, ~r/\A[[:xdigit:]]+\z/)
+
+  defp valid_hex_value?(_value, _length), do: false
+
+  defp parse_traceparent_fields(version, trace_id, span_id, flags) do
+    if valid_version?(version) and valid_trace_id?(trace_id) and valid_span_id?(span_id) and valid_flags?(flags) do
+      {:ok, String.downcase(trace_id), String.downcase(span_id), String.downcase(flags)}
+    else
+      {:error, :invalid_traceparent}
+    end
   end
 
-  defp valid_hex?(_value, _length), do: false
+  defp current_otel_headers! do
+    case Code.ensure_loaded(:otel_propagator_text_map) do
+      {:module, _module} ->
+        apply(:otel_propagator_text_map, :inject, [[]])
+
+      {:error, _reason} ->
+        raise ArgumentError,
+              "put_current_from_otel!/0 requires the OpenTelemetry API application"
+    end
+  end
 
   defp random_hex(bytes), do: bytes |> :crypto.strong_rand_bytes() |> Base.encode16(case: :lower)
   defp present_string(value) when is_binary(value) and value != "", do: value

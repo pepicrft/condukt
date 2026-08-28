@@ -31,8 +31,9 @@ new events surface in your handlers without code changes.
 
 Every iteration of the agent loop emits a `[:condukt, :llm_turn, :start]`
 and a `[:condukt, :llm_turn, :stop]`. The start event includes the conversation
-context, and the stop event includes the model response. Tool events include
-arguments and results after session-secret redaction.
+context in `:messages`, and the stop event includes the model response in
+`:assistant_message`. Tool events include the model-supplied `:args`,
+`:tool_call_id`, `:status`, and `:result` after session-secret redaction.
 
 `:turn` starts at 0 and increments by one per loop iteration.
 `:streaming?` is `true` when the call went through `ReqLLM.stream_text`,
@@ -59,6 +60,26 @@ Condukt.run(MyApp.Agent, "Summarize this report.",
 )
 ```
 
+For an inbound request, extract the headers at the request boundary and bind
+the result before calling Condukt:
+
+```elixir
+with {:ok, context} <- Condukt.TraceContext.from_headers(conn.req_headers) do
+  Condukt.TraceContext.put_current(context)
+end
+```
+
+Applications that already use the [OpenTelemetry](https://opentelemetry.io/)
+Elixir API can bind its current trace in one line instead:
+
+```elixir
+Condukt.TraceContext.put_current_from_otel!()
+```
+
+The bridge dynamically uses OpenTelemetry's configured text-map propagator to
+read the current trace and baggage, so Condukt does not add OpenTelemetry as a
+dependency. Call it at the request or job boundary before `Condukt.run/2`.
+
 Native provider requests receive `traceparent`, optional `tracestate`, and
 `baggage`. Condukt adds its opaque `condukt.session.id` baggage value. This makes a gateway able to attribute each
 request to both a distributed trace and its Condukt session without coupling
@@ -78,7 +99,7 @@ MyApp.Agent.start_link(
 )
 ```
 
-ReqLLM 1.9.0 and later forwards these request headers for both ordinary and
+ReqLLM 1.21.0 and later forwards these request headers for both ordinary and
 streaming OpenAI-compatible calls.
 
 ## Session ids
